@@ -99,6 +99,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             if (path.equals("/api/classes/join") && "POST".equals(method)) {
                 return false; // Học sinh được phép tham gia lớp bằng mã
             }
+            if (path.matches("^/api/classes/\\d+/students/\\d+$") && "DELETE".equals(method)) {
+                return false; // Cho phép học sinh tự rời lớp (EnrollmentController sẽ xác thực callerId == studentId)
+            }
             if (path.equals("/api/classes/all-students") && "GET".equals(method)) {
                 return true; // Chỉ giáo viên được xem danh sách toàn bộ học sinh
             }

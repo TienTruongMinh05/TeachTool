@@ -262,10 +262,15 @@ public class ClassRoomService {
         classTeacherRepository.deleteByClassRoomIdAndTeacherId(classId, targetTeacherId);
     }
 
-    public List<com.edumanager.api.dto.TimetableSessionDTO> getTimetable(Long classId) {
-        List<ClassRoom> classes = (classId != null)
-                ? repository.findById(classId).map(List::of).orElse(java.util.Collections.emptyList())
-                : repository.findAll();
+    public List<com.edumanager.api.dto.TimetableSessionDTO> getTimetable(Long classId, Long callerId, String callerRole) {
+        List<ClassRoom> classes;
+        if (classId != null) {
+            classes = repository.findById(classId).map(List::of).orElse(java.util.Collections.emptyList());
+        } else if ("TEACHER".equalsIgnoreCase(callerRole) && callerId != null) {
+            classes = getClassesByTeacher(callerId);
+        } else {
+            classes = repository.findAll();
+        }
 
         List<com.edumanager.api.dto.TimetableSessionDTO> result = new java.util.ArrayList<>();
 

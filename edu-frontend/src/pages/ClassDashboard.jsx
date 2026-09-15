@@ -10,7 +10,7 @@ import AllStudentsList from '../Components/AllStudentsList';
 import UserGuide from '../Components/UserGuide';
 import TimetableGrid from '../Components/TimetableGrid';
 import ClassList from './ClassList';
-import ChangePasswordModal from '../Components/ChangePasswordModal';
+import AccountSettingsModal from '../Components/AccountSettingsModal';
 import TeacherManager from '../Components/TeacherManager';
 import { useAuth } from '../context/AuthContext';
 
@@ -18,7 +18,8 @@ export default function ClassDashboard({ initialView }) {
   const { id } = useParams(); // Lấy ID lớp nếu có trong URL (/class/:id)
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   
   // State quản lý view hiện tại:
   // 'classes' (Trang chủ danh sách lớp)
@@ -55,8 +56,6 @@ export default function ClassDashboard({ initialView }) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({ name: '', startDate: '', endDate: '' });
 
-  // Modal Đổi mật khẩu
-  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const fetchTimetable = useCallback(async (classId = null) => {
     try {
@@ -548,7 +547,7 @@ export default function ClassDashboard({ initialView }) {
           </div>
         </div>
 
-        {/* FOOTER CỦA SIDEBAR: THÔNG TIN GIÁO VIÊN & ĐỔI MẬT KHẨU / ĐĂNG XUẤT */}
+        {/* FOOTER CỦA SIDEBAR: THÔNG TIN GIÁO VIÊN & CÀI ĐẶT / ĐĂNG XUẤT */}
         <div className="p-3.5 bg-slate-900 border-t border-slate-700/80 space-y-2">
           <div className="truncate">
             <div className="text-xs font-bold text-white truncate">{user?.fullName || 'Giáo viên'}</div>
@@ -556,13 +555,13 @@ export default function ClassDashboard({ initialView }) {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsChangePasswordOpen(true)}
-              className="flex-1 px-2 py-1 text-[11px] text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 cursor-pointer transition text-center">
-              Đổi mật khẩu
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="flex-1 px-2 py-1.5 text-xs text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 cursor-pointer transition text-center">
+              Cài đặt
             </button>
             <button
               onClick={logout}
-              className="flex-1 px-2 py-1 text-[11px] text-red-400 hover:text-red-300 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 cursor-pointer transition text-center">
+              className="flex-1 px-2 py-1.5 text-xs text-rose-400 hover:text-rose-300 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 cursor-pointer transition text-center">
               Đăng xuất
             </button>
           </div>
@@ -631,10 +630,15 @@ export default function ClassDashboard({ initialView }) {
           </div>
         </div>
       )}
-      {/* MODAL ĐỔI MẬT KHẨU */}
-      <ChangePasswordModal
-        isOpen={isChangePasswordOpen}
-        onClose={() => setIsChangePasswordOpen(false)}
+      {/* MODAL CÀI ĐẶT TÀI KHOẢN TOÀN DIỆN */}
+      <AccountSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        user={user}
+        onUserUpdated={(updated) => {
+          if (updateUser) updateUser(updated);
+        }}
+        onLogout={logout}
       />
     </div>
   );

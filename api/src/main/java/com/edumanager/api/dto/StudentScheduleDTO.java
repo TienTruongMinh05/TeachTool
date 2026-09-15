@@ -16,6 +16,8 @@ public record StudentScheduleDTO(
     List<TeachingPlanSectionDTO> sections,
     List<AssignmentResponseDTO> assignments,
     String attendanceStatus,
-    String attendanceNote
+    String attendanceNote,
+    String homeworkStatus,
+    String homeworkScore
 ) {
 }

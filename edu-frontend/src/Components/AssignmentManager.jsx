@@ -26,6 +26,7 @@ export default function AssignmentManager({ classId }) {
     allowDocx: true,
     allowAudio: true,
     allowRecording: true,
+    allowImage: true,
     attachmentFileName: '',
     attachmentFileUrl: ''
   });
@@ -91,6 +92,7 @@ export default function AssignmentManager({ classId }) {
       allowDocx: true,
       allowAudio: true,
       allowRecording: true,
+      allowImage: true,
       attachmentFileName: '',
       attachmentFileUrl: ''
     });
@@ -109,6 +111,7 @@ export default function AssignmentManager({ classId }) {
       allowDocx: types.includes('DOCX'),
       allowAudio: types.includes('AUDIO'),
       allowRecording: types.includes('DIRECT_RECORD'),
+      allowImage: types.includes('IMAGE'),
       attachmentFileName: assignment.attachmentFileName || '',
       attachmentFileUrl: assignment.attachmentFileUrl || ''
     });
@@ -141,6 +144,7 @@ export default function AssignmentManager({ classId }) {
       if (formData.allowDocx) allowedTypes.push('DOCX');
       if (formData.allowAudio) allowedTypes.push('AUDIO');
       if (formData.allowRecording) allowedTypes.push('DIRECT_RECORD');
+      if (formData.allowImage) allowedTypes.push('IMAGE');
 
       const payload = {
         title: formData.title,
@@ -556,6 +560,37 @@ export default function AssignmentManager({ classId }) {
                     )}
                   </div>
                 )}
+
+                {/* Nếu nộp Ảnh chụp hoặc Hình ảnh */}
+                {selectedSubmissionToGrade.submissionType === 'IMAGE' && (
+                  <div className="p-4 bg-white border border-gray-200 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-semibold text-gray-800">
+                        {selectedSubmissionToGrade.fileName || 'Hình ảnh / Bản chụp bài làm'}
+                      </div>
+                      {selectedSubmissionToGrade.fileUrl && (
+                        <a
+                          href={selectedSubmissionToGrade.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100">
+                          Mở ảnh gốc ↗
+                        </a>
+                      )}
+                    </div>
+                    {selectedSubmissionToGrade.fileUrl ? (
+                      <div className="max-h-96 overflow-auto border border-gray-100 rounded-lg bg-slate-100 flex items-center justify-center p-2">
+                        <img
+                          src={selectedSubmissionToGrade.fileUrl}
+                          alt="Bài làm học sinh"
+                          className="max-h-80 max-w-full object-contain rounded shadow-xs"
+                        />
+                      </div>
+                    ) : (
+                      <p className="text-xs text-red-500">Không tìm thấy đường dẫn ảnh.</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Form chấm điểm & Viết feedback */}
@@ -728,6 +763,14 @@ export default function AssignmentManager({ classId }) {
                       onChange={(e) => setFormData({ ...formData, allowRecording: e.target.checked })}
                     />
                     Ghi âm trực tiếp trên web
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer col-span-2 sm:col-span-1">
+                    <input
+                      type="checkbox"
+                      checked={formData.allowImage}
+                      onChange={(e) => setFormData({ ...formData, allowImage: e.target.checked })}
+                    />
+                    Hình ảnh / Chụp ảnh (IMAGE)
                   </label>
                 </div>
               </div>

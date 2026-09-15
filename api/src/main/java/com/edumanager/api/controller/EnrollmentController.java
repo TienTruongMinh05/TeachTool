@@ -93,13 +93,18 @@ public class EnrollmentController {
             @PathVariable Long studentId,
             HttpServletRequest servletRequest) {
         
+        Long callerId = (Long) servletRequest.getAttribute("userId");
         String callerRole = (String) servletRequest.getAttribute("userRole");
-        if (!"TEACHER".equalsIgnoreCase(callerRole)) {
+
+        boolean isTeacher = "TEACHER".equalsIgnoreCase(callerRole);
+        boolean isSelfLeave = "STUDENT".equalsIgnoreCase(callerRole) && callerId != null && callerId.equals(studentId);
+
+        if (!isTeacher && !isSelfLeave) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of("message", "Chỉ có Giáo viên mới được quyền xóa học sinh khỏi lớp."));
+                    .body(Map.of("message", "Bạn không có quyền xóa học sinh hoặc rời khỏi lớp học này."));
         }
 
         service.removeStudentFromClass(classId, studentId);
-        return ResponseEntity.ok(Map.of("message", "Đã xóa học sinh khỏi lớp học."));
+        return ResponseEntity.ok(Map.of("message", isSelfLeave ? "Bạn đã rời khỏi lớp học thành công." : "Đã xóa học sinh khỏi lớp học."));
     }
 }

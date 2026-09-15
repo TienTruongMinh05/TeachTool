@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { studentPortalApi } from '../api/studentPortalApi';
 
 // Color palette for classes (accessible, modern pastel tones)
 const CLASS_COLORS = [
@@ -200,16 +201,11 @@ export default function TimetableGrid({
     setAbsenceError('');
 
     try {
-      const res = await fetch(`http://localhost:8081/api/students/${studentId}/report-absence/${selectedSession.sessionId || selectedSession.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: absenceReason.trim() || 'Học sinh xin phép vắng' })
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || 'Báo vắng không thành công.');
-      }
+      await studentPortalApi.reportAbsence(
+        studentId,
+        selectedSession.sessionId || selectedSession.id,
+        absenceReason.trim() || 'Học sinh xin phép vắng'
+      );
 
       alert('Đã gửi báo vắng thành công!');
       setShowAbsenceModal(false);
@@ -218,7 +214,7 @@ export default function TimetableGrid({
         onReportAbsenceSuccess();
       }
     } catch (err) {
-      setAbsenceError(err.message || 'Có lỗi xảy ra khi gửi báo vắng.');
+      setAbsenceError(err.response?.data?.message || err.message || 'Có lỗi xảy ra khi gửi báo vắng.');
     } finally {
       setIsSubmittingAbsence(false);
     }
@@ -373,17 +369,29 @@ export default function TimetableGrid({
                             </div>
                           </div>
 
-                          {/* Footer: Sĩ số & Attendance status */}
+                          {/* Footer: Sĩ số & Attendance status & Homework status */}
                           <div className="flex items-center justify-between gap-1 text-[11px] pt-1 border-t border-black/5 mt-auto">
                             <span className="font-medium opacity-90">
                               Sĩ số: <strong className="font-bold">{session.studentCount != null ? session.studentCount : '—'}</strong>
                             </span>
 
-                            {hasAbsentReport && (
-                              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-rose-200 text-rose-800 rounded">
-                                Báo vắng
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1 flex-wrap justify-end">
+                              {session.homeworkStatus === 'GRADED' && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-emerald-200 text-emerald-900 rounded" title={`Đã chấm bài tập${session.homeworkScore ? `: ${session.homeworkScore}` : ''}`}>
+                                  ✓ Đã làm bài tập (Đã chấm{session.homeworkScore ? `: ${session.homeworkScore}` : ''})
+                                </span>
+                              )}
+                              {session.homeworkStatus === 'SUBMITTED' && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-200 text-blue-900 rounded" title="Đã nộp bài tập">
+                                  ✓ Đã làm bài tập
+                                </span>
+                              )}
+                              {hasAbsentReport && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-rose-200 text-rose-800 rounded">
+                                  Báo vắng
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
@@ -448,9 +456,53 @@ export default function TimetableGrid({
                 </div>
               </div>
 
+              {/* Student preparation & Sections */}
+              {selectedSession.sections && selectedSession.sections.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-slate-800 text-xs uppercase tracking-wide">
+                    Học phần & Dặn dò chuẩn bị bài:
+                  </h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {selectedSession.sections.map((sec, idx) => (
+                      <div key={sec.id || idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
+                        <div className="flex items-center justify-between font-bold text-slate-800">
+                          <span>Phần {idx + 1}: {sec.content}</span>
+                          <span className="text-[11px] text-slate-500 font-normal">{sec.timeAllocation || `${sec.durationMinutes || 15}p`}</span>
+                        </div>
+                        {sec.studentPreparation && (
+                          <div className="p-2 bg-amber-50 border border-amber-200 rounded text-amber-900 text-xs">
+                            <span className="font-bold block mb-0.5">Dặn dò học sinh chuẩn bị bài:</span>
+                            {sec.studentPreparation}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Student specific section: Preparation & Attendance status */}
               {isStudent && (
                 <>
+                  {selectedSession.homeworkStatus && selectedSession.homeworkStatus !== 'NONE' && (
+                    <div className="p-3 rounded-lg border flex items-center justify-between text-xs bg-slate-50">
+                      <span className="text-slate-600">Trạng thái bài tập:</span>
+                      {selectedSession.homeworkStatus === 'GRADED' ? (
+                        <span className="font-bold px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          ✓ Đã làm bài tập (Đã chấm{selectedSession.homeworkScore ? `: ${selectedSession.homeworkScore}` : ''})
+                        </span>
+                      ) : selectedSession.homeworkStatus === 'SUBMITTED' ? (
+                        <span className="font-bold px-2.5 py-1 rounded bg-blue-100 text-blue-800 border border-blue-300">
+                          ✓ Đã làm bài tập
+                        </span>
+                      ) : (
+                        <span className="font-bold px-2.5 py-1 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                          Chưa làm bài tập
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {selectedSession.attendanceStatus && (
                     <div className="p-3 rounded-lg border flex items-center justify-between text-xs bg-slate-50">
                       <span className="text-slate-600">Trạng thái điểm danh:</span>

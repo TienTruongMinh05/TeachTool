@@ -77,8 +77,11 @@ public class ClassRoomController {
 
     @GetMapping("/timetable")
     public List<com.edumanager.api.dto.TimetableSessionDTO> getTimetable(
-            @RequestParam(required = false) Long classId) {
-        return service.getTimetable(classId);
+            @RequestParam(required = false) Long classId,
+            HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        String callerRole = (String) request.getAttribute("userRole");
+        return service.getTimetable(classId, callerId, callerRole);
     }
 
     @DeleteMapping("/{id}")

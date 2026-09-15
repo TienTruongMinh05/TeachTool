@@ -125,6 +125,14 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const updateUser = (updatedUser) => {
+    setUser((prev) => {
+      const merged = { ...prev, ...updatedUser };
+      localStorage.setItem('currentUser', JSON.stringify(merged));
+      return merged;
+    });
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -136,6 +144,7 @@ export function AuthProvider({ children }) {
       loginWithGoogle,
       selectRole,
       changePassword,
+      updateUser,
       logout,
       deleteAccount
     }}>

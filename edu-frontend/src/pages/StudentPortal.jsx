@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { studentPortalApi } from '../api/studentPortalApi';
 import { assignmentApi } from '../api/assignmentApi';
@@ -6,11 +6,19 @@ import { submissionApi } from '../api/submissionApi';
 import { fileApi } from '../api/fileApi';
 import AudioRecorder from '../Components/AudioRecorder';
 import TimetableGrid from '../Components/TimetableGrid';
-import ChangePasswordModal from '../Components/ChangePasswordModal';
+import AccountSettingsModal from '../Components/AccountSettingsModal';
 
 export default function StudentPortal() {
-  const { user, logout } = useAuth();
-  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const { user, logout, updateUser } = useAuth();
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
+  // Camera capture states
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const cameraStreamRef = useRef(null);
+  const mobileCameraInputRef = useRef(null);
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraError, setCameraError] = useState('');
 
   // State các tab chính: 'schedule' (Thời khóa biểu), 'assignments' (Bài tập & Điểm số), 'classes' (Lớp học)
   const [activeTab, setActiveTab] = useState('schedule');
@@ -89,33 +97,131 @@ export default function StudentPortal() {
     }
   };
 
+  // Đếm số lượng hiển thị trên tab (chỉ tính buổi chưa học, bài chưa nộp)
+  const upcomingSessionsCount = useMemo(() => {
+    const now = new Date();
+    return schedule.filter(s => {
+      const end = s.endTime ? new Date(s.endTime) : (s.startTime ? new Date(s.startTime) : null);
+      return end && end > now;
+    }).length;
+  }, [schedule]);
+
+  const pendingAssignmentsCount = useMemo(() => {
+    return assignments.filter(a => !submissions.some(sub => sub.assignmentId === a.id)).length;
+  }, [assignments, submissions]);
+
   const openSubmitModal = (assignment) => {
     setActiveAssignmentToSubmit(assignment);
     setSubmissionSuccessMsg('');
+    const rawAllowed = (assignment.allowedSubmissionTypes || 'TEXT,DOCX,AUDIO,DIRECT_RECORD,IMAGE')
+      .split(',')
+      .map(s => s.trim().toUpperCase())
+      .filter(Boolean);
+    const allowed = rawAllowed.length > 0 ? rawAllowed : ['TEXT', 'DOCX', 'AUDIO', 'DIRECT_RECORD', 'IMAGE'];
+
     const existing = submissions.find(s => s.assignmentId === assignment.id);
     if (existing) {
-      setSelectedSubmissionMode(existing.submissionType || 'TEXT');
+      setSelectedSubmissionMode(allowed.includes(existing.submissionType) ? existing.submissionType : (allowed[0] || 'TEXT'));
       setSubmissionText(existing.textContent || '');
       setUploadedFileData({
         fileUrl: existing.fileUrl || '',
         fileName: existing.fileName || ''
       });
     } else {
-      const allowed = (assignment.allowedSubmissionTypes || '').split(',');
-      if (allowed.includes('TEXT')) setSelectedSubmissionMode('TEXT');
-      else if (allowed.includes('DOCX')) setSelectedSubmissionMode('DOCX');
-      else if (allowed.includes('AUDIO')) setSelectedSubmissionMode('AUDIO');
-      else if (allowed.includes('DIRECT_RECORD')) setSelectedSubmissionMode('DIRECT_RECORD');
-      else setSelectedSubmissionMode('TEXT');
-
+      setSelectedSubmissionMode(allowed[0] || 'TEXT');
       setSubmissionText('');
       setUploadedFileData({ fileUrl: '', fileName: '' });
     }
   };
 
+  const closeSubmitModal = () => {
+    stopCamera();
+    setActiveAssignmentToSubmit(null);
+    setSubmissionSuccessMsg('');
+  };
+
+  const startCamera = async () => {
+    setCameraError('');
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Trình duyệt không hỗ trợ mở camera trực tiếp.');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false
+      });
+      cameraStreamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setIsCameraActive(true);
+    } catch (err) {
+      setCameraError('Không thể mở camera: ' + (err.message || 'Vui lòng cấp quyền truy cập camera trong trình duyệt'));
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach(t => t.stop());
+      cameraStreamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      try {
+        setUploadingFile(true);
+        const fileName = `chup_anh_bai_nop_${Date.now()}.jpg`;
+        const file = new File([blob], fileName, { type: 'image/jpeg' });
+        const res = await fileApi.upload(file);
+        setUploadedFileData({
+          fileUrl: res.fileUrl,
+          fileName: res.fileName || fileName
+        });
+        stopCamera();
+      } catch (err) {
+        alert('Lỗi tải ảnh chụp lên máy chủ: ' + (err.response?.data?.message || err.message));
+      } finally {
+        setUploadingFile(false);
+      }
+    }, 'image/jpeg', 0.85);
+  };
+
   const handleFileUpload = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    const lowerName = file.name.toLowerCase();
+    if (type === 'DOCX') {
+      if (!lowerName.endsWith('.docx') && !lowerName.endsWith('.doc') && !lowerName.endsWith('.pdf')) {
+        alert('Định dạng tệp không hợp lệ! Vui lòng chỉ tải lên tệp tài liệu (.docx, .doc, .pdf)');
+        e.target.value = '';
+        return;
+      }
+    } else if (type === 'AUDIO') {
+      if (!lowerName.endsWith('.mp3') && !lowerName.endsWith('.wav') && !lowerName.endsWith('.m4a') && !lowerName.endsWith('.webm') && !lowerName.endsWith('.ogg')) {
+        alert('Định dạng tệp không hợp lệ! Vui lòng chỉ tải lên tệp âm thanh (.mp3, .wav, .m4a, .webm)');
+        e.target.value = '';
+        return;
+      }
+    } else if (type === 'IMAGE') {
+      if (!lowerName.endsWith('.jpg') && !lowerName.endsWith('.jpeg') && !lowerName.endsWith('.png') && !lowerName.endsWith('.webp') && !lowerName.endsWith('.gif') && !lowerName.endsWith('.heic')) {
+        alert('Định dạng tệp không hợp lệ! Vui lòng chỉ tải lên tệp hình ảnh (.jpg, .jpeg, .png, .webp)');
+        e.target.value = '';
+        return;
+      }
+    }
+
     try {
       setUploadingFile(true);
       const res = await fileApi.upload(file);
@@ -136,6 +242,17 @@ export default function StudentPortal() {
 
     try {
       setSubmitting(true);
+      const rawAllowed = (activeAssignmentToSubmit.allowedSubmissionTypes || 'TEXT,DOCX,AUDIO,DIRECT_RECORD,IMAGE')
+        .split(',')
+        .map(s => s.trim().toUpperCase())
+        .filter(Boolean);
+      const allowed = rawAllowed.length > 0 ? rawAllowed : ['TEXT', 'DOCX', 'AUDIO', 'DIRECT_RECORD', 'IMAGE'];
+
+      if (!allowed.includes(selectedSubmissionMode)) {
+        alert(`Hình thức nộp '${selectedSubmissionMode}' không được giáo viên cho phép! Các hình thức được phép: ${allowed.join(', ')}`);
+        return;
+      }
+
       const payload = {
         submissionType: selectedSubmissionMode,
         textContent: selectedSubmissionMode === 'TEXT' ? submissionText : null,
@@ -148,7 +265,7 @@ export default function StudentPortal() {
         return;
       }
       if (selectedSubmissionMode !== 'TEXT' && !uploadedFileData.fileUrl) {
-        alert('Vui lòng tải lên hoặc ghi âm tệp bài làm trước khi nộp!');
+        alert('Vui lòng tải lên hoặc chụp ảnh/thu âm tệp bài làm trước khi nộp!');
         return;
       }
 
@@ -156,8 +273,7 @@ export default function StudentPortal() {
       setSubmissionSuccessMsg('Đã nộp bài tập thành công!');
       await loadData();
       setTimeout(() => {
-        setActiveAssignmentToSubmit(null);
-        setSubmissionSuccessMsg('');
+        closeSubmitModal();
       }, 1200);
     } catch (err) {
       alert('Lỗi khi nộp bài tập: ' + (err.response?.data?.message || err.message));
@@ -258,13 +374,13 @@ export default function StudentPortal() {
               + Vào Lớp Bằng Mã
             </button>
             <button
-              onClick={() => setIsChangePasswordOpen(true)}
-              className="px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition cursor-pointer border border-slate-700 whitespace-nowrap">
-              Đổi mật khẩu
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="px-3 py-1.5 text-xs font-medium text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition cursor-pointer border border-slate-700 whitespace-nowrap">
+              Cài đặt
             </button>
             <button
               onClick={logout}
-              className="px-2.5 py-1.5 text-xs font-medium text-red-400 hover:text-red-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition cursor-pointer border border-slate-700 whitespace-nowrap">
+              className="px-2.5 py-1.5 text-xs font-medium text-rose-400 hover:text-rose-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition cursor-pointer border border-slate-700 whitespace-nowrap">
               Đăng xuất
             </button>
           </div>
@@ -280,14 +396,14 @@ export default function StudentPortal() {
             className={`py-2 px-1 text-center text-xs font-semibold rounded-lg transition cursor-pointer truncate ${
               activeTab === 'schedule' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-700 hover:text-gray-900'
             }`}>
-            Thời Khóa Biểu ({schedule.length})
+            Thời Khóa Biểu ({upcomingSessionsCount})
           </button>
           <button
             onClick={() => setActiveTab('assignments')}
             className={`py-2 px-1 text-center text-xs font-semibold rounded-lg transition cursor-pointer truncate ${
               activeTab === 'assignments' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-700 hover:text-gray-900'
             }`}>
-            Bài Tập & Điểm ({assignments.length})
+            Bài Tập & Điểm ({pendingAssignmentsCount})
           </button>
           <button
             onClick={() => setActiveTab('classes')}
@@ -762,45 +878,73 @@ export default function StudentPortal() {
                 )}
               </div>
 
-              {/* Chọn phương thức nộp bài */}
+              {/* Chọn phương thức nộp bài (chỉ hiện các phương thức được giáo viên cho phép) */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                   Chọn định dạng nộp bài:
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSubmissionMode('TEXT')}
-                    className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
-                      selectedSubmissionMode === 'TEXT' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                    }`}>
-                    Văn bản
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSubmissionMode('DOCX')}
-                    className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
-                      selectedSubmissionMode === 'DOCX' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                    }`}>
-                    Tệp Docx
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSubmissionMode('AUDIO')}
-                    className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
-                      selectedSubmissionMode === 'AUDIO' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                    }`}>
-                    File Audio
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSubmissionMode('DIRECT_RECORD')}
-                    className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
-                      selectedSubmissionMode === 'DIRECT_RECORD' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                    }`}>
-                    Thu âm ngay
-                  </button>
-                </div>
+                {(() => {
+                  const rawAllowed = (activeAssignmentToSubmit.allowedSubmissionTypes || 'TEXT,DOCX,AUDIO,DIRECT_RECORD,IMAGE')
+                    .split(',')
+                    .map(s => s.trim().toUpperCase())
+                    .filter(Boolean);
+                  const allowedModes = rawAllowed.length > 0 ? rawAllowed : ['TEXT', 'DOCX', 'AUDIO', 'DIRECT_RECORD', 'IMAGE'];
+
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                      {allowedModes.includes('TEXT') && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSubmissionMode('TEXT')}
+                          className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
+                            selectedSubmissionMode === 'TEXT' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                          }`}>
+                          Văn bản
+                        </button>
+                      )}
+                      {allowedModes.includes('DOCX') && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSubmissionMode('DOCX')}
+                          className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
+                            selectedSubmissionMode === 'DOCX' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                          }`}>
+                          Tệp Docx
+                        </button>
+                      )}
+                      {allowedModes.includes('AUDIO') && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSubmissionMode('AUDIO')}
+                          className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
+                            selectedSubmissionMode === 'AUDIO' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                          }`}>
+                          File Audio
+                        </button>
+                      )}
+                      {allowedModes.includes('DIRECT_RECORD') && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSubmissionMode('DIRECT_RECORD')}
+                          className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
+                            selectedSubmissionMode === 'DIRECT_RECORD' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                          }`}>
+                          Thu âm ngay
+                        </button>
+                      )}
+                      {allowedModes.includes('IMAGE') && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedSubmissionMode('IMAGE')}
+                          className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
+                            selectedSubmissionMode === 'IMAGE' ? 'bg-blue-600 text-white border-blue-600 shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                          }`}>
+                          Ảnh / Chụp ảnh
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* PHƯƠNG THỨC 1: VĂN BẢN TRỰC TIẾP */}
@@ -828,9 +972,9 @@ export default function StudentPortal() {
                   </label>
                   <input
                     type="file"
-                    accept=".docx,.doc"
+                    accept=".docx,.doc,.pdf"
                     onChange={(e) => handleFileUpload(e, 'DOCX')}
-                    className="text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700"
+                    className="text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 cursor-pointer"
                   />
                   {uploadingFile && <div className="text-xs text-blue-600">Đang tải file lên...</div>}
                   {uploadedFileData.fileName && (
@@ -851,7 +995,7 @@ export default function StudentPortal() {
                     type="file"
                     accept="audio/*,.mp3,.wav,.m4a,.webm"
                     onChange={(e) => handleFileUpload(e, 'AUDIO')}
-                    className="text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700"
+                    className="text-xs text-gray-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 cursor-pointer"
                   />
                   {uploadingFile && <div className="text-xs text-blue-600">Đang tải file âm thanh lên...</div>}
                   {uploadedFileData.fileUrl && (
@@ -874,10 +1018,112 @@ export default function StudentPortal() {
                 />
               )}
 
+              {/* PHƯƠNG THỨC 5: HÌNH ẢNH / CHỤP ẢNH NỘP BÀI */}
+              {selectedSubmissionMode === 'IMAGE' && (
+                <div className="space-y-3 p-3.5 bg-gray-50 border border-gray-200 rounded-lg">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Nộp bài bằng Hình ảnh / Bản chụp bài làm:
+                  </label>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="px-3 py-2 bg-white border border-gray-300 hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-700 cursor-pointer shadow-2xs flex items-center gap-1.5 transition">
+                      <span>📁</span> Tải ảnh từ máy (.jpg, .png)
+                      <input
+                        type="file"
+                        accept="image/*,.jpg,.jpeg,.png,.webp"
+                        className="hidden"
+                        onChange={(e) => handleFileUpload(e, 'IMAGE')}
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && mobileCameraInputRef.current) {
+                          mobileCameraInputRef.current.click();
+                        } else {
+                          startCamera();
+                        }
+                      }}
+                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-2xs flex items-center gap-1.5 transition">
+                      <span>📷</span> Chụp ảnh nộp bài
+                    </button>
+
+                    <input
+                      type="file"
+                      ref={mobileCameraInputRef}
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => handleFileUpload(e, 'IMAGE')}
+                    />
+                  </div>
+
+                  {/* Khung chụp ảnh Webcam nếu mở trực tiếp trên máy tính */}
+                  {isCameraActive && (
+                    <div className="p-3 bg-slate-900 rounded-xl space-y-2 text-center animate-fade-in">
+                      <div className="relative rounded-lg overflow-hidden max-w-md mx-auto bg-black">
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          playsInline
+                          className="w-full h-auto max-h-72 object-contain mx-auto"
+                        />
+                        <canvas ref={canvasRef} className="hidden" />
+                      </div>
+                      <div className="flex justify-center items-center gap-3 pt-1">
+                        <button
+                          type="button"
+                          onClick={capturePhoto}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer flex items-center gap-1.5">
+                          <span>📸</span> Bấm chụp ảnh này
+                        </button>
+                        <button
+                          type="button"
+                          onClick={stopCamera}
+                          className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium rounded-lg cursor-pointer">
+                          Tắt camera
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {cameraError && (
+                    <div className="p-2 bg-rose-50 border border-rose-200 rounded text-rose-700 text-xs">
+                      {cameraError}
+                    </div>
+                  )}
+
+                  {uploadingFile && <div className="text-xs text-blue-600 font-semibold">Đang tải ảnh lên hệ thống...</div>}
+
+                  {uploadedFileData.fileUrl && (
+                    <div className="pt-2 space-y-2">
+                      <div className="text-xs text-emerald-700 font-semibold flex items-center justify-between">
+                        <span>✓ Đã đính kèm ảnh: {uploadedFileData.fileName}</span>
+                        <a
+                          href={uploadedFileData.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-blue-600 hover:underline">
+                          Xem ảnh gốc ↗
+                        </a>
+                      </div>
+                      <div className="p-2 bg-white border border-gray-200 rounded-lg text-center">
+                        <img
+                          src={uploadedFileData.fileUrl}
+                          alt="Bản chụp bài nộp"
+                          className="max-h-60 max-w-full rounded object-contain mx-auto border border-gray-100 shadow-2xs"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex justify-end gap-3 pt-3 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={() => setActiveAssignmentToSubmit(null)}
+                  onClick={closeSubmitModal}
                   className="px-4 py-2 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer">
                   Đóng
                 </button>
@@ -980,10 +1226,19 @@ export default function StudentPortal() {
         </div>
       )}
 
-      {/* MODAL ĐỔI MẬT KHẨU */}
-      <ChangePasswordModal
-        isOpen={isChangePasswordOpen}
-        onClose={() => setIsChangePasswordOpen(false)}
+      {/* MODAL CÀI ĐẶT TÀI KHOẢN TOÀN DIỆN */}
+      <AccountSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        user={user}
+        onUserUpdated={(updated) => {
+          if (updateUser) updateUser(updated);
+        }}
+        enrolledClasses={enrolledClasses}
+        onLeaveClassSuccess={async () => {
+          await loadData();
+        }}
+        onLogout={logout}
       />
     </div>
   );

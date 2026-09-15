@@ -297,7 +297,7 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
 
       // Nếu có kế hoạch ở buổi gốc và giáo viên muốn sao chép cả kế hoạch
       if (copyFormData.includePlan) {
-        const sourcePlan = plans.find(p => p.session && p.session.id === copyingSession.id);
+        const sourcePlan = plans.find(p => (p.sessionId === copyingSession.id) || (p.session && p.session.id === copyingSession.id));
         if (sourcePlan) {
           await teachingPlanApi.copy(sourcePlan.id, created.id);
         }
@@ -542,7 +542,7 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
       ) : (
         <div className="space-y-4">
           {sessions.map((session, index) => {
-            const plan = plans.find(p => p.session && p.session.id === session.id);
+            const plan = plans.find(p => (p.sessionId === session.id) || (p.session && p.session.id === session.id));
             const sections = plan?.sections || [];
             const isExpanded = expandedSessionIds.has(session.id);
 
@@ -1396,7 +1396,7 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 bg-white">
                   <option value="">-- Chọn buổi học muốn áp dụng kế hoạch này --</option>
                   {sessions
-                    .filter(s => !copyingPlanSource.session || s.id !== copyingPlanSource.session.id)
+                    .filter(s => (s.id !== copyingPlanSource.sessionId) && (!copyingPlanSource.session || s.id !== copyingPlanSource.session.id))
                     .map((s, idx) => (
                       <option key={s.id} value={s.id}>
                         Buổi {idx + 1}: {s.topic || 'Buổi học'} ({formatDateTime(s.startTime)})

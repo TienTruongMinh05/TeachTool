@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -37,19 +38,35 @@ public class TeachingPlanService {
         Session session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy buổi học có ID: " + sessionId));
 
-        plan.setClassRoom(classRoom);
-        plan.setSession(session);
-        if (plan.getTitle() == null || plan.getTitle().isBlank()) {
-            plan.setTitle("Kế hoạch: " + (session.getTopic() != null ? session.getTopic() : "Buổi học " + session.getId()));
-        }
-
-        if (plan.getSections() != null) {
-            for (TeachingPlanSection section : plan.getSections()) {
-                section.setTeachingPlan(plan);
+        Optional<TeachingPlan> existingPlanOpt = planRepository.findBySessionId(sessionId);
+        TeachingPlan targetPlan;
+        if (existingPlanOpt.isPresent()) {
+            targetPlan = existingPlanOpt.get();
+            if (plan.getTitle() != null && !plan.getTitle().isBlank()) {
+                targetPlan.setTitle(plan.getTitle());
+            }
+        } else {
+            targetPlan = plan;
+            targetPlan.setClassRoom(classRoom);
+            targetPlan.setSession(session);
+            if (targetPlan.getTitle() == null || targetPlan.getTitle().isBlank()) {
+                targetPlan.setTitle("Kế hoạch: " + (session.getTopic() != null ? session.getTopic() : "Buổi học " + session.getId()));
+            }
+            if (targetPlan.getSections() == null) {
+                targetPlan.setSections(new ArrayList<>());
             }
         }
 
-        return planRepository.save(plan);
+        if (plan.getSections() != null) {
+            targetPlan.getSections().clear();
+            for (TeachingPlanSection section : plan.getSections()) {
+                section.setId(null);
+                section.setTeachingPlan(targetPlan);
+                targetPlan.getSections().add(section);
+            }
+        }
+
+        return planRepository.save(targetPlan);
     }
 
     @Transactional

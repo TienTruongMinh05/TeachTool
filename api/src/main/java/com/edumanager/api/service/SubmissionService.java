@@ -25,13 +25,55 @@ public class SubmissionService {
         User student = userRepo.findById(studentId)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy học sinh có ID: " + studentId));
 
+        if (submissionType == null || submissionType.trim().isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng chọn hình thức nộp bài.");
+        }
+        String cleanType = submissionType.trim().toUpperCase();
+
+        // 1. Kiểm tra hình thức nộp bài có được giáo viên cho phép không
+        String allowed = assignment.getAllowedSubmissionTypes();
+        if (allowed != null && !allowed.trim().isEmpty()) {
+            java.util.List<String> allowedList = java.util.Arrays.stream(allowed.split(","))
+                    .map(String::trim)
+                    .map(String::toUpperCase)
+                    .toList();
+            if (!allowedList.isEmpty() && !allowedList.contains(cleanType)) {
+                throw new IllegalArgumentException("Hình thức nộp bài '" + cleanType + "' không được phép. Giáo viên chỉ cho phép: " + allowed);
+            }
+        }
+
+        // 2. Kiểm tra tính hợp lệ của dữ liệu / tệp đính kèm theo từng loại
+        if ("TEXT".equals(cleanType)) {
+            if (textContent == null || textContent.trim().isEmpty()) {
+                throw new IllegalArgumentException("Nội dung bài làm văn bản không được để trống.");
+            }
+        } else {
+            if (fileUrl == null || fileUrl.trim().isEmpty()) {
+                throw new IllegalArgumentException("Vui lòng đính kèm tệp bài làm hoặc bản ghi âm.");
+            }
+            String lowerFileName = (fileName != null ? fileName : fileUrl).toLowerCase();
+            if ("DOCX".equals(cleanType)) {
+                if (!lowerFileName.endsWith(".docx") && !lowerFileName.endsWith(".doc") && !lowerFileName.endsWith(".pdf")) {
+                    throw new IllegalArgumentException("Tệp nộp bài không hợp lệ. Giáo viên chỉ chấp nhận tài liệu (.docx, .doc, .pdf).");
+                }
+            } else if ("AUDIO".equals(cleanType) || "DIRECT_RECORD".equals(cleanType)) {
+                if (!lowerFileName.endsWith(".mp3") && !lowerFileName.endsWith(".wav") && !lowerFileName.endsWith(".m4a") && !lowerFileName.endsWith(".webm") && !lowerFileName.endsWith(".ogg")) {
+                    throw new IllegalArgumentException("Tệp nộp bài không hợp lệ. Giáo viên chỉ chấp nhận tệp âm thanh ghi âm (.mp3, .wav, .m4a, .webm).");
+                }
+            } else if ("IMAGE".equals(cleanType)) {
+                if (!lowerFileName.endsWith(".jpg") && !lowerFileName.endsWith(".jpeg") && !lowerFileName.endsWith(".png") && !lowerFileName.endsWith(".webp") && !lowerFileName.endsWith(".gif") && !lowerFileName.endsWith(".heic")) {
+                    throw new IllegalArgumentException("Tệp ảnh không hợp lệ. Chỉ chấp nhận định dạng ảnh (.jpg, .jpeg, .png, .webp, .gif).");
+                }
+            }
+        }
+
         Submission submission = submissionRepo.findByAssignmentIdAndStudentId(assignmentId, studentId)
             .orElse(Submission.builder().assignment(assignment).student(student).build());
         
-        submission.setSubmissionType(submissionType);
-        submission.setTextContent(textContent);
-        submission.setFileUrl(fileUrl);
-        submission.setFileName(fileName);
+        submission.setSubmissionType(cleanType);
+        submission.setTextContent("TEXT".equals(cleanType) ? textContent.trim() : null);
+        submission.setFileUrl(!"TEXT".equals(cleanType) ? fileUrl : null);
+        submission.setFileName(!"TEXT".equals(cleanType) ? fileName : null);
         submission.setSubmittedAt(java.time.LocalDateTime.now());
         return submissionRepo.save(submission);
     }

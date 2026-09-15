@@ -23,6 +23,7 @@ public class StudentPortalController {
     private final TeachingPlanRepository teachingPlanRepository;
     private final AssignmentRepository assignmentRepository;
     private final AttendanceRepository attendanceRepository;
+    private final SubmissionRepository submissionRepository;
     private final com.edumanager.api.service.AttendanceService attendanceService;
 
     @GetMapping("/{studentId}/schedule")
@@ -43,6 +44,7 @@ public class StudentPortalController {
             return ResponseEntity.ok(Collections.emptyList());
         }
 
+        List<Submission> allStudentSubmissions = submissionRepository.findByStudentId(studentId);
         List<StudentScheduleDTO> result = new ArrayList<>();
 
         for (Enrollment enrollment : enrollments) {
@@ -54,7 +56,7 @@ public class StudentPortalController {
             for (Session session : sessions) {
                 // Tìm kế hoạch giảng dạy gắn với buổi học này
                 Optional<TeachingPlan> matchedPlan = plans.stream()
-                        .filter(p -> p.getSession() != null && p.getSession().getId().equals(session.getId()))
+                        .filter(p -> (p.getSession() != null && p.getSession().getId().equals(session.getId())))
                         .findFirst();
 
                 List<TeachingPlanSectionDTO> sections = matchedPlan
@@ -66,10 +68,38 @@ public class StudentPortalController {
                 String planTitle = matchedPlan.map(TeachingPlan::getTitle).orElse(null);
 
                 // Tìm bài tập gắn với buổi học này
-                List<AssignmentResponseDTO> sessionAssignments = assignments.stream()
+                List<Assignment> rawSessionAssignments = assignments.stream()
                         .filter(a -> a.getSession() != null && a.getSession().getId().equals(session.getId()))
+                        .toList();
+
+                List<AssignmentResponseDTO> sessionAssignments = rawSessionAssignments.stream()
                         .map(AssignmentResponseDTO::fromEntity)
                         .toList();
+
+                // Tính toán trạng thái bài tập của buổi học
+                String homeworkStatus = "NONE";
+                String homeworkScore = null;
+
+                if (!rawSessionAssignments.isEmpty()) {
+                    List<Submission> matchedSubmissions = allStudentSubmissions.stream()
+                            .filter(sub -> rawSessionAssignments.stream().anyMatch(a -> a.getId().equals(sub.getAssignment().getId())))
+                            .toList();
+
+                    if (matchedSubmissions.isEmpty()) {
+                        homeworkStatus = "NOT_SUBMITTED";
+                    } else {
+                        Optional<Submission> gradedSub = matchedSubmissions.stream()
+                                .filter(s -> (s.getScore() != null && !s.getScore().trim().isEmpty())
+                                          || (s.getFeedback() != null && !s.getFeedback().trim().isEmpty()))
+                                .findFirst();
+                        if (gradedSub.isPresent()) {
+                            homeworkStatus = "GRADED";
+                            homeworkScore = gradedSub.get().getScore();
+                        } else {
+                            homeworkStatus = "SUBMITTED";
+                        }
+                    }
+                }
 
                 // Lấy thông tin điểm danh của học sinh cho buổi học này
                 Optional<Attendance> attendanceOpt = attendanceRepository.findBySessionIdAndStudentId(session.getId(), studentId);
@@ -89,7 +119,9 @@ public class StudentPortalController {
                         sections,
                         sessionAssignments,
                         attStatus,
-                        attNote
+                        attNote,
+                        homeworkStatus,
+                        homeworkScore
                 ));
             }
         }
