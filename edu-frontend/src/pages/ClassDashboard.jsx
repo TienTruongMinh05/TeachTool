@@ -51,8 +51,15 @@ export default function ClassDashboard({ initialView }) {
   const [timetableSessions, setTimetableSessions] = useState([]);
   const [loadingTimetable, setLoadingTimetable] = useState(false);
 
-  // Danh sách tất cả các lớp của giáo viên để chuyển nhanh
-  const [classList, setClassList] = useState([]);
+  // Danh sách tất cả các lớp của giáo viên để chuyển nhanh (đọc từ cache để hiện tức thì 0ms)
+  const [classList, setClassList] = useState(() => {
+    try {
+      const cached = localStorage.getItem('cached_teacher_classes');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
   const [isClassesSubmenuOpen, setIsClassesSubmenuOpen] = useState(true);
 
   // Mobile drawer state
@@ -65,7 +72,11 @@ export default function ClassDashboard({ initialView }) {
   const fetchClassList = useCallback(async () => {
     try {
       const data = await classApi.getAll();
-      setClassList(Array.isArray(data) ? data : []);
+      const safeData = Array.isArray(data) ? data : [];
+      setClassList(safeData);
+      try {
+        localStorage.setItem('cached_teacher_classes', JSON.stringify(safeData));
+      } catch {}
     } catch (err) {
       console.error('Lỗi khi tải danh sách lớp:', err);
     }
@@ -189,6 +200,21 @@ export default function ClassDashboard({ initialView }) {
     setIsMobileMenuOpen(false);
   };
 
+  // Khi giáo viên bấm vào một buổi học trên Thời khóa biểu -> Chuyển thẳng đến buổi học đó trong lớp
+  const handleTeacherNavigateToSession = (session) => {
+    if (!session) return;
+    const targetCId = session.classId || (session.classRoom && session.classRoom.id);
+    const targetSId = session.sessionId || session.id;
+    if (targetCId) {
+      setSelectedClassId(targetCId);
+      setTargetSessionId(targetSId);
+      setActiveClassTab('sessions');
+      setCurrentView('class_detail');
+      setIsMobileMenuOpen(false);
+      navigate(`/class/${targetCId}`);
+    }
+  };
+
   // Lấy tiêu đề hiển thị trên thanh Header Mobile
   const getMobileHeaderTitle = () => {
     if (currentView === 'all_students') return 'Học Sinh (Tất Cả Các Lớp)';
@@ -216,7 +242,7 @@ export default function ClassDashboard({ initialView }) {
             <div>
               <h2 className="text-xl font-bold text-slate-800">Thời Khóa Biểu Tất Cả Các Lớp</h2>
               <p className="text-xs text-slate-500">
-                Tổng hợp lịch dạy của mọi lớp học theo khung giờ 07:00 - 22:00
+                Tổng hợp lịch dạy của mọi lớp học theo khung giờ 07:00 - 22:00 (Bấm vào buổi học để chuyển đến kế hoạch)
               </p>
             </div>
             <button
@@ -235,6 +261,7 @@ export default function ClassDashboard({ initialView }) {
             <TimetableGrid
               sessions={timetableSessions}
               isStudent={false}
+              onNavigateToSession={handleTeacherNavigateToSession}
             />
           )}
         </div>
@@ -252,6 +279,7 @@ export default function ClassDashboard({ initialView }) {
             <SessionList
               classId={selectedClassId}
               classInfo={classInfo}
+              targetSessionId={targetSessionId}
               onSelectSessionForAttendance={handleSelectSessionForAttendance}
             />
           );
@@ -262,7 +290,7 @@ export default function ClassDashboard({ initialView }) {
                 <div>
                   <h2 className="text-xl font-bold text-slate-800">Thời Khóa Biểu Lớp {classInfo?.name}</h2>
                   <p className="text-xs text-slate-500">
-                    Lịch học dạng bảng từ Thứ 2 đến Chủ nhật (07:00 - 22:00)
+                    Lịch học dạng bảng từ Thứ 2 đến Chủ nhật (07:00 - 22:00) - Bấm vào buổi học để chuyển đến kế hoạch
                   </p>
                 </div>
                 <button
@@ -281,6 +309,7 @@ export default function ClassDashboard({ initialView }) {
                 <TimetableGrid
                   sessions={timetableSessions}
                   isStudent={false}
+                  onNavigateToSession={handleTeacherNavigateToSession}
                 />
               )}
             </div>
@@ -309,6 +338,7 @@ export default function ClassDashboard({ initialView }) {
             <SessionList
               classId={selectedClassId}
               classInfo={classInfo}
+              targetSessionId={targetSessionId}
               onSelectSessionForAttendance={handleSelectSessionForAttendance}
             />
           );

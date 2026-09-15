@@ -62,6 +62,7 @@ export default function TimetableGrid({
   onGoToAssignment = null,
   onReportAbsenceSuccess = null,
   classes = [],
+  onNavigateToSession = null,
 }) {
   const { toast } = useToast();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getMonday(new Date()));
@@ -261,9 +262,13 @@ export default function TimetableGrid({
   }, [sessions, classes]);
 
   const handleSelectSession = (session) => {
-    setSelectedSession(session);
     const sId = session.sessionId || session.id;
     markPrepAsViewed(sId);
+    if (!isStudent && onNavigateToSession) {
+      onNavigateToSession(session);
+      return;
+    }
+    setSelectedSession(session);
   };
 
   return (

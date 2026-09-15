@@ -6,7 +6,7 @@ import { fileApi } from '../api/fileApi';
 import ActivityLibraryModal from './ActivityLibraryModal';
 import { useToast } from '../context/ToastContext';
 
-export default function SessionList({ classId, classInfo, onSelectSessionForAttendance }) {
+export default function SessionList({ classId, classInfo, onSelectSessionForAttendance, targetSessionId = null }) {
   const { toast, confirm } = useToast();
   const [sessions, setSessions] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -128,6 +128,25 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
     setSelectedSessionIds(new Set());
     setExpandedSessionIds(new Set()); // Mặc định không bung ra
   }, [classId]);
+
+  // Tự động mở rộng & cuộn tới buổi học khi được điều hướng từ thời khóa biểu
+  useEffect(() => {
+    if (targetSessionId && !loading && sessions.length > 0) {
+      const numTargetId = typeof targetSessionId === 'string' ? parseInt(targetSessionId, 10) : targetSessionId;
+      setExpandedSessionIds(prev => {
+        const next = new Set(prev);
+        next.add(targetSessionId);
+        if (!isNaN(numTargetId)) next.add(numTargetId);
+        return next;
+      });
+      setTimeout(() => {
+        const el = document.getElementById(`session-card-${targetSessionId}`) || document.getElementById(`session-card-${numTargetId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 350);
+    }
+  }, [targetSessionId, loading, sessions]);
 
   // Phân chia buổi học thành: Buổi sắp tới và Buổi đã xong
   const { upcomingSessions, pastSessions } = useMemo(() => {
@@ -708,18 +727,26 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
     const isExpanded = expandedSessionIds.has(session.id);
     const isSelected = selectedSessionIds.has(session.id);
     const isMenuOpen = openMenuSessionId === session.id;
+    const isTarget = targetSessionId && (String(targetSessionId) === String(session.id));
 
     return (
       <div
+        id={`session-card-${session.id}`}
         key={session.id}
-        className={`bg-white border rounded-xl shadow-xs transition-all duration-150 ${
+        className={`bg-white border rounded-xl shadow-xs transition-all duration-300 ${
           isMenuOpen ? 'relative z-30' : 'relative z-1'
         } ${
-          isSelected ? 'border-blue-500 ring-2 ring-blue-200' : isPast ? 'border-slate-200 opacity-90' : 'border-gray-200'
+          isTarget
+            ? 'border-blue-500 ring-4 ring-blue-300/80 shadow-lg'
+            : isSelected
+            ? 'border-blue-500 ring-2 ring-blue-200'
+            : isPast
+            ? 'border-slate-200 opacity-90'
+            : 'border-gray-200'
         }`}>
         {/* THANH TIÊU ĐỀ BUỔI HỌC (CARD HEADER) */}
         <div className={`p-4 sm:p-4.5 border-b border-gray-200 rounded-t-xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 ${
-          isPast ? 'bg-slate-100/70' : 'bg-slate-50'
+          isTarget ? 'bg-blue-50/80' : isPast ? 'bg-slate-100/70' : 'bg-slate-50'
         }`}>
           <div className="flex items-start gap-3 w-full lg:w-auto">
             {/* Checkbox chọn buổi học */}

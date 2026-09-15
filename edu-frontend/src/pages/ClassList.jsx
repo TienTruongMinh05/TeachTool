@@ -9,8 +9,25 @@ function ClassList({ showTopBar = false, onSelectClass }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { toast } = useToast();
-  const [classes, setClasses] = useState([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Instant load with Stale-While-Revalidate cache
+  const [classes, setClasses] = useState(() => {
+    try {
+      const cached = localStorage.getItem('cached_teacher_classes');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [loading, setLoading] = useState(() => {
+    try {
+      const cached = localStorage.getItem('cached_teacher_classes');
+      return !cached || JSON.parse(cached).length === 0;
+    } catch {
+      return true;
+    }
+  });
   
   // State quản lý Modal Thêm / Sửa
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -31,7 +48,11 @@ function ClassList({ showTopBar = false, onSelectClass }) {
   const fetchClasses = async () => {
     try {
       const data = await classApi.getAll();
-      setClasses(data);
+      const safeData = Array.isArray(data) ? data : [];
+      setClasses(safeData);
+      try {
+        localStorage.setItem('cached_teacher_classes', JSON.stringify(safeData));
+      } catch {}
     } catch (error) {
       console.error("Lỗi khi tải danh sách:", error);
     } finally {
@@ -135,7 +156,32 @@ function ClassList({ showTopBar = false, onSelectClass }) {
     }
   };
 
-  if (loading) return <div className="flex justify-center p-10 text-gray-600">Đang tải dữ liệu...</div>;
+  if (loading && classes.length === 0) {
+    return (
+      <div className="max-w-6xl mx-auto p-3 sm:p-6 md:p-8 animate-pulse space-y-6">
+        <div className="flex justify-between items-center bg-slate-100 h-16 rounded-xl p-4">
+          <div className="h-6 bg-slate-200 rounded w-48"></div>
+          <div className="h-8 bg-slate-200 rounded w-24"></div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+              <div className="flex justify-between items-center">
+                <div className="h-5 bg-slate-200 rounded w-36"></div>
+                <div className="h-5 bg-slate-100 rounded w-16"></div>
+              </div>
+              <div className="h-4 bg-slate-100 rounded w-full"></div>
+              <div className="h-4 bg-slate-100 rounded w-2/3"></div>
+              <div className="pt-3 border-t border-slate-100 flex justify-between">
+                <div className="h-8 bg-slate-200 rounded w-28"></div>
+                <div className="h-8 bg-slate-100 rounded w-12"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto p-3 sm:p-6 md:p-8 relative">

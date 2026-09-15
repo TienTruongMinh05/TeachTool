@@ -26,11 +26,32 @@ export default function StudentPortal() {
   const [activeTab, setActiveTab] = useState('schedule');
   const [scheduleViewMode, setScheduleViewMode] = useState('grid'); // 'grid' | 'list'
 
-  const [schedule, setSchedule] = useState([]);
+  const [schedule, setSchedule] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`cached_student_schedule_${user?.id}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [assignments, setAssignments] = useState([]);
   const [submissions, setSubmissions] = useState([]);
-  const [enrolledClasses, setEnrolledClasses] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [enrolledClasses, setEnrolledClasses] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`cached_student_classes_${user?.id}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`cached_student_schedule_${user?.id}`);
+      return !saved || JSON.parse(saved).length === 0;
+    } catch {
+      return true;
+    }
+  });
 
   // Báo vắng states
   const [selectedSessionForAbsence, setSelectedSessionForAbsence] = useState(null);
@@ -59,7 +80,6 @@ export default function StudentPortal() {
   const loadData = async () => {
     if (!user || !user.id) return;
     try {
-      setLoading(true);
       const [schedRes, assignRes, subsRes, classesRes] = await Promise.allSettled([
         studentPortalApi.getSchedule(user.id),
         assignmentApi.getForStudent(user.id),
@@ -67,10 +87,18 @@ export default function StudentPortal() {
         studentPortalApi.getClasses(user.id)
       ]);
 
-      if (schedRes.status === 'fulfilled') setSchedule(schedRes.value || []);
+      if (schedRes.status === 'fulfilled') {
+        const val = schedRes.value || [];
+        setSchedule(val);
+        try { localStorage.setItem(`cached_student_schedule_${user.id}`, JSON.stringify(val)); } catch {}
+      }
       if (assignRes.status === 'fulfilled') setAssignments(assignRes.value || []);
       if (subsRes.status === 'fulfilled') setSubmissions(subsRes.value || []);
-      if (classesRes.status === 'fulfilled') setEnrolledClasses(classesRes.value || []);
+      if (classesRes.status === 'fulfilled') {
+        const cVal = classesRes.value || [];
+        setEnrolledClasses(cVal);
+        try { localStorage.setItem(`cached_student_classes_${user.id}`, JSON.stringify(cVal)); } catch {}
+      }
     } catch (err) {
       console.error('Lỗi khi tải dữ liệu học sinh:', err);
     } finally {
