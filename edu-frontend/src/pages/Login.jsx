@@ -169,7 +169,7 @@ export default function Login() {
           <div className="inline-block px-3 py-1 bg-blue-600/30 text-blue-300 text-xs font-semibold rounded-full mb-2">
             Hệ Thống Quản Lý Đào Tạo & Lớp Học
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">TEACHTOOL</h1>
+          <h1 className="text-2xl font-bold tracking-tight">TeachTool</h1>
         </div>
 
         {/* Tab Navigation: Đăng Nhập vs Đăng Ký */}
