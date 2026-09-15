@@ -337,9 +337,9 @@ export default function TimetableGrid({
       <div className="overflow-x-auto">
         <div className="min-w-[850px] sm:min-w-[1000px]">
           {/* HÀNG TIÊU ĐỀ: 7 CỘT NGÀY TRONG TUẦN */}
-          <div className="grid grid-cols-8 border-b border-slate-200 bg-slate-100 sticky top-0 z-20 text-xs font-semibold text-slate-700">
+          <div className="grid grid-cols-8 border-b border-slate-200 bg-slate-100 sticky top-0 z-30 text-xs font-semibold text-slate-700">
             {/* Cột mốc giờ */}
-            <div className="p-3 border-r border-slate-300 text-center font-bold bg-slate-100 sticky left-0 z-30 flex items-center justify-center">
+            <div className="p-3 border-r-2 border-slate-300 text-center font-bold bg-slate-100 sticky left-0 z-40 flex items-center justify-center shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)]">
               Giờ / Thứ
             </div>
 
@@ -367,14 +367,14 @@ export default function TimetableGrid({
 
           {/* THÂN THỜI KHÓA BIỂU DỌC: CỘT GIỜ + 7 CỘT NGÀY */}
           <div className="grid grid-cols-8 relative" style={{ height: `${TOTAL_SLOTS * SLOT_HEIGHT}px` }}>
-            {/* CỘT MỐC THỜI GIAN (BÊN TRÁI) */}
-            <div className="border-r border-slate-300 bg-slate-50 sticky left-0 z-10 select-none">
+            {/* CỘT MỐC THỜI GIAN (BÊN TRÁI - LUÔN NẰM TRÊN CÙNG KHI CUỘN HOẶC TRÀN VIỀN) */}
+            <div className="border-r-2 border-slate-300 bg-slate-50 sticky left-0 z-20 select-none shadow-[2px_0_6px_-2px_rgba(0,0,0,0.08)]">
               {TIME_SLOTS.map((time, idx) => (
                 <div
                   key={time}
                   style={{ height: `${SLOT_HEIGHT}px` }}
                   className={`border-b border-slate-200 px-1 text-[11px] flex items-center justify-center font-mono ${
-                    idx % 2 === 0 ? 'font-bold text-slate-700 bg-slate-100/60' : 'text-slate-400 text-[10px]'
+                    idx % 2 === 0 ? 'font-bold text-slate-700 bg-slate-100/80' : 'text-slate-400 text-[10px] bg-slate-50'
                   }`}
                 >
                   {time}
@@ -457,12 +457,12 @@ export default function TimetableGrid({
                           left: '4px',
                           right: '4px',
                         }}
-                        className={`absolute p-2 rounded-xl cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] overflow-hidden flex flex-col justify-between ${color.bg} ${homeworkBorderClass} ${color.text} z-10`}
+                        className={`absolute p-2 rounded-xl cursor-pointer transition-all hover:shadow-md overflow-hidden flex flex-col justify-between ${color.bg} ${homeworkBorderClass} ${color.text} z-1 hover:z-10`}
                         title={`Bấm để xem chi tiết: ${session.className || ''} - ${session.topic || ''}`}
                       >
                         <div>
                           {/* Header: Class Name & Time */}
-                          <div className="flex items-start justify-between gap-1 mb-0.5">
+                          <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
                             <span className="font-bold text-xs truncate max-w-[65%]">
                               {session.className || 'Lớp học'}
                             </span>
