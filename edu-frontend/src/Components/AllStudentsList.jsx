@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { studentApi } from '../api/StudentApi';
+import { studentApi } from '../api/studentApi';
 import { classApi } from '../api/classApi';
 import { useNavigate } from 'react-router-dom';
 

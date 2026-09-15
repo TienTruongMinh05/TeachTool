@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { assignmentApi } from '../api/assignmentApi';
 import { submissionApi } from '../api/submissionApi';
 import { sessionApi } from '../api/sessionApi';
-import { studentApi } from '../api/StudentApi';
+import { studentApi } from '../api/studentApi';
 import { fileApi } from '../api/fileApi';
 
 export default function AssignmentManager({ classId }) {
