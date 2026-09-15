@@ -169,8 +169,7 @@ export default function Login() {
           <div className="inline-block px-3 py-1 bg-blue-600/30 text-blue-300 text-xs font-semibold rounded-full mb-2">
             Hệ Thống Quản Lý Đào Tạo & Lớp Học
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">TeachTool Platform</h1>
-          <p className="text-xs text-slate-400 mt-1">Nền tảng kết nối Giáo viên & Học sinh chuyên nghiệp</p>
+          <h1 className="text-2xl font-bold tracking-tight">TEACHTOOL</h1>
         </div>
 
         {/* Tab Navigation: Đăng Nhập vs Đăng Ký */}
@@ -224,7 +223,7 @@ export default function Login() {
                   required
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="VD: giaovien.lan@gmail.com hoặc hocsinh.nam@gmail.com"
+                  placeholder="abc@gmail.com"
                   className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
@@ -291,7 +290,7 @@ export default function Login() {
                   required
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
-                  placeholder="VD: Thầy Nguyễn Văn An hoặc Học sinh Mai Lan"
+                  placeholder="Họ và tên của bạn"
                   className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
@@ -306,7 +305,7 @@ export default function Login() {
                   required
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
-                  placeholder="VD: teacher.an@gmail.com"
+                  placeholder="abc@gmail.com"
                   className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
@@ -429,10 +428,6 @@ export default function Login() {
             </form>
           )}
 
-          {/* Footer ghi chú bảo mật */}
-          <div className="pt-2 text-center text-[11px] text-gray-400 leading-relaxed border-t border-gray-100">
-            Dữ liệu tài khoản và mật khẩu được mã hóa an toàn theo tiêu chuẩn mật mã học PBKDF2 & JSON Web Token (JWT).
-          </div>
         </div>
 
       </div>

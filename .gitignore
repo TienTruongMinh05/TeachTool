@@ -50,3 +50,7 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# 7. Deployment Info & Local Secrets
+THONG_TIN_TRIEN_KHAI.md
+
