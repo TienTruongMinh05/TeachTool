@@ -4,8 +4,10 @@ import { teachingPlanApi } from '../api/teachingPlanApi';
 import { activityApi } from '../api/activityApi';
 import { fileApi } from '../api/fileApi';
 import ActivityLibraryModal from './ActivityLibraryModal';
+import { useToast } from '../context/ToastContext';
 
 export default function SessionList({ classId, classInfo, onSelectSessionForAttendance }) {
+  const { toast, confirm } = useToast();
   const [sessions, setSessions] = useState([]);
   const [plans, setPlans] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -202,9 +204,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
       }
 
       await loadData();
-      alert(`Đã nhân bản buổi học sang tuần sau (${newStart.toLocaleDateString('vi-VN')}) thành công!`);
+      toast.success(`Đã nhân bản buổi học sang tuần sau (${newStart.toLocaleDateString('vi-VN')}) thành công!`);
     } catch (err) {
-      alert('Lỗi sao chép sang tuần sau: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi sao chép sang tuần sau: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
       setOpenMenuSessionId(null);
@@ -214,7 +216,13 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
   // Thao tác hàng loạt (Batch): Sao chép sang tuần sau (+7 ngày) cho tất cả buổi đã chọn
   const handleBatchCopyNextWeek = async () => {
     if (selectedSessionIds.size === 0) return;
-    if (!window.confirm(`Bạn có chắc muốn sao chép ${selectedSessionIds.size} buổi học đã chọn sang tuần sau (+7 ngày)?`)) return;
+    const ok = await confirm({
+      title: 'Sao chép hàng loạt',
+      message: `Bạn có chắc muốn sao chép ${selectedSessionIds.size} buổi học đã chọn sang tuần sau (+7 ngày)?`,
+      confirmText: 'Sao chép ngay',
+      type: 'info'
+    });
+    if (!ok) return;
 
     try {
       setIsBatchProcessing(true);
@@ -241,9 +249,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
 
       await loadData();
       setSelectedSessionIds(new Set());
-      alert(`Đã sao chép thành công ${selectedList.length} buổi học sang tuần sau!`);
+      toast.success(`Đã sao chép thành công ${selectedList.length} buổi học sang tuần sau!`);
     } catch (err) {
-      alert('Lỗi sao chép hàng loạt: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi sao chép hàng loạt: ' + (err.response?.data?.message || err.message));
     } finally {
       setIsBatchProcessing(false);
     }
@@ -252,7 +260,13 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
   // Thao tác hàng loạt (Batch): Xóa tất cả các buổi đã chọn
   const handleBatchDelete = async () => {
     if (selectedSessionIds.size === 0) return;
-    if (!window.confirm(`CẢNH BÁO: Bạn có chắc chắn muốn XÓA VĨNH VIỄN ${selectedSessionIds.size} buổi học đã chọn kèm kế hoạch giảng dạy?`)) return;
+    const ok = await confirm({
+      title: 'Xóa hàng loạt buổi học',
+      message: `CẢNH BÁO: Bạn có chắc chắn muốn XÓA VĨNH VIỄN ${selectedSessionIds.size} buổi học đã chọn kèm toàn bộ kế hoạch giảng dạy?`,
+      confirmText: 'Xóa vĩnh viễn',
+      type: 'danger'
+    });
+    if (!ok) return;
 
     try {
       setIsBatchProcessing(true);
@@ -262,9 +276,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
       }
       await loadData();
       setSelectedSessionIds(new Set());
-      alert(`Đã xóa thành công ${idsToDelete.length} buổi học!`);
+      toast.success(`Đã xóa thành công ${idsToDelete.length} buổi học!`);
     } catch (err) {
-      alert('Lỗi xóa hàng loạt: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi xóa hàng loạt: ' + (err.response?.data?.message || err.message));
     } finally {
       setIsBatchProcessing(false);
     }
@@ -354,8 +368,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
         };
         return updated;
       });
+      toast.success(`Đã tải lên tệp "${res.fileName}"`);
     } catch (err) {
-      alert('Lỗi tải file: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi tải file: ' + (err.response?.data?.message || err.message));
     } finally {
       setUploadingHandoutFile(false);
     }
@@ -365,7 +380,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
   const handleCreateSessionSubmit = async (e) => {
     e.preventDefault();
     if (!sessionFormData.topic.trim() || !sessionFormData.startTime) {
-      alert('Vui lòng nhập đầy đủ Chủ đề và Thời gian bắt đầu buổi học.');
+      toast.warning('Vui lòng nhập đầy đủ Chủ đề và Thời gian bắt đầu buổi học.');
       return;
     }
 
@@ -404,8 +419,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
 
       await loadData();
       setIsCreateModalOpen(false);
+      toast.success(`Đã tạo buổi học "${createdSession.topic}"`);
     } catch (error) {
-      alert('Lỗi khi tạo buổi học: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi khi tạo buổi học: ' + (error.response?.data?.message || error.message));
     } finally {
       setCreating(false);
     }
@@ -438,9 +454,10 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
         durationMinutes: parseInt(editFormData.durationMinutes) || 90
       });
       await loadData();
+      toast.success(`Đã cập nhật buổi học "${editFormData.topic}"`);
       setEditingSession(null);
     } catch (error) {
-      alert('Lỗi cập nhật buổi học: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi cập nhật buổi học: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -481,9 +498,10 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
       }
 
       await loadData();
+      toast.success(`Đã nhân bản buổi học "${created.topic}"`);
       setCopyingSession(null);
     } catch (error) {
-      alert('Lỗi nhân bản buổi học: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi nhân bản buổi học: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -492,10 +510,11 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
     if (!deletingSession) return;
     try {
       await sessionApi.delete(classId, deletingSession.id);
+      toast.success(`Đã xóa buổi học "${deletingSession.topic || ''}"`);
       setDeletingSession(null);
       await loadData();
     } catch (error) {
-      alert('Lỗi khi xóa buổi học: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi khi xóa buổi học: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -548,8 +567,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
         handoutFileName: res.fileName,
         handoutFilePath: res.fileUrl
       }));
+      toast.success(`Đã tải lên tệp "${res.fileName}"`);
     } catch (err) {
-      alert('Lỗi tải tệp lên: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi tải tệp lên: ' + (err.response?.data?.message || err.message));
     } finally {
       setUploadingHandoutFile(false);
     }
@@ -597,17 +617,25 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
       });
 
       await loadData();
+      toast.success(editingSectionIndex !== null ? 'Đã cập nhật học phần!' : 'Đã thêm học phần mới!');
       setActiveSessionForSection(null);
       setActivePlanForSection(null);
       setEditingSectionIndex(null);
     } catch (error) {
-      alert('Lỗi lưu học phần: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi lưu học phần: ' + (error.response?.data?.message || error.message));
     }
   };
 
   // Xóa 1 học phần
   const handleDeleteSection = async (plan, sectionIndex) => {
-    if (!window.confirm('Bạn có chắc muốn xóa học phần này khỏi kế hoạch?')) return;
+    const ok = await confirm({
+      title: 'Xóa học phần',
+      message: 'Bạn có chắc chắn muốn xóa học phần này khỏi kế hoạch giảng dạy?',
+      confirmText: 'Xóa học phần',
+      type: 'danger'
+    });
+    if (!ok) return;
+
     try {
       const updatedSections = plan.sections.filter((_, idx) => idx !== sectionIndex);
       await teachingPlanApi.update(plan.id, {
@@ -615,8 +643,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
         sections: updatedSections
       });
       await loadData();
+      toast.success('Đã xóa học phần thành công!');
     } catch (error) {
-      alert('Lỗi xóa học phần: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi xóa học phần: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -636,15 +665,16 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
         sections: currentSections
       });
       await loadData();
+      toast.success('Đã nhân bản học phần!');
     } catch (error) {
-      alert('Lỗi nhân bản học phần: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi nhân bản học phần: ' + (error.response?.data?.message || error.message));
     }
   };
 
   // Sao chép toàn bộ Kế hoạch sang 1 buổi học khác
   const handleExecuteCopyPlan = async () => {
     if (!copyingPlanSource || !copyTargetSessionId) {
-      alert('Vui lòng chọn buổi học đích để dán kế hoạch.');
+      toast.warning('Vui lòng chọn buổi học đích để dán kế hoạch.');
       return;
     }
 
@@ -653,9 +683,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
       await loadData();
       setCopyingPlanSource(null);
       setCopyTargetSessionId('');
-      alert('Đã sao chép kế hoạch giảng dạy sang buổi học đích thành công!');
+      toast.success('Đã sao chép kế hoạch giảng dạy sang buổi học đích thành công!');
     } catch (error) {
-      alert('Lỗi khi sao chép kế hoạch: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi khi sao chép kế hoạch: ' + (error.response?.data?.message || error.message));
     }
   };
 

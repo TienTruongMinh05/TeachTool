@@ -3,10 +3,12 @@ import { classApi } from '../api/classApi';
 import { useNavigate } from 'react-router-dom';
 import ActivityLibraryModal from '../Components/ActivityLibraryModal';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 function ClassList({ showTopBar = false, onSelectClass }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { toast } = useToast();
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -77,10 +79,11 @@ function ClassList({ showTopBar = false, onSelectClass }) {
     if (!deletingClass) return;
     try {
       await classApi.delete(deletingClass.id);
+      toast.success(`Đã xóa lớp học "${deletingClass.name}"`);
       setDeletingClass(null);
       fetchClasses();
     } catch (error) {
-      alert("Lỗi khi xóa lớp học: " + (error.response?.data?.message || error.message));
+      toast.error("Lỗi khi xóa lớp học: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -93,10 +96,11 @@ function ClassList({ showTopBar = false, onSelectClass }) {
     if (!leavingClass || !user?.id) return;
     try {
       await classApi.removeTeacher(leavingClass.id, user.id);
+      toast.success(`Đã rời khỏi lớp học "${leavingClass.name}"`);
       setLeavingClass(null);
       fetchClasses();
     } catch (error) {
-      alert("Lỗi khi rời lớp học: " + (error.response?.data?.message || error.message));
+      toast.error("Lỗi khi rời lớp học: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -105,15 +109,17 @@ function ClassList({ showTopBar = false, onSelectClass }) {
     try {
       if (editingClass) {
         await classApi.update(editingClass.id, formData);
+        toast.success(`Đã cập nhật lớp học "${formData.name}"`);
       } else {
         await classApi.create(formData);
+        toast.success(`Đã tạo mới lớp học "${formData.name}"`);
       }
       fetchClasses();
       setIsModalOpen(false);
       setFormData({ name: '', startDate: '', endDate: '' });
       setEditingClass(null);
     } catch (error) {
-      alert("Lỗi khi lưu thông tin lớp học. Hãy kiểm tra lại dữ liệu.");
+      toast.error("Lỗi khi lưu thông tin lớp học. Hãy kiểm tra lại dữ liệu.");
     }
   };
 
@@ -121,10 +127,11 @@ function ClassList({ showTopBar = false, onSelectClass }) {
     e.preventDefault();
     try {
       await classApi.create(copyFormData);
+      toast.success(`Đã nhân bản lớp học "${copyFormData.name}" thành công`);
       fetchClasses();
       setCopyingClass(null);
     } catch (error) {
-      alert("Lỗi khi nhân bản lớp học: " + (error.response?.data?.message || error.message));
+      toast.error("Lỗi khi nhân bản lớp học: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -195,7 +202,7 @@ function ClassList({ showTopBar = false, onSelectClass }) {
                         onClick={(e) => {
                           e.stopPropagation();
                           navigator.clipboard.writeText(cls.classCode);
-                          alert(`Đã sao chép mã lớp "${cls.classCode}"!`);
+                          toast.success(`Đã sao chép mã lớp "${cls.classCode}"!`);
                         }}
                         title="Sao chép mã lớp để gửi học sinh"
                         className="text-xs text-gray-400 hover:text-blue-600 p-1 cursor-pointer">

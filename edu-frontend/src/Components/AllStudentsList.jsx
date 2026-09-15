@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { studentApi } from '../api/studentApi';
 import { classApi } from '../api/classApi';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../context/ToastContext';
 
 export default function AllStudentsList({ onSelectClass }) {
   const navigate = useNavigate();
+  const { toast, confirm } = useToast();
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,12 +89,12 @@ export default function AllStudentsList({ onSelectClass }) {
         await studentApi.enroll(addFormData.classId, createdUser.id);
       }
 
-      showToast(`✓ Đã thêm học sinh "${createdUser.fullName}" thành công!`);
+      toast.success(`Đã thêm học sinh "${createdUser.fullName}" thành công!`);
       setIsAddModalOpen(false);
       setAddFormData({ fullName: '', email: '', classId: '' });
       await loadData();
     } catch (err) {
-      alert('Lỗi khi thêm học sinh: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi khi thêm học sinh: ' + (err.response?.data?.message || err.message));
     } finally {
       setAddingStudent(false);
     }
@@ -107,12 +109,12 @@ export default function AllStudentsList({ onSelectClass }) {
       setAssigning(true);
       await studentApi.enroll(targetClassId, assigningStudent.studentId);
       const targetClass = classes.find(c => c.id === Number(targetClassId));
-      showToast(`✓ Đã thêm ${assigningStudent.studentName} vào lớp ${targetClass?.name || ''}!`);
+      toast.success(`Đã thêm ${assigningStudent.studentName} vào lớp ${targetClass?.name || ''}!`);
       setAssigningStudent(null);
       setTargetClassId('');
       await loadData();
     } catch (err) {
-      alert('Lỗi khi gán học sinh vào lớp: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi khi gán học sinh vào lớp: ' + (err.response?.data?.message || err.message));
     } finally {
       setAssigning(false);
     }
@@ -120,16 +122,20 @@ export default function AllStudentsList({ onSelectClass }) {
 
   // Xóa tài khoản học sinh
   const handleDeleteStudent = async (st) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa tài khoản học sinh "${st.studentName}" (${st.studentEmail})? Toàn bộ dữ liệu điểm danh và bài làm của học sinh sẽ bị xóa.`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Xóa tài khoản học sinh',
+      message: `Bạn có chắc muốn xóa tài khoản học sinh "${st.studentName}" (${st.studentEmail})? Toàn bộ dữ liệu điểm danh và bài làm của học sinh sẽ bị xóa vĩnh viễn.`,
+      confirmText: 'Xóa học sinh',
+      type: 'danger'
+    });
+    if (!ok) return;
 
     try {
       await studentApi.delete(st.studentId);
-      showToast(`✓ Đã xóa học sinh "${st.studentName}" thành công!`);
+      toast.success(`Đã xóa học sinh "${st.studentName}" thành công!`);
       await loadData();
     } catch (err) {
-      alert('Lỗi khi xóa học sinh: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi khi xóa học sinh: ' + (err.response?.data?.message || err.message));
     }
   };
 

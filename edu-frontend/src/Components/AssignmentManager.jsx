@@ -4,8 +4,10 @@ import { submissionApi } from '../api/submissionApi';
 import { sessionApi } from '../api/sessionApi';
 import { studentApi } from '../api/studentApi';
 import { fileApi } from '../api/fileApi';
+import { useToast } from '../context/ToastContext';
 
 export default function AssignmentManager({ classId }) {
+  const { toast, confirm } = useToast();
   const [assignments, setAssignments] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [students, setStudents] = useState([]);
@@ -23,10 +25,10 @@ export default function AssignmentManager({ classId }) {
     description: '',
     dueDate: '',
     allowText: true,
-    allowDocx: true,
-    allowAudio: true,
-    allowRecording: true,
-    allowImage: true,
+    allowDocx: false,
+    allowAudio: false,
+    allowRecording: false,
+    allowImage: false,
     attachmentFileName: '',
     attachmentFileUrl: ''
   });
@@ -46,32 +48,17 @@ export default function AssignmentManager({ classId }) {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [assignmentsRes, sessionsRes, studentsRes] = await Promise.allSettled([
+      const [assRes, sessRes, studRes] = await Promise.all([
         assignmentApi.getByClass(classId),
         sessionApi.getByClass(classId),
         studentApi.getByClass(classId)
       ]);
-
-      if (assignmentsRes.status === 'fulfilled' && Array.isArray(assignmentsRes.value)) {
-        setAssignments(assignmentsRes.value);
-      } else {
-        setAssignments([]);
-      }
-
-      if (sessionsRes.status === 'fulfilled' && Array.isArray(sessionsRes.value)) {
-        const sorted = [...sessionsRes.value].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-        setSessions(sorted);
-      } else {
-        setSessions([]);
-      }
-
-      if (studentsRes.status === 'fulfilled' && Array.isArray(studentsRes.value)) {
-        setStudents(studentsRes.value);
-      } else {
-        setStudents([]);
-      }
+      setAssignments(assRes || []);
+      setSessions(sessRes || []);
+      setStudents(studRes || []);
     } catch (err) {
-      console.error('Lỗi khi tải dữ liệu bài tập:', err);
+      console.error('Lỗi tải dữ liệu:', err);
+      toast.error('Lỗi khi tải dữ liệu bài tập!');
     } finally {
       setLoading(false);
     }
@@ -81,37 +68,44 @@ export default function AssignmentManager({ classId }) {
     loadData();
   }, [classId]);
 
-  const openCreateModal = () => {
+  const handleOpenCreateModal = () => {
     setEditingAssignment(null);
     setFormData({
-      sessionId: sessions.length > 0 ? String(sessions[0].id) : '',
+      sessionId: '',
       title: '',
       description: '',
       dueDate: '',
       allowText: true,
-      allowDocx: true,
-      allowAudio: true,
-      allowRecording: true,
-      allowImage: true,
+      allowDocx: false,
+      allowAudio: false,
+      allowRecording: false,
+      allowImage: false,
       attachmentFileName: '',
       attachmentFileUrl: ''
     });
     setIsModalOpen(true);
   };
 
-  const openEditModal = (assignment) => {
+  const handleOpenEditModal = (assignment) => {
     setEditingAssignment(assignment);
-    const types = (assignment.allowedSubmissionTypes || '').split(',');
+    const allowed = (assignment.allowedSubmissionTypes || 'TEXT').split(',');
+    let localDueDate = '';
+    if (assignment.dueDate) {
+      const d = new Date(assignment.dueDate);
+      const tzOffset = d.getTimezoneOffset() * 60000;
+      localDueDate = new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+    }
+
     setFormData({
       sessionId: assignment.sessionId ? String(assignment.sessionId) : '',
       title: assignment.title || '',
       description: assignment.description || '',
-      dueDate: assignment.dueDate ? assignment.dueDate.slice(0, 16) : '',
-      allowText: types.includes('TEXT') || types.length === 0,
-      allowDocx: types.includes('DOCX'),
-      allowAudio: types.includes('AUDIO'),
-      allowRecording: types.includes('DIRECT_RECORD'),
-      allowImage: types.includes('IMAGE'),
+      dueDate: localDueDate,
+      allowText: allowed.includes('TEXT'),
+      allowDocx: allowed.includes('DOCX'),
+      allowAudio: allowed.includes('AUDIO'),
+      allowRecording: allowed.includes('DIRECT_RECORD'),
+      allowImage: allowed.includes('IMAGE'),
       attachmentFileName: assignment.attachmentFileName || '',
       attachmentFileUrl: assignment.attachmentFileUrl || ''
     });
@@ -129,8 +123,9 @@ export default function AssignmentManager({ classId }) {
         attachmentFileName: res.fileName,
         attachmentFileUrl: res.fileUrl
       }));
+      toast.success(`Đã tải lên tệp đính kèm "${res.fileName}"`);
     } catch (err) {
-      alert('Lỗi tải tệp: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi tải tệp: ' + (err.response?.data?.message || err.message));
     } finally {
       setUploadingAttachment(false);
     }
@@ -162,27 +157,37 @@ export default function AssignmentManager({ classId }) {
           ...payload,
           session: sid ? { id: sid } : null
         });
+        toast.success(`Đã cập nhật bài tập "${formData.title}"`);
       } else {
         await assignmentApi.create(classId, sid, payload);
+        toast.success(`Đã tạo mới bài tập "${formData.title}"`);
       }
 
       setIsModalOpen(false);
       loadData();
     } catch (err) {
-      alert('Lỗi lưu bài tập: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi lưu bài tập: ' + (err.response?.data?.message || err.message));
     }
   };
 
   const handleDeleteAssignment = async (id, title) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa bài tập "${title}"?`)) return;
+    const ok = await confirm({
+      title: 'Xóa bài tập',
+      message: `Bạn có chắc chắn muốn xóa bài tập "${title}"? Tất cả bài nộp của học sinh sẽ bị gỡ bỏ.`,
+      confirmText: 'Xóa vĩnh viễn',
+      type: 'danger'
+    });
+    if (!ok) return;
+
     try {
       await assignmentApi.delete(id);
       if (activeAssignmentForSubmissions?.id === id) {
         setActiveAssignmentForSubmissions(null);
       }
+      toast.success(`Đã xóa bài tập "${title}"`);
       loadData();
     } catch (err) {
-      alert('Lỗi xóa bài tập: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi xóa bài tập: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -226,8 +231,9 @@ export default function AssignmentManager({ classId }) {
       setSubmissions(subs || []);
       setSelectedSubmissionToGrade(null);
       setSelectedStudentForGrading(null);
+      toast.success('Đã lưu điểm và nhận xét thành công!');
     } catch (err) {
-      alert('Lỗi lưu chấm điểm: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi lưu chấm điểm: ' + (err.response?.data?.message || err.message));
     } finally {
       setSavingGrade(false);
     }

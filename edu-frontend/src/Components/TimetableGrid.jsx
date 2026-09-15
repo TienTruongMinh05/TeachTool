@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { studentPortalApi } from '../api/studentPortalApi';
+import { useToast } from '../context/ToastContext';
 
 // Color palette for classes (accessible, modern pastel tones)
 const CLASS_COLORS = [
@@ -62,6 +63,7 @@ export default function TimetableGrid({
   onReportAbsenceSuccess = null,
   classes = [],
 }) {
+  const { toast } = useToast();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getMonday(new Date()));
   const [selectedSession, setSelectedSession] = useState(null);
   const [showAbsenceModal, setShowAbsenceModal] = useState(false);
@@ -226,7 +228,7 @@ export default function TimetableGrid({
         absenceReason.trim() || 'Học sinh xin phép vắng'
       );
 
-      alert('Đã gửi báo vắng thành công!');
+      toast.success('Đã gửi báo vắng thành công!');
       setShowAbsenceModal(false);
       setSelectedSession(null);
       if (onReportAbsenceSuccess) {

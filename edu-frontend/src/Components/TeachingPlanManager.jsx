@@ -4,8 +4,10 @@ import { sessionApi } from '../api/sessionApi';
 import { activityApi } from '../api/activityApi';
 import { fileApi } from '../api/fileApi';
 import ActivityLibraryModal from './ActivityLibraryModal';
+import { useToast } from '../context/ToastContext';
 
 export default function TeachingPlanManager({ classId }) {
+  const { toast, confirm } = useToast();
   const [plans, setPlans] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [activities, setActivities] = useState([]);
@@ -82,7 +84,7 @@ export default function TeachingPlanManager({ classId }) {
   const handleCreatePlan = async (e) => {
     e.preventDefault();
     if (!newPlanData.sessionId) {
-      alert('Vui lòng chọn một buổi học!');
+      toast.warning('Vui lòng chọn một buổi học!');
       return;
     }
     try {
@@ -95,8 +97,9 @@ export default function TeachingPlanManager({ classId }) {
       loadData();
       setIsCreatePlanModalOpen(false);
       setNewPlanData({ sessionId: '', title: '' });
+      toast.success(`Đã tạo kế hoạch "${title}"`);
     } catch (error) {
-      alert('Lỗi tạo kế hoạch: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi tạo kế hoạch: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -104,7 +107,7 @@ export default function TeachingPlanManager({ classId }) {
   const handleCopyPlan = async (e) => {
     e.preventDefault();
     if (!targetSessionId) {
-      alert('Vui lòng chọn buổi học đích!');
+      toast.warning('Vui lòng chọn buổi học đích!');
       return;
     }
     try {
@@ -112,19 +115,28 @@ export default function TeachingPlanManager({ classId }) {
       loadData();
       setCopyingPlan(null);
       setTargetSessionId('');
+      toast.success('Đã sao chép kế hoạch sang buổi học mới!');
     } catch (error) {
-      alert('Lỗi nhân bản kế hoạch: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi nhân bản kế hoạch: ' + (error.response?.data?.message || error.message));
     }
   };
 
   // Xóa Kế hoạch
   const handleDeletePlan = async (planId, title) => {
-    if (!window.confirm(`Bạn có chắc muốn xóa kế hoạch "${title}"?`)) return;
+    const ok = await confirm({
+      title: 'Xóa kế hoạch',
+      message: `Bạn có chắc muốn xóa kế hoạch "${title}"?`,
+      confirmText: 'Xóa kế hoạch',
+      type: 'danger'
+    });
+    if (!ok) return;
+
     try {
       await teachingPlanApi.delete(planId);
       loadData();
+      toast.success(`Đã xóa kế hoạch "${title}"`);
     } catch (error) {
-      alert('Lỗi khi xóa kế hoạch: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi khi xóa kế hoạch: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -139,8 +151,7 @@ export default function TeachingPlanManager({ classId }) {
       handoutType: 'NONE',
       handoutText: '',
       handoutFileName: '',
-      handoutFilePath: '',
-      studentPreparation: ''
+      handoutFilePath: ''
     });
   };
 
@@ -149,18 +160,17 @@ export default function TeachingPlanManager({ classId }) {
     setActivePlanForSection(plan);
     setEditingSectionIndex(index);
     setSectionFormData({
-      timeAllocation: section.timeAllocation || '',
+      timeAllocation: section.timeAllocation || `${section.durationMinutes || 15} phút`,
       content: section.content || '',
       activity: section.activity || '',
       handoutType: section.handoutType || 'NONE',
       handoutText: section.handoutText || '',
       handoutFileName: section.handoutFileName || '',
-      handoutFilePath: section.handoutFilePath || '',
-      studentPreparation: section.studentPreparation || ''
+      handoutFilePath: section.handoutFilePath || ''
     });
   };
 
-  // Xử lý Upload file Handout (.docx)
+  // Xử lý Upload file handout
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -174,8 +184,9 @@ export default function TeachingPlanManager({ classId }) {
         handoutFileName: res.fileName,
         handoutFilePath: res.fileUrl
       }));
+      toast.success(`Đã tải lên tệp "${res.fileName}"`);
     } catch (error) {
-      alert('Lỗi tải tệp lên: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi tải tệp lên: ' + (error.response?.data?.message || error.message));
     } finally {
       setUploadingFile(false);
     }
@@ -211,16 +222,24 @@ export default function TeachingPlanManager({ classId }) {
       });
 
       loadData();
+      toast.success(editingSectionIndex !== null ? 'Đã cập nhật học phần!' : 'Đã thêm học phần mới!');
       setActivePlanForSection(null);
       setEditingSectionIndex(null);
     } catch (error) {
-      alert('Lỗi lưu học phần: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi lưu học phần: ' + (error.response?.data?.message || error.message));
     }
   };
 
   // Xóa học phần
   const handleDeleteSection = async (plan, sectionIndex) => {
-    if (!window.confirm('Bạn có chắc muốn xóa học phần này?')) return;
+    const ok = await confirm({
+      title: 'Xóa học phần',
+      message: 'Bạn có chắc muốn xóa học phần này?',
+      confirmText: 'Xóa học phần',
+      type: 'danger'
+    });
+    if (!ok) return;
+
     try {
       const updatedSections = plan.sections.filter((_, idx) => idx !== sectionIndex);
       await teachingPlanApi.update(plan.id, {
@@ -228,8 +247,9 @@ export default function TeachingPlanManager({ classId }) {
         sections: updatedSections
       });
       loadData();
+      toast.success('Đã xóa học phần thành công!');
     } catch (error) {
-      alert('Lỗi xóa học phần: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi xóa học phần: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -249,8 +269,9 @@ export default function TeachingPlanManager({ classId }) {
         sections: currentSections
       });
       loadData();
+      toast.success('Đã nhân bản học phần!');
     } catch (error) {
-      alert('Lỗi nhân bản học phần: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi nhân bản học phần: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -279,7 +300,7 @@ export default function TeachingPlanManager({ classId }) {
           <button 
             onClick={() => {
               if (sessions.length === 0) {
-                alert('Lớp học chưa có buổi học nào! Vui lòng tạo buổi học ở tab "Buổi học trong tuần" trước.');
+                toast.warning('Lớp học chưa có buổi học nào! Vui lòng tạo buổi học ở tab "Buổi học trong tuần" trước.');
                 return;
               }
               setIsCreatePlanModalOpen(true);
@@ -433,7 +454,7 @@ export default function TeachingPlanManager({ classId }) {
             <button 
               onClick={() => {
                 if (sessions.length === 0) {
-                  alert('Lớp học chưa có buổi học nào! Vui lòng tạo buổi học trước.');
+                  toast.warning('Lớp học chưa có buổi học nào! Vui lòng tạo buổi học trước.');
                   return;
                 }
                 setIsCreatePlanModalOpen(true);

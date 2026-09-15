@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { studentPortalApi } from '../api/studentPortalApi';
 import { assignmentApi } from '../api/assignmentApi';
 import { submissionApi } from '../api/submissionApi';
@@ -10,6 +11,7 @@ import AccountSettingsModal from '../Components/AccountSettingsModal';
 
 export default function StudentPortal() {
   const { user, logout, updateUser } = useAuth();
+  const { toast } = useToast();
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   // Camera capture states
@@ -240,8 +242,9 @@ export default function StudentPortal() {
       setTimeout(() => setDraftSavedNotice(''), 3500);
       // Buộc cập nhật trạng thái thời khóa biểu
       setSchedule(prev => [...prev]);
+      toast.success('Đã lưu bản nháp bài làm tự động!');
     } catch {
-      alert('Không thể lưu bản nháp vào bộ nhớ trình duyệt.');
+      toast.error('Không thể lưu bản nháp vào bộ nhớ trình duyệt.');
     }
   };
 
@@ -301,8 +304,9 @@ export default function StudentPortal() {
           fileName: res.fileName || fileName
         });
         stopCamera();
+        toast.success('Đã chụp ảnh bài làm thành công!');
       } catch (err) {
-        alert('Lỗi tải ảnh chụp lên máy chủ: ' + (err.response?.data?.message || err.message));
+        toast.error('Lỗi tải ảnh chụp lên máy chủ: ' + (err.response?.data?.message || err.message));
       } finally {
         setUploadingFile(false);
       }
@@ -316,19 +320,19 @@ export default function StudentPortal() {
     const lowerName = file.name.toLowerCase();
     if (type === 'DOCX') {
       if (!lowerName.endsWith('.docx') && !lowerName.endsWith('.doc') && !lowerName.endsWith('.pdf')) {
-        alert('Định dạng tệp không hợp lệ! Vui lòng chỉ tải lên tệp tài liệu (.docx, .doc, .pdf)');
+        toast.warning('Định dạng tệp không hợp lệ! Vui lòng chỉ tải lên tệp tài liệu (.docx, .doc, .pdf)');
         e.target.value = '';
         return;
       }
     } else if (type === 'AUDIO') {
       if (!lowerName.endsWith('.mp3') && !lowerName.endsWith('.wav') && !lowerName.endsWith('.m4a') && !lowerName.endsWith('.webm') && !lowerName.endsWith('.ogg')) {
-        alert('Định dạng tệp không hợp lệ! Vui lòng chỉ tải lên tệp âm thanh (.mp3, .wav, .m4a, .webm)');
+        toast.warning('Định dạng tệp không hợp lệ! Vui lòng chỉ tải lên tệp âm thanh (.mp3, .wav, .m4a, .webm)');
         e.target.value = '';
         return;
       }
     } else if (type === 'IMAGE') {
       if (!lowerName.endsWith('.jpg') && !lowerName.endsWith('.jpeg') && !lowerName.endsWith('.png') && !lowerName.endsWith('.webp') && !lowerName.endsWith('.gif') && !lowerName.endsWith('.heic')) {
-        alert('Định dạng tệp không hợp lệ! Vui lòng chỉ tải lên tệp hình ảnh (.jpg, .jpeg, .png, .webp)');
+        toast.warning('Định dạng tệp không hợp lệ! Vui lòng chỉ tải lên tệp hình ảnh (.jpg, .jpeg, .png, .webp)');
         e.target.value = '';
         return;
       }
@@ -341,8 +345,9 @@ export default function StudentPortal() {
         fileUrl: res.fileUrl,
         fileName: res.fileName || file.name
       });
+      toast.success(`Đã tải lên tệp "${res.fileName || file.name}"`);
     } catch (err) {
-      alert('Lỗi tải tệp lên: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi tải tệp lên: ' + (err.response?.data?.message || err.message));
     } finally {
       setUploadingFile(false);
     }
@@ -361,7 +366,7 @@ export default function StudentPortal() {
       const allowed = rawAllowed.length > 0 ? rawAllowed : ['TEXT', 'DOCX', 'AUDIO', 'DIRECT_RECORD', 'IMAGE'];
 
       if (!allowed.includes(selectedSubmissionMode)) {
-        alert(`Hình thức nộp '${selectedSubmissionMode}' không được giáo viên cho phép! Các hình thức được phép: ${allowed.join(', ')}`);
+        toast.error(`Hình thức nộp '${selectedSubmissionMode}' không được giáo viên cho phép! Các hình thức được phép: ${allowed.join(', ')}`);
         return;
       }
 
@@ -373,11 +378,11 @@ export default function StudentPortal() {
       };
 
       if (selectedSubmissionMode === 'TEXT' && !submissionText.trim()) {
-        alert('Vui lòng nhập nội dung văn bản bài làm!');
+        toast.warning('Vui lòng nhập nội dung văn bản bài làm!');
         return;
       }
       if (selectedSubmissionMode !== 'TEXT' && !uploadedFileData.fileUrl) {
-        alert('Vui lòng tải lên hoặc chụp ảnh/thu âm tệp bài làm trước khi nộp!');
+        toast.warning('Vui lòng tải lên hoặc chụp ảnh/thu âm tệp bài làm trước khi nộp!');
         return;
       }
 
@@ -387,13 +392,14 @@ export default function StudentPortal() {
         localStorage.removeItem(`draft_asgn_${user.id}_${activeAssignmentToSubmit.id}`);
       } catch {}
 
+      toast.success('Đã nộp bài tập thành công!');
       setSubmissionSuccessMsg('Đã nộp bài tập thành công!');
       await loadData();
       setTimeout(() => {
         closeSubmitModal();
       }, 1200);
     } catch (err) {
-      alert('Lỗi khi nộp bài tập: ' + (err.response?.data?.message || err.message));
+      toast.error('Lỗi khi nộp bài tập: ' + (err.response?.data?.message || err.message));
     } finally {
       setSubmitting(false);
     }
@@ -436,7 +442,7 @@ export default function StudentPortal() {
       setIsSubmittingAbsence(true);
       setAbsenceError('');
       await studentPortalApi.reportAbsence(user.id, selectedSessionForAbsence.sessionId || selectedSessionForAbsence.id, absenceReason);
-      alert('Đã gửi báo vắng thành công!');
+      toast.success('Đã gửi báo vắng thành công!');
       setSelectedSessionForAbsence(null);
       setAbsenceReason('');
       await loadData();

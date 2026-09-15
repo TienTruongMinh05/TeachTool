@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { attendanceApi } from '../api/attendanceApi';
 import { sessionApi } from '../api/sessionApi';
 import { studentApi } from '../api/studentApi';
+import { useToast } from '../context/ToastContext';
 
 export default function AttendanceManager({ classId, initialSessionId = null }) {
+  const { toast } = useToast();
   const [viewMode, setViewMode] = useState('session'); // 'session' | 'matrix'
   const [sessions, setSessions] = useState([]);
   const [students, setStudents] = useState([]);
@@ -138,9 +140,10 @@ export default function AttendanceManager({ classId, initialSessionId = null }) 
 
       await attendanceApi.batchMark(selectedSessionId, items);
       setSaveMessage('✓ Đã lưu điểm danh thành công!');
+      toast.success('Đã lưu điểm danh thành công!');
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
-      alert('Lỗi lưu điểm danh: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi lưu điểm danh: ' + (error.response?.data?.message || error.message));
     } finally {
       setSaving(false);
     }

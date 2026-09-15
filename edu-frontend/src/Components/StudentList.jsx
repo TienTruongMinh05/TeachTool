@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { studentApi } from '../api/studentApi';
 import { classApi } from '../api/classApi';
+import { useToast } from '../context/ToastContext';
 
 export default function StudentList({ classId }) {
+  const { toast } = useToast();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -67,7 +69,7 @@ export default function StudentList({ classId }) {
         setSelectedTargetClassId(availableClasses[0].id);
       }
     } catch (error) {
-      alert("Lỗi khi tải danh sách lớp học!");
+      toast.error("Lỗi khi tải danh sách lớp học!");
     }
   };
 
@@ -75,15 +77,15 @@ export default function StudentList({ classId }) {
   const handleConfirmCopyToClass = async (e) => {
     e.preventDefault();
     if (!selectedTargetClassId) {
-      alert("Vui lòng chọn một lớp học!");
+      toast.warning("Vui lòng chọn một lớp học!");
       return;
     }
     try {
       await studentApi.enroll(selectedTargetClassId, copyingStudent.studentId);
       setCopyingStudent(null);
-      showToast(`✓ Đã sao chép học sinh "${copyingStudent.studentName}" sang lớp đích thành công!`);
+      toast.success(`Đã sao chép học sinh "${copyingStudent.studentName}" sang lớp đích thành công!`);
     } catch (error) {
-      alert("Lỗi khi sao chép học sinh sang lớp khác: " + (error.response?.data?.message || error.message));
+      toast.error("Lỗi khi sao chép học sinh sang lớp khác: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -96,9 +98,9 @@ export default function StudentList({ classId }) {
       fetchStudents();
       setIsModalOpen(false);
       setFormData({ fullName: '', email: '' });
-      showToast(`✓ Đã thêm học sinh "${newUser.fullName}" vào lớp!`);
+      toast.success(`Đã thêm học sinh "${newUser.fullName}" vào lớp!`);
     } catch (error) {
-      alert("Lỗi khi thêm học sinh. Vui lòng kiểm tra lại thông tin.");
+      toast.error("Lỗi khi thêm học sinh. Vui lòng kiểm tra lại thông tin.");
     }
   };
 
@@ -117,9 +119,9 @@ export default function StudentList({ classId }) {
       await studentApi.update(editingStudent.studentId, editFormData);
       fetchStudents();
       setEditingStudent(null);
-      showToast("✓ Đã cập nhật thông tin học sinh thành công!");
+      toast.success("Đã cập nhật thông tin học sinh thành công!");
     } catch (error) {
-      alert("Lỗi khi cập nhật học sinh: " + (error.response?.data?.message || error.message));
+      toast.error("Lỗi khi cập nhật học sinh: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -129,9 +131,9 @@ export default function StudentList({ classId }) {
       await studentApi.removeFromClass(classId, deletingStudent.studentId);
       setDeletingStudent(null);
       fetchStudents();
-      showToast("✓ Đã hủy ghi danh học sinh khỏi lớp!");
+      toast.success("Đã hủy ghi danh học sinh khỏi lớp!");
     } catch (error) {
-      alert("Lỗi khi xóa học sinh khỏi lớp: " + (error.response?.data?.message || error.message));
+      toast.error("Lỗi khi xóa học sinh khỏi lớp: " + (error.response?.data?.message || error.message));
     }
   };
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { activityApi } from '../api/activityApi';
+import { useToast } from '../context/ToastContext';
 
 const CATEGORIES = [
   { id: 'ALL', label: 'Tất cả hoạt động' },
@@ -24,6 +25,7 @@ const categorizeActivity = (name = '', desc = '') => {
 };
 
 export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity = null }) {
+  const { toast, confirm } = useToast();
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,15 +57,17 @@ export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity
     try {
       if (editingActivity) {
         await activityApi.update(editingActivity.id, formData);
+        toast.success(`Đã cập nhật hoạt động "${formData.name}"`);
       } else {
         await activityApi.create(formData);
+        toast.success(`Đã thêm hoạt động "${formData.name}" vào thư viện`);
       }
       await fetchActivities();
       setFormData({ name: '', description: '' });
       setEditingActivity(null);
       setIsFormOpen(false);
     } catch (error) {
-      alert('Lỗi lưu hoạt động: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi lưu hoạt động: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -73,13 +77,21 @@ export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity
     setIsFormOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa hoạt động này khỏi thư viện chung?')) return;
+  const handleDelete = async (id, actName) => {
+    const ok = await confirm({
+      title: 'Xóa hoạt động',
+      message: `Bạn có chắc chắn muốn xóa hoạt động ${actName ? `"${actName}"` : ''} khỏi thư viện chung?`,
+      confirmText: 'Xóa hoạt động',
+      type: 'danger'
+    });
+    if (!ok) return;
+
     try {
       await activityApi.delete(id);
+      toast.success('Đã xóa hoạt động khỏi thư viện!');
       await fetchActivities();
     } catch (error) {
-      alert('Lỗi khi xóa hoạt động: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi khi xóa hoạt động: ' + (error.response?.data?.message || error.message));
     }
   };
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { authApi } from '../api/authApi';
 import { userApi } from '../api/userApi';
 import { enrollmentApi } from '../api/enrollmentApi';
+import { useToast } from '../context/ToastContext';
 
 export default function AccountSettingsModal({
   isOpen,
@@ -12,6 +13,7 @@ export default function AccountSettingsModal({
   onLeaveClassSuccess,
   onLogout
 }) {
+  const { toast, confirm } = useToast();
   const [activeTab, setActiveTab] = useState('profile'); // profile, classes, security, danger
 
   // Form Thông tin cá nhân
@@ -105,17 +107,27 @@ export default function AccountSettingsModal({
 
   // Học sinh tự rời lớp học
   const handleLeaveClass = async (classId, className) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn rời khỏi lớp "${className}"?`)) return;
+    const ok = await confirm({
+      title: 'Rời khỏi lớp học',
+      message: `Bạn có chắc chắn muốn rời khỏi lớp "${className}"?`,
+      confirmText: 'Rời lớp',
+      type: 'warning'
+    });
+    if (!ok) return;
+
     try {
       setLeavingClassId(classId);
       setClassMsg({ type: '', text: '' });
       await enrollmentApi.removeStudent(classId, user.id);
       setClassMsg({ type: 'success', text: `Đã rời lớp "${className}" thành công!` });
+      toast.success(`Đã rời khỏi lớp "${className}" thành công!`);
       if (onLeaveClassSuccess) {
         await onLeaveClassSuccess(classId);
       }
     } catch (err) {
-      setClassMsg({ type: 'error', text: err.response?.data?.message || err.message || 'Lỗi khi rời lớp học.' });
+      const errTxt = err.response?.data?.message || err.message || 'Lỗi khi rời lớp học.';
+      setClassMsg({ type: 'error', text: errTxt });
+      toast.error(errTxt);
     } finally {
       setLeavingClassId(null);
     }
@@ -131,7 +143,7 @@ export default function AccountSettingsModal({
       setDeletingAccount(true);
       setDeleteError('');
       await authApi.deleteAccount(user.id);
-      alert('Tài khoản của bạn đã được xóa vĩnh viễn khỏi hệ thống.');
+      toast.success('Tài khoản của bạn đã được xóa vĩnh viễn khỏi hệ thống.');
       if (onLogout) {
         onLogout();
       }

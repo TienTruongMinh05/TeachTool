@@ -13,12 +13,14 @@ import ClassList from './ClassList';
 import AccountSettingsModal from '../Components/AccountSettingsModal';
 import TeacherManager from '../Components/TeacherManager';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 export default function ClassDashboard({ initialView }) {
   const { id } = useParams(); // Lấy ID lớp nếu có trong URL (/class/:id)
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout, updateUser } = useAuth();
+  const { toast } = useToast();
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   
   // State quản lý view hiện tại:
@@ -134,8 +136,9 @@ export default function ClassDashboard({ initialView }) {
       const updated = await classApi.update(selectedClassId, editFormData);
       setClassInfo(updated);
       setIsEditModalOpen(false);
+      toast.success(`Đã cập nhật thông tin lớp "${updated.name}"`);
     } catch (error) {
-      alert('Lỗi cập nhật lớp học: ' + (error.response?.data?.message || error.message));
+      toast.error('Lỗi cập nhật lớp học: ' + (error.response?.data?.message || error.message));
     }
   };
 
@@ -507,7 +510,7 @@ export default function ClassDashboard({ initialView }) {
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(classInfo.classCode);
-                        alert(`Đã sao chép mã lớp "${classInfo.classCode}" để gửi cho học sinh!`);
+                        toast.success(`Đã sao chép mã lớp "${classInfo.classCode}" để gửi cho học sinh!`);
                       }}
                       title="Sao chép mã lớp"
                       className="text-[11px] text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2 py-0.5 rounded cursor-pointer transition whitespace-nowrap">

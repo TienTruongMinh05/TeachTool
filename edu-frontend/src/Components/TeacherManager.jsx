@@ -2,9 +2,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { classApi } from '../api/classApi';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 export default function TeacherManager({ classId, classInfo, onClassUpdated }) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,8 +33,7 @@ export default function TeacherManager({ classId, classInfo, onClassUpdated }) {
       const data = await classApi.getTeachers(classId);
       setTeachers(data || []);
     } catch (err) {
-      console.error('Lỗi khi tải danh sách giáo viên:', err);
-      setError('Không thể tải danh sách giáo viên phụ trách.');
+      setError(err.response?.data?.message || err.message || 'Không thể tải danh sách giáo viên.');
     } finally {
       setLoading(false);
     }
@@ -54,36 +55,37 @@ export default function TeacherManager({ classId, classInfo, onClassUpdated }) {
   const handleInviteSubmit = async (e) => {
     e.preventDefault();
     if (!inviteEmail.trim()) {
-      setActionError('Vui lòng nhập địa chỉ email giáo viên.');
+      setActionError('Vui lòng nhập địa chỉ Gmail của giáo viên.');
       return;
     }
 
     try {
       setInviting(true);
       setActionError('');
-      await classApi.addTeacher(classId, inviteEmail.trim());
-      setActionSuccess(`Đã thêm giáo viên "${inviteEmail.trim()}" vào lớp thành công!`);
+      setActionSuccess('');
+
+      const res = await classApi.inviteTeacher(classId, inviteEmail.trim());
+      setActionSuccess(res.message || 'Mời giáo viên thành công!');
+      toast.success(res.message || 'Đã thêm giáo viên vào lớp thành công!');
       setInviteEmail('');
+      await fetchTeachers();
+      if (onClassUpdated) onClassUpdated();
       setTimeout(() => {
         setIsInviteModalOpen(false);
-        setActionSuccess('');
-      }, 1200);
-      fetchTeachers();
-      if (onClassUpdated) onClassUpdated();
+      }, 1500);
     } catch (err) {
-      const msg = err.response?.data?.message || err.message || 'Lỗi khi thêm giáo viên đồng phụ trách.';
-      setActionError(msg);
+      setActionError(err.response?.data?.message || err.message || 'Có lỗi xảy ra khi mời giáo viên.');
     } finally {
       setInviting(false);
     }
   };
 
-  const promptRemove = (teacher) => {
-    const isSelf = user?.id && Number(teacher.teacherId) === Number(user.id);
+  const handleOpenRemoveModal = (teacher, isSelf = false) => {
+    const isSelfFlag = isSelf || (user?.id && Number(teacher.teacherId) === Number(user.id));
     setConfirmModal({
       isOpen: true,
       teacher,
-      isSelf
+      isSelf: isSelfFlag
     });
   };
 
@@ -94,12 +96,16 @@ export default function TeacherManager({ classId, classInfo, onClassUpdated }) {
       setConfirmModal({ isOpen: false, teacher: null, isSelf: false });
       fetchTeachers();
       if (confirmModal.isSelf) {
-        alert('Bạn đã rời khỏi lớp học thành công.');
-        window.location.href = '/';
+        toast.success('Bạn đã rời khỏi lớp học thành công.');
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
+      } else {
+        toast.success(`Đã xóa giáo viên "${confirmModal.teacher.fullName || confirmModal.teacher.email}" khỏi lớp.`);
       }
     } catch (err) {
       const msg = err.response?.data?.message || err.message || 'Lỗi khi xóa giáo viên.';
-      alert(msg);
+      toast.error(msg);
     }
   };
 
