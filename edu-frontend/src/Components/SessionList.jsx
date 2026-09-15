@@ -1606,8 +1606,8 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
               {/* Chọn Sách giáo khoa & Trang (Tự động ghi nhớ trang trước) */}
               <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-lg space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-blue-900 flex items-center gap-1">
-                    <span>📖</span> Sách giáo khoa & Trang (Tùy chọn)
+                  <label className="text-xs font-bold text-blue-900">
+                    Sách giáo khoa & Số trang (Tùy chọn)
                   </label>
                   {sectionFormData.bookId && (
                     <button
@@ -1616,9 +1616,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                         const mat = classMaterials.find(m => m.id === sectionFormData.bookId);
                         if (mat) setPickingMaterial(mat);
                       }}
-                      className="text-[11px] font-bold text-blue-700 bg-white border border-blue-300 hover:bg-blue-100 px-2 py-0.5 rounded cursor-pointer transition shadow-2xs flex items-center gap-1"
+                      className="text-[11px] font-bold text-blue-700 bg-white border border-blue-300 hover:bg-blue-100 px-2.5 py-1 rounded cursor-pointer transition shadow-2xs"
                     >
-                      <span>🔍</span> Mở sách & Chọn trang
+                      Mở sách & Chọn trang
                     </button>
                   )}
                 </div>
@@ -1655,8 +1655,8 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                   </div>
                 </div>
                 {sectionFormData.bookPage && (
-                  <p className="text-[10px] text-blue-700 italic">
-                    💡 Hệ thống tự động ghi nhớ trang {sectionFormData.bookPage} cho các học phần tiếp theo.
+                  <p className="text-[10px] text-blue-700">
+                    Tự động ghi nhớ trang {sectionFormData.bookPage} cho các học phần tiếp theo.
                   </p>
                 )}
               </div>

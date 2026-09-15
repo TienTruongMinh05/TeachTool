@@ -97,17 +97,14 @@ export default function StudentFeedbackAudioPlayer({ rawFeedback }) {
 
           {/* Header */}
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-base">🎧</span>
-              <div>
-                <h5 className="font-bold text-xs sm:text-sm text-white flex items-center gap-1.5">
-                  <span>Bản Lồng Tiếng Sửa Mẫu Của Giáo Viên</span>
-                  <span className="px-1.5 py-0.2 text-[10px] font-bold bg-blue-600 text-white rounded">Đã ghép nối</span>
-                </h5>
-                <span className="text-[11px] text-slate-400">
-                  Bao gồm bài nói của bạn và các đoạn giáo viên trực tiếp phát âm sửa lỗi
-                </span>
-              </div>
+            <div>
+              <h5 className="font-bold text-xs sm:text-sm text-white flex items-center gap-1.5">
+                <span>Bản Lồng Tiếng Sửa Mẫu Của Giáo Viên</span>
+                <span className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-600 text-white rounded">Đã ghép nối</span>
+              </h5>
+              <span className="text-[11px] text-slate-400">
+                Bao gồm bài nói của bạn và các đoạn giáo viên trực tiếp phát âm sửa lỗi
+              </span>
             </div>
 
             {/* Speed Buttons */}
@@ -151,7 +148,7 @@ export default function StudentFeedbackAudioPlayer({ rawFeedback }) {
               onClick={togglePlay}
               className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
             >
-              <span>{isPlaying ? '⏸ Tạm Dừng' : '▶ Nghe Nhận Xét'}</span>
+              <span>{isPlaying ? 'Tạm Dừng' : 'Nghe Nhận Xét'}</span>
             </button>
             <a
               href={feedbackAudioUrl}
@@ -169,8 +166,8 @@ export default function StudentFeedbackAudioPlayer({ rawFeedback }) {
       {/* Chi tiết nhận xét theo mốc thời gian & Ghi chú giáo viên */}
       {cleanText && (
         <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2 text-xs">
-          <span className="font-bold text-amber-900 block flex items-center gap-1.5">
-            <span>📝</span> Nhận xét & Đánh giá của Giáo Viên:
+          <span className="font-bold text-amber-900 block">
+            Nhận xét & Đánh giá của Giáo Viên:
           </span>
           <div className="space-y-1.5 text-gray-800">
             {lines.map((line, idx) => {
@@ -181,7 +178,7 @@ export default function StudentFeedbackAudioPlayer({ rawFeedback }) {
               if (trimmed.includes('--- CHI TIẾT SỬA BÀI THEO MỐC THỜI GIAN ---')) {
                 return (
                   <div key={idx} className="font-bold text-slate-700 pt-1 border-t border-amber-200/60 text-[11px] uppercase tracking-wider">
-                    📌 Chi tiết sửa bài theo từng giây:
+                    Chi tiết sửa bài theo từng giây:
                   </div>
                 );
               }
@@ -198,10 +195,10 @@ export default function StudentFeedbackAudioPlayer({ rawFeedback }) {
                     <button
                       type="button"
                       onClick={() => jumpToSeconds(sec)}
-                      className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-mono font-bold text-[11px] rounded border border-blue-200 cursor-pointer whitespace-nowrap flex items-center gap-1 transition shadow-2xs"
+                      className="px-2 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-mono font-bold text-[11px] rounded border border-blue-200 cursor-pointer whitespace-nowrap transition shadow-2xs"
                       title="Bấm để nghe đúng mốc thời gian này"
                     >
-                      <span>⏱</span> {timeStr}
+                      {timeStr}
                     </button>
                     <span className="text-gray-800 font-medium leading-relaxed self-center">
                       {content}

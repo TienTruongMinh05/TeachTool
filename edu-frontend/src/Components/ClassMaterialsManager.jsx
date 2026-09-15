@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
+import * as pdfjsLib from 'pdfjs-dist';
 import { fileApi } from '../api/fileApi';
 import { useToast } from '../context/ToastContext';
+import PdfCanvasViewer from './PdfCanvasViewer';
+
+// Cấu hình CDN worker cho pdf.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
 export const getStoredClassMaterials = (classId) => {
   if (!classId) return [];
@@ -39,14 +44,13 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
     category: 'Sách giáo khoa',
     fileUrl: '',
     fileName: '',
-    totalPages: 100,
+    totalPages: 1,
     description: ''
   });
 
   // PDF Viewer Modal State
   const [viewingMaterial, setViewingMaterial] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [zoomLevel, setZoomLevel] = useState(100);
 
   useEffect(() => {
     setMaterials(getStoredClassMaterials(classId));
@@ -60,16 +64,37 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    const lower = file.name.toLowerCase();
+    if (!lower.endsWith('.pdf') && file.type !== 'application/pdf') {
+      toast.warning('Chỉ hỗ trợ tệp tài liệu định dạng PDF (.pdf)!');
+      e.target.value = '';
+      return;
+    }
+
     try {
       setUploading(true);
+
+      // Tự động giải mã và đọc tổng số trang của file PDF
+      let detectedPages = 1;
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdfDoc = await loadingTask.promise;
+        detectedPages = pdfDoc.numPages || 1;
+      } catch (pdfErr) {
+        console.warn('Không thể đọc trước số trang PDF:', pdfErr);
+      }
+
       const res = await fileApi.upload(file);
       setFormData(prev => ({
         ...prev,
-        title: prev.title || file.name.replace(/\.[^/.]+$/, ""),
+        title: prev.title || file.name.replace(/\.[^/.]+$/, ''),
         fileName: res.fileName,
-        fileUrl: res.fileUrl
+        fileUrl: res.fileUrl,
+        totalPages: detectedPages
       }));
-      toast.success('Đã tải lên tệp: ' + res.fileName);
+      toast.success(`Đã tải lên tệp "${res.fileName}" (tự động nhận diện ${detectedPages} trang)`);
     } catch (err) {
       toast.error('Lỗi tải tệp: ' + (err.response?.data?.message || err.message));
     } finally {
@@ -104,7 +129,7 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
       category: 'Sách giáo khoa',
       fileUrl: '',
       fileName: '',
-      totalPages: 100,
+      totalPages: 1,
       description: ''
     });
   };
@@ -126,7 +151,6 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
   const openPdfViewer = (mat, initialPage = 1) => {
     setViewingMaterial(mat);
     setCurrentPage(initialPage);
-    setZoomLevel(100);
   };
 
   return (
@@ -136,26 +160,24 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
         <div>
           <h2 className="text-xl font-bold text-slate-800">Tài Liệu & Sách Giáo Khoa Của Lớp</h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Quản lý giáo trình, sách bài tập, slide và tài liệu giảng dạy riêng cho lớp {classInfo?.name || ''}
+            Quản lý giáo trình PDF, sách bài tập và tài liệu giảng dạy riêng cho lớp {classInfo?.name || ''}
           </p>
         </div>
         <button
           type="button"
           onClick={() => setIsAddModalOpen(true)}
-          className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-xs cursor-pointer flex items-center gap-1.5"
+          className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition shadow-xs cursor-pointer"
         >
-          <span>+</span>
-          <span>Thêm Sách / Tài Liệu</span>
+          + Thêm Sách / Tài Liệu
         </button>
       </div>
 
       {/* Grid danh sách sách / tài liệu */}
       {materials.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
-          <div className="text-4xl mb-3">📚</div>
           <h3 className="font-bold text-slate-700 text-base">Chưa có tài liệu hoặc sách nào</h3>
           <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-            Hãy tải lên sách giáo trình PDF hoặc đính kèm link tài liệu để tiện tra cứu và chọn trang khi soạn kế hoạch bài học.
+            Hãy tải lên sách giáo trình định dạng PDF để tra cứu trực tiếp và chọn trang khi soạn kế hoạch bài học.
           </p>
           <button
             type="button"
@@ -180,10 +202,10 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
                   <button
                     type="button"
                     onClick={() => handleDelete(mat)}
-                    className="text-slate-400 hover:text-rose-600 text-xs p-1 cursor-pointer"
+                    className="text-slate-400 hover:text-rose-600 text-xs px-1.5 py-0.5 rounded cursor-pointer transition hover:bg-rose-50"
                     title="Xóa tài liệu"
                   >
-                    🗑
+                    Xóa
                   </button>
                 </div>
 
@@ -199,7 +221,7 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
 
                 <div className="text-[11px] text-slate-400 flex flex-wrap gap-x-3 gap-y-0.5 pt-1">
                   {mat.totalPages && (
-                    <span>Số trang: <b>{mat.totalPages} trang</b></span>
+                    <span>Quy mô: <b>{mat.totalPages} trang</b></span>
                   )}
                   {mat.fileName && (
                     <span className="truncate max-w-[140px]" title={mat.fileName}>Tệp: {mat.fileName}</span>
@@ -211,21 +233,19 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
                 <button
                   type="button"
                   onClick={() => openPdfViewer(mat, 1)}
-                  className="flex-1 py-1.5 px-3 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition cursor-pointer flex items-center justify-center gap-1.5"
+                  className="flex-1 py-1.5 px-3 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition cursor-pointer text-center"
                 >
-                  <span>📖</span>
-                  <span>Mở Sách / Đọc</span>
+                  Mở Sách / Đọc
                 </button>
                 {mat.fileUrl && (
                   <a
                     href={mat.fileUrl}
                     target="_blank"
                     rel="noreferrer"
-                    download
                     className="p-1.5 px-2.5 text-xs text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 transition cursor-pointer"
-                    title="Tải về máy"
+                    title="Mở liên kết gốc"
                   >
-                    ⬇
+                    Mở link ↗
                   </a>
                 )}
               </div>
@@ -243,9 +263,9 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 text-lg font-bold p-1 cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 text-sm font-semibold p-1 cursor-pointer"
               >
-                ✕
+                Đóng
               </button>
             </div>
 
@@ -264,60 +284,44 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Phân loại
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  >
-                    <option value="Sách giáo khoa">Sách giáo khoa (Student Book)</option>
-                    <option value="Sách bài tập">Sách bài tập (Workbook)</option>
-                    <option value="Sách giáo viên">Sách giáo viên (Teacher's Guide)</option>
-                    <option value="Tài liệu tham khảo">Tài liệu tham khảo</option>
-                    <option value="Đề thi / Kiểm tra">Đề thi / Kiểm tra</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Số trang ước tính
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.totalPages}
-                    onChange={(e) => setFormData({ ...formData, totalPages: e.target.value })}
-                    placeholder="VD: 150"
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Phân loại tài liệu
+                </label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                >
+                  <option value="Sách giáo khoa">Sách giáo khoa (Student Book)</option>
+                  <option value="Sách bài tập">Sách bài tập (Workbook)</option>
+                  <option value="Sách giáo viên">Sách giáo viên (Teacher's Guide)</option>
+                  <option value="Tài liệu tham khảo">Tài liệu tham khảo</option>
+                  <option value="Đề thi / Kiểm tra">Đề thi / Kiểm tra</option>
+                </select>
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Tải lên tệp PDF sách hoặc giáo trình
+                  Tải lên tệp PDF sách hoặc giáo trình (Chỉ chấp nhận .pdf)
                 </label>
                 <input
                   type="file"
-                  accept="application/pdf,.doc,.docx"
+                  accept="application/pdf,.pdf"
                   onChange={handleFileUpload}
                   className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                 />
-                {uploading && <p className="text-[11px] text-blue-600 mt-1 animate-pulse">Đang tải tệp lên máy chủ...</p>}
+                {uploading && <p className="text-[11px] text-blue-600 mt-1 animate-pulse">Đang tải và xử lý số trang PDF...</p>}
                 {formData.fileName && (
                   <p className="text-[11px] text-emerald-700 font-medium mt-1">
-                    ✓ Đã chọn: {formData.fileName}
+                    Đã tải lên: {formData.fileName} ({formData.totalPages} trang)
                   </p>
                 )}
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Hoặc dán Link tài liệu trực tuyến (PDF / Drive URL)
+                  Hoặc dán Link tài liệu PDF trực tuyến
                 </label>
                 <input
                   type="url"
@@ -362,79 +366,45 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
         </div>
       )}
 
-      {/* MODAL TRÌNH ĐỌC PDF TRỰC QUAN (PDF VIEWER) */}
+      {/* MODAL TRÌNH ĐỌC PDF TRỰC QUAN (CANVAS VIEWER) */}
       {viewingMaterial && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-slate-900 text-white rounded-2xl w-full max-w-5xl h-[92vh] flex flex-col shadow-2xl border border-slate-700 overflow-hidden">
-            {/* Toolbar PDF Viewer */}
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-xs flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-slate-900 text-white rounded-2xl w-full max-w-5xl h-[92vh] flex flex-col shadow-2xl border border-slate-700 overflow-hidden animate-in fade-in zoom-in-95">
+            {/* Header Toolbar */}
             <div className="p-3 bg-slate-800 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 truncate">
-                <span className="text-base">📖</span>
-                <div className="truncate">
-                  <h3 className="font-bold text-xs sm:text-sm truncate text-white" title={viewingMaterial.title}>
-                    {viewingMaterial.title}
-                  </h3>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    {viewingMaterial.category} • Tổng: {viewingMaterial.totalPages || '?'} trang
-                  </span>
-                </div>
+              <div className="truncate">
+                <h3 className="font-bold text-xs sm:text-sm truncate text-white" title={viewingMaterial.title}>
+                  {viewingMaterial.title}
+                </h3>
+                <span className="text-[11px] text-slate-400">
+                  {viewingMaterial.category} • Tổng: {viewingMaterial.totalPages || '?'} trang
+                </span>
               </div>
 
-              {/* Điều khiển lật trang & Zoom */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center bg-slate-900 rounded-lg border border-slate-700 p-1 text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage <= 1}
-                    className="px-2 py-0.5 text-slate-300 hover:text-white disabled:opacity-30 cursor-pointer"
-                    title="Trang trước"
-                  >
-                    ◀
-                  </button>
-                  <div className="flex items-center gap-1 px-1">
-                    <span className="text-slate-400 text-[11px]">Trang</span>
-                    <input
-                      type="number"
-                      min="1"
-                      max={viewingMaterial.totalPages || 999}
-                      value={currentPage}
-                      onChange={(e) => setCurrentPage(Math.max(1, Number(e.target.value) || 1))}
-                      className="w-12 bg-slate-800 border border-slate-600 rounded text-center text-xs py-0.5 text-white font-mono focus:outline-none"
-                    />
-                    <span className="text-slate-400 text-[11px]">/ {viewingMaterial.totalPages || '?'}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(prev => prev + 1)}
-                    className="px-2 py-0.5 text-slate-300 hover:text-white cursor-pointer"
-                    title="Trang sau"
-                  >
-                    ▶
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setViewingMaterial(null)}
-                  className="px-3 py-1.5 text-xs font-bold text-slate-300 bg-slate-700 hover:bg-slate-600 hover:text-white rounded-lg transition cursor-pointer"
-                >
-                  Đóng ✕
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setViewingMaterial(null)}
+                className="px-3 py-1.5 text-xs font-semibold text-slate-300 bg-slate-700 hover:bg-slate-600 hover:text-white rounded-lg transition cursor-pointer"
+              >
+                Đóng
+              </button>
             </div>
 
-            {/* Vùng hiển thị tài liệu PDF */}
-            <div className="flex-1 bg-slate-950 overflow-hidden relative flex items-center justify-center">
+            {/* Vùng hiển thị tài liệu PDF Canvas */}
+            <div className="flex-1 bg-slate-950 overflow-hidden relative flex flex-col">
               {viewingMaterial.fileUrl ? (
-                <iframe
-                  title={viewingMaterial.title}
-                  src={`${viewingMaterial.fileUrl}#page=${currentPage}&zoom=${zoomLevel}`}
-                  className="w-full h-full border-0 bg-white"
+                <PdfCanvasViewer
+                  fileUrl={viewingMaterial.fileUrl}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                  onTotalPagesLoaded={(total) => {
+                    if (total && total !== viewingMaterial.totalPages) {
+                      setViewingMaterial(prev => ({ ...prev, totalPages: total }));
+                    }
+                  }}
                 />
               ) : (
-                <div className="p-8 text-center text-slate-400 space-y-2">
-                  <div className="text-3xl">⚠️</div>
+                <div className="p-8 text-center text-slate-400 space-y-2 m-auto">
                   <p className="text-xs">Tài liệu này không có tệp PDF đính kèm hoặc URL không hợp lệ.</p>
                 </div>
               )}
