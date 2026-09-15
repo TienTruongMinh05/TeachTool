@@ -4,6 +4,7 @@ import { submissionApi } from '../api/submissionApi';
 import { sessionApi } from '../api/sessionApi';
 import { studentApi } from '../api/studentApi';
 import { fileApi } from '../api/fileApi';
+import AudioGradingWorkbench from './AudioGradingWorkbench';
 import { useToast } from '../context/ToastContext';
 
 export default function AssignmentManager({ classId }) {
@@ -44,6 +45,8 @@ export default function AssignmentManager({ classId }) {
   const [selectedStudentForGrading, setSelectedStudentForGrading] = useState(null);
   const [gradingForm, setGradingForm] = useState({ score: '', feedback: '' });
   const [savingGrade, setSavingGrade] = useState(false);
+  const [splicedAudioBlob, setSplicedAudioBlob] = useState(null);
+  const [timelineFeedbackText, setTimelineFeedbackText] = useState('');
 
   const loadData = async () => {
     try {
@@ -210,6 +213,8 @@ export default function AssignmentManager({ classId }) {
   const openGradingModal = (student, existingSubmission) => {
     setSelectedStudentForGrading(student);
     setSelectedSubmissionToGrade(existingSubmission);
+    setSplicedAudioBlob(null);
+    setTimelineFeedbackText('');
     setGradingForm({
       score: existingSubmission?.score || '',
       feedback: existingSubmission?.feedback || ''
@@ -221,9 +226,29 @@ export default function AssignmentManager({ classId }) {
     if (!selectedSubmissionToGrade) return;
     try {
       setSavingGrade(true);
+      let finalFeedback = gradingForm.feedback || '';
+
+      // Nếu có audio sửa phát âm được ghép nối -> Tải lên file audio hoàn chỉnh
+      if (splicedAudioBlob) {
+        try {
+          const audioFile = new File([splicedAudioBlob], `Teacher_Correction_${Date.now()}.wav`, { type: 'audio/wav' });
+          const audioUploadRes = await fileApi.upload(audioFile);
+          if (audioUploadRes?.fileUrl) {
+            finalFeedback = `[FEEDBACK_AUDIO: ${audioUploadRes.fileUrl}]\n\n` + finalFeedback;
+          }
+        } catch (uploadErr) {
+          console.error('Lỗi tải file audio ghép:', uploadErr);
+        }
+      }
+
+      // Đính kèm chi tiết mốc thời gian nếu chưa có
+      if (timelineFeedbackText && !finalFeedback.includes('--- CHI TIẾT SỬA BÀI THEO MỐC THỜI GIAN ---')) {
+        finalFeedback = finalFeedback ? `${finalFeedback}\n\n${timelineFeedbackText}` : timelineFeedbackText;
+      }
+
       await submissionApi.grade(selectedSubmissionToGrade.id, {
         score: gradingForm.score,
-        feedback: gradingForm.feedback
+        feedback: finalFeedback
       });
 
       // Làm mới danh sách bài nộp
@@ -231,6 +256,8 @@ export default function AssignmentManager({ classId }) {
       setSubmissions(subs || []);
       setSelectedSubmissionToGrade(null);
       setSelectedStudentForGrading(null);
+      setSplicedAudioBlob(null);
+      setTimelineFeedbackText('');
       toast.success('Đã lưu điểm và nhận xét thành công!');
     } catch (err) {
       toast.error('Lỗi lưu chấm điểm: ' + (err.response?.data?.message || err.message));
@@ -275,9 +302,9 @@ export default function AssignmentManager({ classId }) {
             onChange={(e) => setSelectedSessionFilter(e.target.value)}
             className="bg-white border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
             <option value="ALL">Tất cả buổi học</option>
-            {sessions.map((s, idx) => (
+            {sessions.map((s) => (
               <option key={s.id} value={s.id}>
-                Buổi {idx + 1}: {s.topic}
+                {s.topic} ({formatDateTime(s.startTime)})
               </option>
             ))}
           </select>
@@ -304,14 +331,16 @@ export default function AssignmentManager({ classId }) {
               <div className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-gray-50/60 border-b border-gray-200">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 text-blue-800 rounded">
-                      {matchedSession ? `Buổi ${sessions.indexOf(matchedSession) + 1}` : 'Chung'}
-                    </span>
+                    {matchedSession && (
+                      <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 text-blue-800 rounded">
+                        {matchedSession.topic}
+                      </span>
+                    )}
                     <h4 className="font-bold text-gray-800 text-base">{assignment.title}</h4>
                   </div>
                   <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
                     <span>Hạn nộp: <b>{formatDateTime(assignment.dueDate)}</b></span>
-                    <span>Buổi liên kết: <b>{matchedSession ? matchedSession.topic : 'Không gán'}</b></span>
+                    {matchedSession && <span>Thời gian học: <b>{formatDateTime(matchedSession.startTime)}</b></span>}
                   </div>
                 </div>
 
@@ -539,27 +568,18 @@ export default function AssignmentManager({ classId }) {
                   </div>
                 )}
 
-                {/* Nếu nộp File Audio hoặc Ghi âm trực tiếp */}
+                {/* Nếu nộp File Audio hoặc Ghi âm trực tiếp: Kích hoạt AudioGradingWorkbench */}
                 {(selectedSubmissionToGrade.submissionType === 'AUDIO' || selectedSubmissionToGrade.submissionType === 'DIRECT_RECORD') && (
-                  <div className="p-4 bg-white border border-gray-200 rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-semibold text-gray-800">
-                        {selectedSubmissionToGrade.submissionType === 'DIRECT_RECORD' ? 'Bản ghi âm trực tiếp của học sinh' : 'Tệp âm thanh đính kèm'}
-                      </div>
-                      {selectedSubmissionToGrade.fileUrl && (
-                        <a
-                          href={selectedSubmissionToGrade.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs font-medium text-blue-600 hover:underline">
-                          Tải audio về
-                        </a>
-                      )}
-                    </div>
+                  <div className="space-y-2">
                     {selectedSubmissionToGrade.fileUrl ? (
-                      <audio controls src={selectedSubmissionToGrade.fileUrl} className="w-full h-11" />
+                      <AudioGradingWorkbench
+                        studentAudioUrl={selectedSubmissionToGrade.fileUrl}
+                        studentName={selectedStudentForGrading?.name || 'Học sinh'}
+                        onSplicedAudioReady={(blob) => setSplicedAudioBlob(blob)}
+                        onUpdateFeedbackSummary={(summary) => setTimelineFeedbackText(summary)}
+                      />
                     ) : (
-                      <p className="text-xs text-red-500">Không tìm thấy đường dẫn tệp âm thanh.</p>
+                      <p className="text-xs text-red-500 p-3 bg-red-50 rounded">Không tìm thấy đường dẫn tệp âm thanh.</p>
                     )}
                   </div>
                 )}
@@ -663,9 +683,9 @@ export default function AssignmentManager({ classId }) {
                   onChange={(e) => setFormData({ ...formData, sessionId: e.target.value })}
                   className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                   <option value="">-- Chọn buổi học --</option>
-                  {sessions.map((s, idx) => (
+                  {sessions.map((s) => (
                     <option key={s.id} value={s.id}>
-                      Buổi {idx + 1}: {s.topic}
+                      {s.topic} ({formatDateTime(s.startTime)})
                     </option>
                   ))}
                 </select>

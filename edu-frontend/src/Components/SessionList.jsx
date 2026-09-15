@@ -4,6 +4,8 @@ import { teachingPlanApi } from '../api/teachingPlanApi';
 import { activityApi } from '../api/activityApi';
 import { fileApi } from '../api/fileApi';
 import ActivityLibraryModal from './ActivityLibraryModal';
+import BookPagePickerModal from './BookPagePickerModal';
+import { getStoredClassMaterials } from './ClassMaterialsManager';
 import { useToast } from '../context/ToastContext';
 
 export default function SessionList({ classId, classInfo, onSelectSessionForAttendance, targetSessionId = null }) {
@@ -77,9 +79,16 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
     handoutType: 'NONE',
     handoutText: '',
     handoutFileName: '',
-    handoutFilePath: ''
+    handoutFilePath: '',
+    bookId: '',
+    bookTitle: '',
+    bookPage: ''
   });
   const [uploadingHandoutFile, setUploadingHandoutFile] = useState(false);
+
+  // Sách giáo khoa & Trình chọn trang
+  const [classMaterials, setClassMaterials] = useState(() => getStoredClassMaterials(classId));
+  const [pickingMaterial, setPickingMaterial] = useState(null);
 
   // Modal SAO CHÉP KẾ HOẠCH SANG BUỔI KHÁC
   const [copyingPlanSource, setCopyingPlanSource] = useState(null);
@@ -544,11 +553,36 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
     setActiveSessionForSection(session);
     setActivePlanForSection(existingPlan);
     setEditingSectionIndex(null);
+
+    // Đọc thông tin sách & trang vừa nhớ của lớp
+    const currentMats = getStoredClassMaterials(classId);
+    setClassMaterials(currentMats);
+    let rememberedBookId = '';
+    let rememberedBookTitle = '';
+    let rememberedPage = '';
+    try {
+      const saved = localStorage.getItem('last_picked_book_' + classId);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        rememberedBookId = parsed.bookId || '';
+        rememberedBookTitle = parsed.bookTitle || '';
+        const prevPageNum = parseInt(parsed.bookPage, 10);
+        rememberedPage = !isNaN(prevPageNum) ? String(prevPageNum + 1) : (parsed.bookPage || '');
+      } else if (currentMats.length > 0) {
+        rememberedBookId = currentMats[0].id;
+        rememberedBookTitle = currentMats[0].title;
+        rememberedPage = '1';
+      }
+    } catch {}
+
     setSectionFormData({
       timeAllocation: '15 phút',
       content: '',
       activity: activities.length > 0 ? activities[0].name : '',
       studentPreparation: '',
+      bookId: rememberedBookId,
+      bookTitle: rememberedBookTitle,
+      bookPage: rememberedPage,
       handoutType: 'NONE',
       handoutText: '',
       handoutFileName: '',
@@ -561,11 +595,17 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
     setActiveSessionForSection(session);
     setActivePlanForSection(plan);
     setEditingSectionIndex(index);
+    const currentMats = getStoredClassMaterials(classId);
+    setClassMaterials(currentMats);
+
     setSectionFormData({
       timeAllocation: section.timeAllocation || `${section.durationMinutes || 15} phút`,
       content: section.content || '',
       activity: section.activity || '',
       studentPreparation: section.studentPreparation || '',
+      bookId: section.bookId || '',
+      bookTitle: section.bookTitle || '',
+      bookPage: section.bookPage || '',
       handoutType: section.handoutType || 'NONE',
       handoutText: section.handoutText || '',
       handoutFileName: section.handoutFileName || '',
@@ -599,6 +639,17 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
     e.preventDefault();
     if (!activeSessionForSection) return;
 
+    // Ghi nhớ cuốn sách & trang vừa chọn cho các học phần sau
+    if (sectionFormData.bookId || sectionFormData.bookPage) {
+      try {
+        localStorage.setItem('last_picked_book_' + classId, JSON.stringify({
+          bookId: sectionFormData.bookId,
+          bookTitle: sectionFormData.bookTitle,
+          bookPage: sectionFormData.bookPage
+        }));
+      } catch {}
+    }
+
     try {
       let currentPlan = activePlanForSection;
 
@@ -617,6 +668,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
         content: sectionFormData.content,
         activity: sectionFormData.activity || null,
         studentPreparation: sectionFormData.studentPreparation || null,
+        bookId: sectionFormData.bookId || null,
+        bookTitle: sectionFormData.bookTitle || null,
+        bookPage: sectionFormData.bookPage || null,
         handoutType: sectionFormData.handoutType === 'NONE' ? null : sectionFormData.handoutType,
         handoutText: sectionFormData.handoutType === 'TEXT' ? sectionFormData.handoutText : null,
         handoutFileName: sectionFormData.handoutType === 'FILE' ? sectionFormData.handoutFileName : null,
@@ -765,9 +819,6 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                 {/* Badge Tên lớp thay thế cho Buổi 1, Buổi 2 */}
                 <span className="px-2.5 py-0.5 text-xs font-bold bg-blue-600 text-white rounded">
                   {classInfo?.name || 'Lớp học'}
-                </span>
-                <span className="text-xs font-semibold text-slate-500">
-                  #{index + 1}
                 </span>
                 <h4 className="font-bold text-gray-800 text-base">{session.topic || 'Chưa đặt tên'}</h4>
                 {sections.length > 0 ? (
@@ -965,6 +1016,28 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                     {sec.activity && (
                       <div className="text-xs text-purple-700 font-medium">
                         Hoạt động: <span className="font-semibold">{sec.activity}</span>
+                      </div>
+                    )}
+
+                    {(sec.bookTitle || sec.bookPage) && (
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded flex items-center gap-1">
+                          <span>📖</span>
+                          <span>{sec.bookTitle || 'Sách giáo khoa'}</span>
+                          {sec.bookPage && <span>- Trang {sec.bookPage}</span>}
+                        </span>
+                        {sec.bookId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const mat = classMaterials.find(m => m.id === sec.bookId);
+                              if (mat) setPickingMaterial(mat);
+                            }}
+                            className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer"
+                          >
+                            Mở xem sách ↗
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -1530,16 +1603,74 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
             </div>
 
             <form onSubmit={handleSaveSection} className="space-y-3">
+              {/* Chọn Sách giáo khoa & Trang (Tự động ghi nhớ trang trước) */}
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-blue-900 flex items-center gap-1">
+                    <span>📖</span> Sách giáo khoa & Trang (Tùy chọn)
+                  </label>
+                  {sectionFormData.bookId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const mat = classMaterials.find(m => m.id === sectionFormData.bookId);
+                        if (mat) setPickingMaterial(mat);
+                      }}
+                      className="text-[11px] font-bold text-blue-700 bg-white border border-blue-300 hover:bg-blue-100 px-2 py-0.5 rounded cursor-pointer transition shadow-2xs flex items-center gap-1"
+                    >
+                      <span>🔍</span> Mở sách & Chọn trang
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="col-span-2">
+                    <select
+                      value={sectionFormData.bookId || ''}
+                      onChange={(e) => {
+                        const bId = e.target.value;
+                        const selectedMat = classMaterials.find(m => m.id === bId);
+                        setSectionFormData(prev => ({
+                          ...prev,
+                          bookId: bId,
+                          bookTitle: selectedMat ? selectedMat.title : ''
+                        }));
+                      }}
+                      className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    >
+                      <option value="">-- Chọn sách giáo khoa của lớp --</option>
+                      {classMaterials.map(m => (
+                        <option key={m.id} value={m.id}>{m.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      value={sectionFormData.bookPage || ''}
+                      onChange={(e) => setSectionFormData({ ...sectionFormData, bookPage: e.target.value })}
+                      placeholder="Trang (VD: 45)"
+                      className="w-full bg-white border border-slate-300 rounded p-1.5 text-xs text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                    />
+                  </div>
+                </div>
+                {sectionFormData.bookPage && (
+                  <p className="text-[10px] text-blue-700 italic">
+                    💡 Hệ thống tự động ghi nhớ trang {sectionFormData.bookPage} cho các học phần tiếp theo.
+                  </p>
+                )}
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Nội dung học phần (Sách trang bao nhiêu / bài dạy) <span className="text-red-500">*</span>
+                  Nội dung học phần (Tên bài học / kiến thức) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   required
                   value={sectionFormData.content}
                   onChange={(e) => setSectionFormData({ ...sectionFormData, content: e.target.value })}
-                  placeholder="Ví dụ: SB Unit 2 Grammar Page 24"
+                  placeholder="Ví dụ: Unit 2 Grammar: Present Perfect / Speaking Part 1"
                   className="w-full border border-gray-300 rounded p-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
@@ -1675,9 +1806,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                 onChange={(e) => setCopyTargetSessionId(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white">
                 <option value="">-- Chọn buổi học --</option>
-                {sessions.map((s, idx) => (
+                {sessions.map((s) => (
                   <option key={s.id} value={s.id}>
-                    Buổi #{idx + 1}: {s.topic} ({formatDateTime(s.startTime)})
+                    {s.topic || 'Buổi học'} ({formatDateTime(s.startTime)})
                   </option>
                 ))}
               </select>
@@ -1735,6 +1866,22 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
           setActivitySelectCallback(null);
         }}
       />
+
+      {/* MODAL MỞ SÁCH VÀ CHỌN TRANG */}
+      {pickingMaterial && (
+        <BookPagePickerModal
+          material={pickingMaterial}
+          initialPage={Number(sectionFormData.bookPage) || 1}
+          onSelectPage={(page) => {
+            setSectionFormData(prev => ({
+              ...prev,
+              bookPage: String(page)
+            }));
+            toast.success(`Đã chọn trang ${page} của sách "${pickingMaterial.title}"`);
+          }}
+          onClose={() => setPickingMaterial(null)}
+        />
+      )}
     </div>
   );
 }

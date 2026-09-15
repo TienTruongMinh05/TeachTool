@@ -207,9 +207,9 @@ export default function AttendanceManager({ classId, initialSessionId = null }) 
                 value={selectedSessionId || ''}
                 onChange={(e) => setSelectedSessionId(Number(e.target.value))}
                 className="bg-white border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-full md:w-80">
-                {sessions.map((s, index) => (
+                {sessions.map((s) => (
                   <option key={s.id} value={s.id}>
-                    Buổi {index + 1}: {s.topic || 'Chưa đặt tên'}
+                    {s.topic || 'Buổi học'} ({s.startTime ? new Date(s.startTime).toLocaleDateString('vi-VN') : ''})
                   </option>
                 ))}
               </select>

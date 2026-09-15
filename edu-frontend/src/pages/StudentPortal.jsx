@@ -6,6 +6,7 @@ import { assignmentApi } from '../api/assignmentApi';
 import { submissionApi } from '../api/submissionApi';
 import { fileApi } from '../api/fileApi';
 import AudioRecorder from '../Components/AudioRecorder';
+import StudentFeedbackAudioPlayer from '../Components/StudentFeedbackAudioPlayer';
 import TimetableGrid from '../Components/TimetableGrid';
 import AccountSettingsModal from '../Components/AccountSettingsModal';
 
@@ -1133,11 +1134,80 @@ export default function StudentPortal() {
                 )}
               </div>
 
+              {/* KẾT QUẢ CHẤM BÀI & NHẬN XÉT CỦA GIÁO VIÊN (NẾU ĐÃ NỘP HOẶC ĐÃ ĐƯỢC CHẤM) */}
+              {(() => {
+                const existingSubmission = submissions.find(s => s.assignmentId === activeAssignmentToSubmit.id);
+                if (!existingSubmission) return null;
+
+                const isGraded = existingSubmission.status === 'GRADED' || (existingSubmission.score !== null && existingSubmission.score !== undefined);
+
+                return (
+                  <div className="p-4 bg-gradient-to-br from-slate-50 to-blue-50/40 border border-blue-200 rounded-xl space-y-3.5 shadow-2xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{isGraded ? '🎯' : '⏳'}</span>
+                        <div>
+                          <h5 className="font-bold text-xs sm:text-sm text-slate-800">
+                            {isGraded ? 'Kết Quả Đánh Giá & Nhận Xét' : 'Trạng Thái Bài Nộp Của Bạn'}
+                          </h5>
+                          <span className="text-[11px] text-slate-500">
+                            {isGraded ? 'Giáo viên đã chấm điểm và nhận xét chi tiết' : 'Đã nộp bài, đang chờ giáo viên chấm điểm'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {isGraded ? (
+                        <span className="px-3 py-1 bg-emerald-600 text-white font-bold text-xs rounded-full shadow-2xs">
+                          Điểm: {existingSubmission.score} / 10
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 bg-amber-100 text-amber-800 font-semibold text-[11px] rounded-full border border-amber-200">
+                          Chờ chấm điểm
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Bản sửa âm thanh & Nhận xét timestamp từ giáo viên */}
+                    {existingSubmission.feedback && (
+                      <StudentFeedbackAudioPlayer rawFeedback={existingSubmission.feedback} />
+                    )}
+
+                    {/* Xem lại nội dung học sinh đã nộp */}
+                    <div className="pt-1 space-y-1 text-xs">
+                      <span className="font-bold text-slate-600 block">Nội dung bạn đã nộp:</span>
+                      {existingSubmission.textContent && (
+                        <div className="p-2.5 bg-white border border-slate-200 rounded-lg text-slate-700 whitespace-pre-wrap font-mono text-[11px]">
+                          {existingSubmission.textContent}
+                        </div>
+                      )}
+                      {existingSubmission.fileUrl && (
+                        <div className="p-2 bg-white border border-slate-200 rounded-lg space-y-2">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-semibold text-slate-700 truncate max-w-[200px]">Tệp đính kèm: {existingSubmission.fileName || 'Tệp bài làm'}</span>
+                            <a href={existingSubmission.fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                              Tải về / Mở tệp ↗
+                            </a>
+                          </div>
+                          {(existingSubmission.submissionType === 'AUDIO' || existingSubmission.submissionType === 'DIRECT_RECORD' || (existingSubmission.fileUrl && /\.(mp3|wav|m4a|webm|ogg)$/i.test(existingSubmission.fileUrl))) && (
+                            <audio controls src={existingSubmission.fileUrl} className="w-full h-8" />
+                          )}
+                          {existingSubmission.submissionType === 'IMAGE' && (
+                            <img src={existingSubmission.fileUrl} alt="Bài làm đã nộp" className="max-h-48 rounded object-contain border border-slate-100 mx-auto" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Chọn phương thức nộp bài (chỉ hiện các phương thức được giáo viên cho phép) */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Chọn định dạng nộp bài:
-                </label>
+              <div className="pt-2 border-t border-slate-200">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    {submissions.some(s => s.assignmentId === activeAssignmentToSubmit.id) ? 'Nộp lại / Cập nhật bài làm:' : 'Chọn định dạng nộp bài:'}
+                  </label>
+                </div>
                 {(() => {
                   const rawAllowed = (activeAssignmentToSubmit.allowedSubmissionTypes || 'TEXT,DOCX,AUDIO,DIRECT_RECORD,IMAGE')
                     .split(',')

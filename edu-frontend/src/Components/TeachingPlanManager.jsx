@@ -323,7 +323,7 @@ export default function TeachingPlanManager({ classId }) {
                 <div>
                   <div className="flex items-center gap-2.5">
                     <span className="px-2.5 py-0.5 text-xs font-bold bg-blue-600 text-white rounded">
-                      Buổi {matchedSession ? sessions.indexOf(matchedSession) + 1 : '—'}
+                      {plan.sessionTopic || 'Kế hoạch'}
                     </span>
                     <h4 className="font-bold text-gray-800 text-base">{plan.title}</h4>
                   </div>
@@ -489,9 +489,9 @@ export default function TeachingPlanManager({ classId }) {
                   }}
                   className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                   <option value="">-- Chọn buổi học --</option>
-                  {sessions.map((s, idx) => (
+                  {sessions.map((s) => (
                     <option key={s.id} value={s.id}>
-                      Buổi {idx + 1}: {s.topic}
+                      {s.topic} ({s.startTime ? new Date(s.startTime).toLocaleDateString('vi-VN') : ''})
                     </option>
                   ))}
                 </select>
@@ -505,7 +505,7 @@ export default function TeachingPlanManager({ classId }) {
                   type="text" 
                   value={newPlanData.title}
                   onChange={(e) => setNewPlanData({...newPlanData, title: e.target.value})}
-                  placeholder="VD: Kế hoạch Buổi 1: Giới thiệu khóa học"
+                  placeholder="VD: Kế hoạch giảng dạy chủ đề Unit 1"
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
@@ -547,9 +547,9 @@ export default function TeachingPlanManager({ classId }) {
                   onChange={(e) => setTargetSessionId(e.target.value)}
                   className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                   <option value="">-- Chọn buổi học đích --</option>
-                  {sessions.map((s, idx) => (
+                  {sessions.map((s) => (
                     <option key={s.id} value={s.id}>
-                      Buổi {idx + 1}: {s.topic}
+                      {s.topic} ({s.startTime ? new Date(s.startTime).toLocaleDateString('vi-VN') : ''})
                     </option>
                   ))}
                 </select>

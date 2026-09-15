@@ -12,6 +12,7 @@ import TimetableGrid from '../Components/TimetableGrid';
 import ClassList from './ClassList';
 import AccountSettingsModal from '../Components/AccountSettingsModal';
 import TeacherManager from '../Components/TeacherManager';
+import ClassMaterialsManager from '../Components/ClassMaterialsManager';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -325,6 +326,13 @@ export default function ClassDashboard({ initialView }) {
               initialSessionId={targetSessionId}
             />
           );
+        case 'materials':
+          return (
+            <ClassMaterialsManager
+              classId={selectedClassId}
+              classInfo={classInfo}
+            />
+          );
         case 'teachers':
           return (
             <TeacherManager
@@ -633,10 +641,34 @@ export default function ClassDashboard({ initialView }) {
                   </div>
                 </div>
 
-                {/* Nhóm 3: Đội ngũ Giáo viên */}
+                {/* Nhóm 3: Tài liệu & Sách giáo khoa */}
                 <div>
                   <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1.5">
-                    3. Đội ngũ Giáo viên
+                    3. Tài liệu & Sách giáo khoa
+                  </h4>
+                  <div className="space-y-1">
+                    <button
+                      onClick={() => {
+                        setActiveClassTab('materials');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer flex items-center justify-between ${
+                        activeClassTab === 'materials'
+                          ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                          : 'text-slate-300 hover:bg-slate-700/80'
+                      }`}>
+                      <span>Tài liệu & Sách của lớp</span>
+                      <span className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-400/30 px-1.5 py-0.5 rounded font-mono">
+                        PDF
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Nhóm 4: Đội ngũ Giáo viên */}
+                <div>
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1.5">
+                    4. Đội ngũ Giáo viên
                   </h4>
                   <div className="space-y-1">
                     <button

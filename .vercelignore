@@ -1,0 +1,16 @@
+POSTGRE/
+DBEAVER/
+POSTGRE/**
+DBEAVER/**
+node_modules/
+**/node_modules/**
+edu-frontend/node_modules/**
+api/target/**
+api/build/**
+api/bin/**
+scratch/**
+.git/**
+.github/**
+.vscode/**
+.idea/**
+*.log
