@@ -58,3 +58,6 @@ THONG_TIN_TRIEN_KHAI.md
 # Local batch scripts
 *.bat
 
+# Temporary scratch scripts & testing tools
+scratch/
+

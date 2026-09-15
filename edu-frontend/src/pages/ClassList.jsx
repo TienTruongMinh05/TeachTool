@@ -19,8 +19,9 @@ function ClassList({ showTopBar = false, onSelectClass }) {
   const [copyingClass, setCopyingClass] = useState(null);
   const [copyFormData, setCopyFormData] = useState({ name: '', startDate: '', endDate: '' });
 
-  // State xác nhận xóa
+  // State xác nhận xóa & rời lớp
   const [deletingClass, setDeletingClass] = useState(null);
+  const [leavingClass, setLeavingClass] = useState(null);
 
   // State modal thư viện hoạt động
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
@@ -80,6 +81,22 @@ function ClassList({ showTopBar = false, onSelectClass }) {
       fetchClasses();
     } catch (error) {
       alert("Lỗi khi xóa lớp học: " + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const promptLeaveClass = (cls, e) => {
+    e.stopPropagation();
+    setLeavingClass(cls);
+  };
+
+  const handleLeaveClass = async () => {
+    if (!leavingClass || !user?.id) return;
+    try {
+      await classApi.removeTeacher(leavingClass.id, user.id);
+      setLeavingClass(null);
+      fetchClasses();
+    } catch (error) {
+      alert("Lỗi khi rời lớp học: " + (error.response?.data?.message || error.message));
     }
   };
 
@@ -187,7 +204,16 @@ function ClassList({ showTopBar = false, onSelectClass }) {
                     )}
                   </div>
                 </td>
-                <td className="px-6 py-4 text-blue-600 font-semibold hover:underline">{cls.name}</td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600 font-semibold hover:underline">{cls.name}</span>
+                    {cls.isCoTeacher && (
+                      <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 font-semibold px-2 py-0.5 rounded-full">
+                        Đồng giảng dạy
+                      </span>
+                    )}
+                  </div>
+                </td>
                 <td className="px-6 py-4 text-gray-600">{cls.startDate || '—'}</td>
                 <td className="px-6 py-4 text-gray-600">{cls.endDate || '—'}</td>
                 <td className="px-6 py-4 text-right space-x-2">
@@ -202,11 +228,20 @@ function ClassList({ showTopBar = false, onSelectClass }) {
                     className="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition cursor-pointer">
                     Sửa
                   </button>
-                  <button 
-                    onClick={(e) => promptDelete(cls, e)}
-                    className="px-3 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100 transition cursor-pointer">
-                    Xóa
-                  </button>
+                  {cls.isCoTeacher ? (
+                    <button 
+                      onClick={(e) => promptLeaveClass(cls, e)}
+                      title="Rời khỏi lớp đồng giảng dạy này"
+                      className="px-3 py-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded hover:bg-amber-100 transition cursor-pointer">
+                      Rời lớp
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={(e) => promptDelete(cls, e)}
+                      className="px-3 py-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded hover:bg-red-100 transition cursor-pointer">
+                      Xóa
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -358,6 +393,36 @@ function ClassList({ showTopBar = false, onSelectClass }) {
                 onClick={handleDelete}
                 className="px-4 py-2 text-sm text-white bg-red-600 rounded-md hover:bg-red-700 font-medium cursor-pointer">
                 Đồng ý xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Xác nhận Rời Lớp Đồng Giảng Dạy */}
+      {leavingClass && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-amber-700 mb-2">Xác nhận rời lớp học</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Bạn có chắc muốn rời khỏi lớp đồng giảng dạy <b>{leavingClass.name}</b>?
+              <br />
+              <span className="text-xs text-slate-500 mt-1 block">
+                Lớp học và dữ liệu bài giảng của giáo viên chủ nhiệm vẫn được giữ nguyên. Lớp này sẽ không còn xuất hiện trong danh sách của bạn.
+              </span>
+            </p>
+            <div className="flex justify-end gap-3">
+              <button 
+                type="button"
+                onClick={() => setLeavingClass(null)}
+                className="px-4 py-2 text-sm text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 cursor-pointer">
+                Hủy bỏ
+              </button>
+              <button 
+                type="button"
+                onClick={handleLeaveClass}
+                className="px-4 py-2 text-sm text-white bg-amber-600 rounded-md hover:bg-amber-700 font-medium cursor-pointer">
+                Xác nhận rời lớp
               </button>
             </div>
           </div>

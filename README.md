@@ -26,6 +26,7 @@
 
 ### 👩‍🏫 Phân Hệ Dành Cho Giáo Viên (Teacher Portal)
 * **Quản lý Lớp học Độc lập:** Tạo lớp học với mã tham gia tự động 6 ký tự (`SecureRandom`). Mỗi giáo viên có không gian quản lý lớp học độc lập, an toàn.
+* **Cơ Chế Đồng Giảng Dạy (Co-Teaching Model):** Hỗ trợ mời giáo viên đồng nghiệp cùng phụ trách lớp học qua Email. Cả Giáo viên chủ nhiệm và Giáo viên đồng phụ trách có quyền hạn ngang hàng 100% trong toàn bộ nghiệp vụ học vụ (thời khóa biểu, soạn giáo án TESOL, giao bài tập, chấm điểm, điểm danh).
 * **Thời Khóa Biểu Tương Tác:** Lịch học trực quan dạng lưới từ Thứ 2 đến Chủ nhật, khung giờ từ 7h00 sáng đến 22h00 tối, hiển thị trực quan sĩ số và nội dung bài học.
 * **Tích Hợp Kế Hoạch Giảng Dạy (Lesson Plans):** Tạo và sửa kế hoạch giảng dạy trực tiếp trong từng buổi học. Hỗ trợ chia mục bài giảng (Warm-up, Presentation, Practice, Production), đính kèm tài liệu phát tay (`.docx`, `.pdf`) và ghi chú chuẩn bị cho học sinh.
 * **Thư Viện 28 Hoạt Động TESOL Mẫu:** Tích hợp sẵn 28 hoạt động dạy học tương tác (Hot Seat, Running Dictation, Information Gap, Role-Play, Jeopardy...), có thể sao chép nhanh vào giáo án chỉ bằng 1 cú click.
@@ -46,17 +47,18 @@ Hệ thống được thiết kế và kiểm thử toàn diện theo các tiêu
 
 1. **Kiểm Soát Truy Cập Chặt Chẽ (Default-Deny RBAC):** `AuthInterceptor` chặn tất cả các endpoint private theo nguyên tắc mặc định từ chối. Học sinh bị chặn `403 Forbidden` tuyệt đối khi cố tình truy cập vào các tài nguyên của giáo viên hoặc xem giáo án nội bộ.
 2. **Chống Tấn Công Phân Quyền Ngang (IDOR / BOLA Prevention):**
-   - Lớp học được gắn định danh `teacher_id`. Giáo viên chỉ được xem, sửa hoặc xóa các lớp do chính mình tạo.
+   - Lớp học được gắn định danh `teacher_id` và bảng liên kết `class_teachers`. Giáo viên chỉ được xem và thao tác các lớp do chính mình tạo hoặc được mời đồng phụ trách.
    - Học sinh chỉ được phép xem thời khóa biểu, nộp bài và báo vắng cho chính tài khoản của mình (xác thực `userId` từ JWT).
 3. **Mã Hóa Mật Khẩu Đạt Chuẩn Mật Mã Học:** Sử dụng thuật toán **PBKDF2WithHmacSHA256** với **65,536 vòng lặp** và Salt ngẫu nhiên 16 bytes. Chống hoàn toàn các cuộc tấn công Rainbow Table.
 4. **Xác Thực Google SSO An Toàn Tuyệt Đối:** Sử dụng Google Identity Services (GIS) kết hợp xác thực chữ ký số trực tiếp qua `GoogleTokenVerifier` (TokenInfo API). Loại bỏ triệt để việc bypass xác thực bằng email thô.
 5. **Bộ Giới Hạn Tần Suất (Sliding-Window Rate Limiter):** Tích hợp bộ đếm tần suất in-memory theo từng IP (`RateLimiterService`), giới hạn tối đa 10 lượt thử đăng nhập/phút. Ngăn chặn 100% nguy cơ tấn công dò quét mật khẩu (Brute-Force) và cạn kiệt CPU (DoS).
-6. **Bảo Vệ Tải File & Chống Stored XSS:**
+6. **Bảo Vệ Độc Quyền Xóa Lớp (Co-Teaching Deletion Safeguard):** Trong cơ chế đồng giảng dạy, chỉ Giáo viên chủ nhiệm (`PRIMARY_TEACHER` - người tạo lớp) mới có quyền xóa vĩnh viễn lớp học (`DELETE /api/classes/{id}`). Giáo viên đồng phụ trách chỉ có quyền "Rời lớp", ngăn chặn hoàn toàn rủi ro phá hủy hoặc xóa nhầm dữ liệu của đồng nghiệp.
+7. **Bảo Vệ Tải File & Chống Stored XSS:**
    - Danh sách trắng (Whitelist) nghiêm ngặt chỉ cho phép tài liệu học tập (`.pdf`, `.docx`, `.xlsx`, `.pptx`, `.txt`), âm thanh ghi âm (`.mp3`, `.wav`, `.m4a`, `.webm`) và hình ảnh. Cấm hoàn toàn các file thực thi và web script (`.html`, `.svg`, `.js`, `.exe`).
    - Tên file được băm ngẫu nhiên bằng UUID và kiểm tra chống Path Traversal (`targetLocation.startsWith(uploadDir)`).
    - Header tải file ép buộc `Content-Disposition: attachment`, `X-Content-Type-Options: nosniff` và `Content-Security-Policy: default-src 'none'`.
-7. **Cấu Hình CORS Nghiêm Ngặt:** Chỉ chấp nhận request từ các domain chính thức của TeachTool, ngăn chặn tấn công Cross-Origin lừa đảo.
-8. **An Toàn Dữ Liệu & Che Giấu Lỗi Kỹ Thuật:** `GlobalExceptionHandler` che giấu toàn bộ cấu trúc cơ sở dữ liệu và stack trace hệ thống khi có lỗi không mong muốn.
+8. **Cấu Hình CORS Nghiêm Ngặt:** Chỉ chấp nhận request từ các domain chính thức của TeachTool, ngăn chặn tấn công Cross-Origin lừa đảo.
+9. **An Toàn Dữ Liệu & Che Giấu Lỗi Kỹ Thuật:** `GlobalExceptionHandler` che giấu toàn bộ cấu trúc cơ sở dữ liệu và stack trace hệ thống khi có lỗi không mong muốn.
 
 ---
 

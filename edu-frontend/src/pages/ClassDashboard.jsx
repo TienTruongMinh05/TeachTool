@@ -11,6 +11,7 @@ import UserGuide from '../Components/UserGuide';
 import TimetableGrid from '../Components/TimetableGrid';
 import ClassList from './ClassList';
 import ChangePasswordModal from '../Components/ChangePasswordModal';
+import TeacherManager from '../Components/TeacherManager';
 import { useAuth } from '../context/AuthContext';
 
 export default function ClassDashboard({ initialView }) {
@@ -258,6 +259,14 @@ export default function ClassDashboard({ initialView }) {
               initialSessionId={targetSessionId}
             />
           );
+        case 'teachers':
+          return (
+            <TeacherManager
+              classId={selectedClassId}
+              classInfo={classInfo}
+              onClassUpdated={() => fetchClassDetails(selectedClassId)}
+            />
+          );
         default:
           return (
             <SessionList
@@ -494,6 +503,30 @@ export default function ClassDashboard({ initialView }) {
                           : 'text-slate-300 hover:bg-slate-700/80'
                       }`}>
                       Điểm danh & Chuyên cần
+                    </button>
+                  </div>
+                </div>
+
+                {/* Nhóm 3: Đội ngũ Giáo viên */}
+                <div>
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1.5">
+                    3. Đội ngũ Giáo viên
+                  </h4>
+                  <div className="space-y-1">
+                    <button
+                      onClick={() => {
+                        setActiveClassTab('teachers');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer flex items-center justify-between ${
+                        activeClassTab === 'teachers'
+                          ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                          : 'text-slate-300 hover:bg-slate-700/80'
+                      }`}>
+                      <span>Giáo viên phụ trách</span>
+                      <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 px-1.5 py-0.5 rounded font-mono">
+                        Đồng dạy
+                      </span>
                     </button>
                   </div>
                 </div>
