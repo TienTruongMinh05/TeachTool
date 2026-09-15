@@ -681,10 +681,7 @@ export default function ClassDashboard({ initialView }) {
                           ? 'bg-blue-600 text-white shadow-xs font-semibold'
                           : 'text-slate-300 hover:bg-slate-700/80'
                       }`}>
-                      <span>Giáo viên phụ trách</span>
-                      <span className="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 px-1.5 py-0.5 rounded font-mono">
-                        Đồng dạy
-                      </span>
+                      <span>Đội ngũ giáo viên</span>
                     </button>
                   </div>
                 </div>
