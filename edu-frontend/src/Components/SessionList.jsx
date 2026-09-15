@@ -682,11 +682,13 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
     return (
       <div
         key={session.id}
-        className={`bg-white border rounded-xl shadow-xs overflow-hidden transition-all duration-150 ${
+        className={`bg-white border rounded-xl shadow-xs transition-all duration-150 ${
+          isMenuOpen ? 'relative z-30' : 'relative z-1'
+        } ${
           isSelected ? 'border-blue-500 ring-2 ring-blue-200' : isPast ? 'border-slate-200 opacity-90' : 'border-gray-200'
         }`}>
         {/* THANH TIÊU ĐỀ BUỔI HỌC (CARD HEADER) */}
-        <div className={`p-4 sm:p-4.5 border-b border-gray-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 ${
+        <div className={`p-4 sm:p-4.5 border-b border-gray-200 rounded-t-xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 ${
           isPast ? 'bg-slate-100/70' : 'bg-slate-50'
         }`}>
           <div className="flex items-start gap-3 w-full lg:w-auto">
@@ -753,35 +755,60 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
             </button>
 
             {/* NÚT DROPDOWN GOM COPY, SỬA, XÓA, COPY TUẦN SAU */}
-            <div className="relative">
+            <div className="relative z-50">
               <button
                 type="button"
-                onClick={() => setOpenMenuSessionId(isMenuOpen ? null : session.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenMenuSessionId(isMenuOpen ? null : session.id);
+                }}
                 className="p-1.5 px-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition cursor-pointer flex items-center gap-1"
                 title="Tùy chọn khác">
                 <span>⋮</span>
               </button>
 
+              {/* Backdrop toàn màn hình để chạm bất cứ đâu ngoài menu là tự đóng */}
+              {isMenuOpen && (
+                <div
+                  className="fixed inset-0 z-40 bg-transparent cursor-default"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenMenuSessionId(null);
+                  }}
+                />
+              )}
+
               {/* Menu dropdown */}
               {isMenuOpen && (
-                <div className="absolute right-0 mt-1 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1.5 animate-in fade-in zoom-in-95 duration-100 text-xs font-medium">
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute left-0 sm:left-auto sm:right-0 mt-1.5 w-56 max-w-[85vw] bg-white border border-slate-200 rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in zoom-in-95 duration-100 text-xs font-medium">
                   <button
                     type="button"
-                    onClick={() => handleQuickCopyNextWeek(session)}
-                    className="w-full text-left px-3.5 py-2 hover:bg-blue-50 text-blue-700 font-semibold flex items-center justify-between cursor-pointer">
+                    onClick={() => {
+                      setOpenMenuSessionId(null);
+                      handleQuickCopyNextWeek(session);
+                    }}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-blue-50 text-blue-700 font-semibold flex items-center justify-between cursor-pointer">
                     <span>Copy sang tuần sau (+7 ngày)</span>
-                    <span className="text-[10px] bg-blue-100 px-1 rounded">+7d</span>
+                    <span className="text-[10px] bg-blue-100 px-1.5 py-0.5 rounded font-mono">+7d</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => openCopyModal(session)}
-                    className="w-full text-left px-3.5 py-2 hover:bg-purple-50 text-purple-700 flex items-center justify-between cursor-pointer">
+                    onClick={() => {
+                      setOpenMenuSessionId(null);
+                      openCopyModal(session);
+                    }}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-purple-50 text-purple-700 flex items-center justify-between cursor-pointer">
                     <span>Tùy chỉnh sao chép (Copy)</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => openEditModal(session)}
-                    className="w-full text-left px-3.5 py-2 hover:bg-slate-50 text-slate-700 cursor-pointer">
+                    onClick={() => {
+                      setOpenMenuSessionId(null);
+                      openEditModal(session);
+                    }}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-slate-50 text-slate-700 cursor-pointer">
                     Chỉnh sửa thông tin
                   </button>
                   <div className="border-t border-slate-100 my-1"></div>
@@ -791,7 +818,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                       setOpenMenuSessionId(null);
                       setDeletingSession(session);
                     }}
-                    className="w-full text-left px-3.5 py-2 hover:bg-rose-50 text-rose-700 font-semibold cursor-pointer">
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-rose-50 text-rose-700 font-semibold cursor-pointer">
                     Xóa buổi học này
                   </button>
                 </div>
@@ -932,9 +959,6 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
               {sessions.length} buổi học
             </span>
           </div>
-          <p className="text-xs text-gray-500 mt-1">
-            Quản lý lịch học, chi tiết từng học phần, hoạt động và dặn dò học sinh chuẩn bị bài
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">

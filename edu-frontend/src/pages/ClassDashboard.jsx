@@ -189,7 +189,7 @@ export default function ClassDashboard({ initialView }) {
   // Lấy tiêu đề hiển thị trên thanh Header Mobile
   const getMobileHeaderTitle = () => {
     if (currentView === 'all_students') return 'Học Sinh (Tất Cả Các Lớp)';
-    if (currentView === 'timetable') return 'Thời Khóa Biểu Tuần';
+    if (currentView === 'timetable') return 'Thời Khóa Biểu';
     if (currentView === 'guide') return 'Hướng Dẫn Sử Dụng';
     if (currentView === 'classes') return 'Danh Sách Lớp Học';
     if (currentView === 'class_detail') return classInfo ? `${classInfo.name}` : `Lớp #${selectedClassId}`;
@@ -451,9 +451,6 @@ export default function ClassDashboard({ initialView }) {
                   : 'text-slate-300 hover:bg-slate-700/80'
               }`}>
               <span>Thời khóa biểu</span>
-              <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">
-                Tuần
-              </span>
             </button>
           </div>
 

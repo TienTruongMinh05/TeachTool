@@ -260,9 +260,6 @@ export default function AssignmentManager({ classId }) {
               {assignments.length} bài tập
             </span>
           </div>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Giao bài theo buổi học, cài đặt deadline, xem bài nộp và chấm điểm nhận xét
-          </p>
         </div>
 
         <div className="flex items-center gap-3">

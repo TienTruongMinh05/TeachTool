@@ -472,10 +472,10 @@ export default function StudentPortal() {
       {/* HEADER BAR (RESPONSIVE CHO CẢ PC & ĐIỆN THOẠI) */}
       <header className="bg-slate-900 text-white shadow-md sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap justify-between items-center gap-3">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <span className="font-extrabold text-base sm:text-lg tracking-tight text-blue-400">TeachTool</span>
-            <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-full">
-              Học Sinh
+          <div className="flex flex-col">
+            <span className="font-extrabold text-base sm:text-lg tracking-tight text-white">TeachTool</span>
+            <span className="text-[10px] text-blue-400 font-semibold uppercase tracking-wider">
+              Dành cho Học Sinh
             </span>
           </div>
 

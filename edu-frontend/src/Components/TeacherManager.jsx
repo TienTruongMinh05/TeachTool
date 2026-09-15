@@ -114,9 +114,6 @@ export default function TeacherManager({ classId, classInfo, onClassUpdated }) {
               {teachers.length} giáo viên
             </span>
           </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            Quản lý giáo viên chủ nhiệm và giáo viên đồng giảng dạy với quyền hạn học vụ ngang hàng
-          </p>
         </div>
         <button
           onClick={handleOpenInvite}

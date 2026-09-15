@@ -177,7 +177,6 @@ export default function AttendanceManager({ classId, initialSessionId = null }) 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h3 className="text-xl font-bold text-gray-800">Quản Lý Điểm Danh</h3>
-          <p className="text-sm text-gray-500 mt-0.5">Theo dõi chuyên cần theo từng buổi học và bảng ma trận tổng hợp</p>
         </div>
 
         <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200">
