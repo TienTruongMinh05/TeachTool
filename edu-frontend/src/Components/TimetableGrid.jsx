@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { studentPortalApi } from '../api/studentPortalApi';
 
 // Color palette for classes (accessible, modern pastel tones)
@@ -18,19 +18,16 @@ export const getClassColor = (classId) => {
   return CLASS_COLORS[idNum % CLASS_COLORS.length];
 };
 
-// 30-minute intervals from 07:00 to 22:00
-// 07:00, 07:30, 08:00, ..., 21:30 (30 intervals total: 15 hours * 2 = 30)
 const START_HOUR = 7;
 const END_HOUR = 22;
-const TOTAL_SLOTS = (END_HOUR - START_HOUR) * 2; // 30 slots
+const TOTAL_SLOTS = (END_HOUR - START_HOUR) * 2; // 30 slots (07:00 - 22:00)
+const SLOT_HEIGHT = 44; // 44px per 30 mins
 
 const TIME_SLOTS = [];
 for (let h = START_HOUR; h < END_HOUR; h++) {
   TIME_SLOTS.push(`${String(h).padStart(2, '0')}:00`);
   TIME_SLOTS.push(`${String(h).padStart(2, '0')}:30`);
 }
-// Also include 22:00 mark
-const TIME_HEADERS = [...TIME_SLOTS, `${String(END_HOUR).padStart(2, '0')}:00`];
 
 const DAY_NAMES = [
   { dayIndex: 1, label: 'Thứ 2', short: 'T2' },
@@ -42,7 +39,6 @@ const DAY_NAMES = [
   { dayIndex: 0, label: 'Chủ nhật', short: 'CN' },
 ];
 
-// Helper to get Monday of the current week
 const getMonday = (d) => {
   const date = new Date(d);
   const day = date.getDay();
@@ -59,12 +55,12 @@ const formatDateDM = (date) => {
 };
 
 export default function TimetableGrid({
-  sessions = [], // Array of sessions (either TimetableSessionDTO or StudentScheduleDTO)
+  sessions = [],
   isStudent = false,
   studentId = null,
   onGoToAssignment = null,
   onReportAbsenceSuccess = null,
-  classes = [], // Optional list of classes for color legend
+  classes = [],
 }) {
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getMonday(new Date()));
   const [selectedSession, setSelectedSession] = useState(null);
@@ -72,6 +68,28 @@ export default function TimetableGrid({
   const [absenceReason, setAbsenceReason] = useState('');
   const [isSubmittingAbsence, setIsSubmittingAbsence] = useState(false);
   const [absenceError, setAbsenceError] = useState('');
+
+  // Theo dõi các buổi học đã được học sinh xem dặn dò chuẩn bị bài
+  const [viewedPrepIds, setViewedPrepIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('viewed_prep_session_ids');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const markPrepAsViewed = (sessionId) => {
+    if (!sessionId) return;
+    setViewedPrepIds(prev => {
+      const next = new Set(prev);
+      next.add(sessionId);
+      try {
+        localStorage.setItem('viewed_prep_session_ids', JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  };
 
   // Calculate dates for Monday through Sunday of current week
   const weekDays = useMemo(() => {
@@ -109,7 +127,7 @@ export default function TimetableGrid({
     setCurrentWeekStart(getMonday(new Date()));
   };
 
-  // Map sessions into week days and calculate slot positions
+  // Map sessions into week days and calculate vertical position
   const sessionsByDay = useMemo(() => {
     const map = {};
     weekDays.forEach(wd => { map[wd.dayIndex] = []; });
@@ -119,11 +137,9 @@ export default function TimetableGrid({
       const start = new Date(session.startTime);
       const sessionDateStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
       
-      // Match with day in current week
       const matchedDay = weekDays.find(wd => wd.fullDateStr === sessionDateStr);
-      if (!matchedDay) return; // Session not in current week
+      if (!matchedDay) return;
 
-      // Calculate time bounds in minutes from 07:00
       const startHour = start.getHours();
       const startMinute = start.getMinutes();
       const startTotalMinutes = startHour * 60 + startMinute;
@@ -132,20 +148,22 @@ export default function TimetableGrid({
       const durationMinutes = session.durationMinutes || 90;
       const endTotalMinutes = startTotalMinutes + durationMinutes;
 
-      // Slot start (each slot is 30 mins, 0 to 29)
       const slotStart = Math.max(0, (startTotalMinutes - baseMinutes) / 30);
       const slotEnd = Math.min(TOTAL_SLOTS, (endTotalMinutes - baseMinutes) / 30);
       const slotSpan = Math.max(1, slotEnd - slotStart);
 
-      // Percentage positioning within the 07:00-22:00 bar
-      const leftPercent = (slotStart / TOTAL_SLOTS) * 100;
-      const widthPercent = (slotSpan / TOTAL_SLOTS) * 100;
+      const topPx = slotStart * SLOT_HEIGHT;
+      const heightPx = Math.max(SLOT_HEIGHT, slotSpan * SLOT_HEIGHT - 4);
 
-      // Format start and end times
       const startStr = `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}`;
       const endHour = Math.floor(endTotalMinutes / 60);
       const endMinute = endTotalMinutes % 60;
       const endStr = `${String(endHour).padStart(2, '0')}:${String(endMinute).padStart(2, '0')}`;
+
+      // Kiểm tra xem buổi học có phần dặn dò / học phần chuẩn bị bài hay không
+      const hasPreparation = (session.sections && session.sections.length > 0) || 
+                             Boolean(session.teachingPlanTitle) || 
+                             (session.sections && session.sections.some(s => s.studentPreparation));
 
       map[matchedDay.dayIndex].push({
         ...session,
@@ -153,15 +171,15 @@ export default function TimetableGrid({
         timeRangeStr: `${startStr} - ${endStr}`,
         slotStart,
         slotSpan,
-        leftPercent,
-        widthPercent,
+        topPx,
+        heightPx,
+        hasPreparation
       });
     });
 
     return map;
   }, [sessions, weekDays]);
 
-  // Check 2-hour condition for absence
   const canReportAbsence = (session) => {
     if (!session || !session.startTime) return false;
     const start = new Date(session.startTime);
@@ -182,7 +200,8 @@ export default function TimetableGrid({
     return `Còn ${hours} giờ ${mins} phút trước giờ học (hợp lệ để báo vắng)`;
   };
 
-  const handleOpenAbsenceModal = (session) => {
+  const handleOpenAbsence = (e, session) => {
+    e.stopPropagation();
     setSelectedSession(session);
     setAbsenceReason('');
     setAbsenceError('');
@@ -220,25 +239,37 @@ export default function TimetableGrid({
     }
   };
 
-  // Distinct classes represented in sessions
   const distinctClasses = useMemo(() => {
     const map = new Map();
     sessions.forEach(s => {
-      const cId = s.classId || (s.classRoom && s.classRoom.id);
-      const cName = s.className || (s.classRoom && s.classRoom.name);
-      if (cId && !map.has(cId)) {
-        map.set(cId, { id: cId, name: cName, color: getClassColor(cId) });
+      const classId = s.classId || (s.classRoom && s.classRoom.id);
+      const className = s.className || (s.classRoom && s.classRoom.name);
+      if (classId && className && !map.has(classId)) {
+        map.set(classId, { id: classId, name: className, color: getClassColor(classId) });
       }
     });
+    if (classes && classes.length > 0) {
+      classes.forEach(c => {
+        if (!map.has(c.id)) {
+          map.set(c.id, { id: c.id, name: c.name, color: getClassColor(c.id) });
+        }
+      });
+    }
     return Array.from(map.values());
-  }, [sessions]);
+  }, [sessions, classes]);
+
+  const handleSelectSession = (session) => {
+    setSelectedSession(session);
+    const sId = session.sessionId || session.id;
+    markPrepAsViewed(sId);
+  };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      {/* Header Bar: Navigation & Week Selector */}
-      <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-slate-50">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+      {/* Header & Navigation */}
+      <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h2 className="text-lg font-bold text-slate-800">Thời khóa biểu tuần</h2>
+          <h2 className="text-base sm:text-lg font-bold text-slate-800">Thời khóa biểu tuần</h2>
           <span className="text-xs font-semibold px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full">
             {weekRangeStr}
           </span>
@@ -248,155 +279,243 @@ export default function TimetableGrid({
           <button
             type="button"
             onClick={handlePrevWeek}
-            className="px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors shadow-sm"
+            className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 transition shadow-xs cursor-pointer"
           >
             Tuần trước
           </button>
           <button
             type="button"
             onClick={handleCurrentWeek}
-            className="px-3 py-1.5 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors shadow-sm"
+            className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition shadow-xs cursor-pointer"
           >
             Tuần này
           </button>
           <button
             type="button"
             onClick={handleNextWeek}
-            className="px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors shadow-sm"
+            className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 transition shadow-xs cursor-pointer"
           >
             Tuần sau
           </button>
         </div>
       </div>
 
-      {/* Class Legend (Color codes) */}
-      {distinctClasses.length > 0 && (
-        <div className="px-4 py-2.5 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center gap-3 text-xs">
-          <span className="font-semibold text-slate-600">Chú thích lớp:</span>
-          {distinctClasses.map(c => (
-            <div key={c.id} className="flex items-center gap-1.5">
-              <span className={`w-3 h-3 rounded-full ${c.color.badge} border ${c.color.border}`}></span>
-              <span className="font-medium text-slate-700">{c.name}</span>
-            </div>
-          ))}
+      {/* Chú thích viền trạng thái bài tập & Màu lớp */}
+      <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+        {/* Chú thích viền bài tập */}
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-semibold text-slate-700">Trạng thái bài tập:</span>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border-2 border-red-500 bg-red-100"></span>
+            <span className="text-slate-600">Chưa làm</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border-2 border-amber-500 bg-amber-100"></span>
+            <span className="text-slate-600">Đang làm dở</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded border-2 border-emerald-500 bg-emerald-100"></span>
+            <span className="text-slate-600">Đã làm / Đã chấm</span>
+          </div>
         </div>
-      )}
 
-      {/* Scrollable Matrix Table */}
+        {/* Chú thích màu lớp */}
+        {distinctClasses.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="font-semibold text-slate-600">Lớp:</span>
+            {distinctClasses.map(c => (
+              <div key={c.id} className="flex items-center gap-1">
+                <span className={`w-2.5 h-2.5 rounded-full ${c.color.badge} border ${c.color.border}`}></span>
+                <span className="font-medium text-slate-700">{c.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* MA TRẬN THỜI KHÓA BIỂU DẠNG DỌC (VERTICAL CALENDAR) */}
       <div className="overflow-x-auto">
-        <div className="min-w-[1500px]">
-          {/* Header Row: Time intervals 07:00 to 22:00 */}
-          <div className="flex border-b border-slate-200 bg-slate-100/80 sticky top-0 z-10 text-xs font-semibold text-slate-600">
-            {/* Sticky Day Column Header */}
-            <div className="w-28 flex-shrink-0 p-3 bg-slate-100 border-r border-slate-300 sticky left-0 z-20 text-center font-bold">
-              Thứ / Ngày
+        <div className="min-w-[850px] sm:min-w-[1000px]">
+          {/* HÀNG TIÊU ĐỀ: 7 CỘT NGÀY TRONG TUẦN */}
+          <div className="grid grid-cols-8 border-b border-slate-200 bg-slate-100 sticky top-0 z-20 text-xs font-semibold text-slate-700">
+            {/* Cột mốc giờ */}
+            <div className="p-3 border-r border-slate-300 text-center font-bold bg-slate-100 sticky left-0 z-30 flex items-center justify-center">
+              Giờ / Thứ
             </div>
 
-            {/* Time slot headers (every 30 mins) */}
-            <div className="flex-1 grid relative" style={{ gridTemplateColumns: 'repeat(30, minmax(0, 1fr))' }}>
+            {/* 7 cột ngày trong tuần */}
+            {weekDays.map(day => {
+              const isToday = new Date().toDateString() === day.date.toDateString();
+              return (
+                <div
+                  key={day.dayIndex}
+                  className={`p-2.5 text-center border-r border-slate-200 transition ${
+                    isToday ? 'bg-blue-100/70 text-blue-900 font-bold border-b-2 border-b-blue-600' : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  <div className="text-xs sm:text-sm font-bold">{day.label}</div>
+                  <div className="text-[11px] text-slate-500 font-normal">{day.dateStr}</div>
+                  {isToday && (
+                    <span className="inline-block mt-0.5 text-[9px] uppercase tracking-wider font-bold text-blue-700 bg-blue-200 px-1 rounded">
+                      Hôm nay
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* THÂN THỜI KHÓA BIỂU DỌC: CỘT GIỜ + 7 CỘT NGÀY */}
+          <div className="grid grid-cols-8 relative" style={{ height: `${TOTAL_SLOTS * SLOT_HEIGHT}px` }}>
+            {/* CỘT MỐC THỜI GIAN (BÊN TRÁI) */}
+            <div className="border-r border-slate-300 bg-slate-50 sticky left-0 z-10 select-none">
               {TIME_SLOTS.map((time, idx) => (
                 <div
                   key={time}
-                  className={`py-2.5 text-center border-r border-slate-200 ${idx % 2 === 0 ? 'bg-slate-100 font-bold text-slate-700' : 'bg-slate-50/50 text-slate-500 text-[11px]'}`}
+                  style={{ height: `${SLOT_HEIGHT}px` }}
+                  className={`border-b border-slate-200 px-1 text-[11px] flex items-center justify-center font-mono ${
+                    idx % 2 === 0 ? 'font-bold text-slate-700 bg-slate-100/60' : 'text-slate-400 text-[10px]'
+                  }`}
                 >
                   {time}
                 </div>
               ))}
             </div>
-          </div>
 
-          {/* 7 Day Rows: Thứ 2 to Chủ nhật */}
-          <div className="divide-y divide-slate-200">
+            {/* 7 CỘT THEO NGÀY (THỨ 2 ĐẾN CHỦ NHẬT) */}
             {weekDays.map(day => {
               const daySessions = sessionsByDay[day.dayIndex] || [];
               const isToday = new Date().toDateString() === day.date.toDateString();
 
               return (
-                <div key={day.dayIndex} className={`flex relative transition-colors ${isToday ? 'bg-blue-50/30' : 'hover:bg-slate-50/50'}`}>
-                  {/* Sticky Day Column */}
-                  <div className={`w-28 flex-shrink-0 p-3 border-r border-slate-300 sticky left-0 z-10 flex flex-col justify-center items-center ${isToday ? 'bg-blue-50 text-blue-900 font-bold' : 'bg-white text-slate-700 font-medium'}`}>
-                    <span className="text-sm">{day.label}</span>
-                    <span className="text-xs text-slate-500 font-normal">{day.dateStr}</span>
-                    {isToday && (
-                      <span className="mt-1 text-[10px] uppercase tracking-wider font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">
-                        Hôm nay
-                      </span>
-                    )}
-                  </div>
+                <div
+                  key={day.dayIndex}
+                  className={`border-r border-slate-200 relative ${
+                    isToday ? 'bg-blue-50/20' : 'bg-white'
+                  }`}
+                >
+                  {/* Đường kẻ ngang phân cách các slot 30 phút */}
+                  {TIME_SLOTS.map((time, idx) => (
+                    <div
+                      key={time}
+                      style={{ height: `${SLOT_HEIGHT}px` }}
+                      className={`border-b border-slate-100 ${
+                        idx % 2 === 1 ? 'border-dashed' : ''
+                      }`}
+                    />
+                  ))}
 
-                  {/* 30-slot Grid Area for the day */}
-                  <div className="flex-1 relative h-28 grid" style={{ gridTemplateColumns: 'repeat(30, minmax(0, 1fr))' }}>
-                    {/* Background slot grid lines */}
-                    {TIME_SLOTS.map((time, idx) => (
+                  {/* CÁC BUỔI HỌC TRONG NGÀY */}
+                  {daySessions.map(session => {
+                    const classId = session.classId || (session.classRoom && session.classRoom.id);
+                    const color = getClassColor(classId);
+                    const sId = session.sessionId || session.id;
+                    const hasAbsentReport = session.attendanceStatus === 'ABSENT';
+                    const isPrepUnviewed = session.hasPreparation && !viewedPrepIds.has(sId);
+
+                    // Xử lý viền theo trạng thái bài tập
+                    let homeworkBorderClass = `${color.border} border`;
+                    let homeworkStatusBadge = null;
+
+                    if (session.homeworkStatus === 'NOT_SUBMITTED') {
+                      homeworkBorderClass = 'border-2 border-red-500 shadow-sm shadow-red-200/50';
+                      homeworkStatusBadge = (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-red-100 text-red-800 rounded border border-red-300">
+                          Chưa làm bài
+                        </span>
+                      );
+                    } else if (session.homeworkStatus === 'DRAFT') {
+                      homeworkBorderClass = 'border-2 border-amber-500 shadow-sm shadow-amber-200/50';
+                      homeworkStatusBadge = (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded border border-amber-300">
+                          Đang làm dở
+                        </span>
+                      );
+                    } else if (session.homeworkStatus === 'GRADED') {
+                      homeworkBorderClass = 'border-2 border-emerald-500 shadow-sm shadow-emerald-200/50';
+                      homeworkStatusBadge = (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded border border-emerald-300">
+                          Đã chấm{session.homeworkScore ? `: ${session.homeworkScore}` : ''}
+                        </span>
+                      );
+                    } else if (session.homeworkStatus === 'SUBMITTED') {
+                      homeworkBorderClass = 'border-2 border-emerald-500 shadow-sm shadow-emerald-200/50';
+                      homeworkStatusBadge = (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded border border-emerald-300">
+                          Đã làm bài
+                        </span>
+                      );
+                    }
+
+                    return (
                       <div
-                        key={time}
-                        className={`h-full border-r border-slate-100 ${idx % 2 === 1 ? 'border-dashed border-slate-100' : ''}`}
-                      />
-                    ))}
-
-                    {/* Render Sessions for this day */}
-                    {daySessions.map(session => {
-                      const classId = session.classId || (session.classRoom && session.classRoom.id);
-                      const color = getClassColor(classId);
-                      const sId = session.sessionId || session.id;
-                      const hasAbsentReport = session.attendanceStatus === 'ABSENT';
-
-                      return (
-                        <div
-                          key={sId}
-                          onClick={() => setSelectedSession(session)}
-                          style={{
-                            left: `${session.leftPercent}%`,
-                            width: `${session.widthPercent}%`,
-                          }}
-                          className={`absolute top-1.5 bottom-1.5 p-2 rounded-lg border cursor-pointer shadow-sm transition-all hover:shadow-md hover:scale-[1.01] overflow-hidden flex flex-col justify-between ${color.bg} ${color.border} ${color.text} z-10`}
-                          title={`Bấm để xem chi tiết buổi học: ${session.className || ''} - ${session.topic || ''}`}
-                        >
-                          <div>
-                            {/* Class Name & Time */}
-                            <div className="flex items-center justify-between gap-1 mb-1">
-                              <span className="font-bold text-xs truncate max-w-[70%]">
-                                {session.className || 'Lớp học'}
-                              </span>
-                              <span className="text-[10px] font-semibold opacity-80 whitespace-nowrap">
-                                {session.timeRangeStr}
-                              </span>
-                            </div>
-
-                            {/* What is taught (Topic / Content summary) */}
-                            <div className="text-xs font-semibold truncate leading-tight mb-1" title={session.contentSummary || session.topic || ''}>
-                              {session.contentSummary || session.topic || 'Buổi học'}
-                            </div>
+                        key={sId}
+                        onClick={() => handleSelectSession(session)}
+                        style={{
+                          top: `${session.topPx}px`,
+                          height: `${session.heightPx}px`,
+                          left: '4px',
+                          right: '4px',
+                        }}
+                        className={`absolute p-2 rounded-xl cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] overflow-hidden flex flex-col justify-between ${color.bg} ${homeworkBorderClass} ${color.text} z-10`}
+                        title={`Bấm để xem chi tiết: ${session.className || ''} - ${session.topic || ''}`}
+                      >
+                        <div>
+                          {/* Header: Class Name & Time */}
+                          <div className="flex items-start justify-between gap-1 mb-0.5">
+                            <span className="font-bold text-xs truncate max-w-[65%]">
+                              {session.className || 'Lớp học'}
+                            </span>
+                            <span className="text-[10px] font-semibold opacity-85 whitespace-nowrap font-mono">
+                              {session.timeRangeStr}
+                            </span>
                           </div>
 
-                          {/* Footer: Sĩ số & Attendance status & Homework status */}
-                          <div className="flex items-center justify-between gap-1 text-[11px] pt-1 border-t border-black/5 mt-auto">
-                            <span className="font-medium opacity-90">
-                              Sĩ số: <strong className="font-bold">{session.studentCount != null ? session.studentCount : '—'}</strong>
-                            </span>
-
-                            <div className="flex items-center gap-1 flex-wrap justify-end">
-                              {session.homeworkStatus === 'GRADED' && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-emerald-200 text-emerald-900 rounded" title={`Đã chấm bài tập${session.homeworkScore ? `: ${session.homeworkScore}` : ''}`}>
-                                  ✓ Đã làm bài tập (Đã chấm{session.homeworkScore ? `: ${session.homeworkScore}` : ''})
-                                </span>
-                              )}
-                              {session.homeworkStatus === 'SUBMITTED' && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-200 text-blue-900 rounded" title="Đã nộp bài tập">
-                                  ✓ Đã làm bài tập
-                                </span>
-                              )}
-                              {hasAbsentReport && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-rose-200 text-rose-800 rounded">
-                                  Báo vắng
-                                </span>
-                              )}
-                            </div>
+                          {/* Topic / Content */}
+                          <div className="text-xs font-semibold line-clamp-2 leading-tight mb-1" title={session.contentSummary || session.topic || ''}>
+                            {session.contentSummary || session.topic || 'Buổi học'}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
+
+                        {/* Footer: Badges */}
+                        <div className="pt-1 border-t border-black/5 mt-auto space-y-1">
+                          <div className="flex items-center justify-between gap-1 text-[10px]">
+                            <span className="font-medium opacity-90 truncate">
+                              Sĩ số: <b>{session.studentCount != null ? session.studentCount : '—'}</b>
+                            </span>
+
+                            {isStudent && canReportAbsence(session) && !hasAbsentReport && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleOpenAbsence(e, session)}
+                                className="px-1.5 py-0.5 text-[9px] font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 rounded border border-rose-300 transition cursor-pointer"
+                              >
+                                Báo vắng
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Nhóm badge trạng thái: Bài tập & Dặn dò chuẩn bị */}
+                          <div className="flex flex-wrap items-center gap-1">
+                            {homeworkStatusBadge}
+
+                            {/* Thông báo dặn dò chuẩn bị bài (tự mất khi bấm xem) */}
+                            {isPrepUnviewed && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded border border-blue-300 animate-pulse">
+                                Có dặn dò
+                              </span>
+                            )}
+
+                            {hasAbsentReport && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-rose-200 text-rose-800 rounded">
+                                Đã báo vắng
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -404,137 +523,87 @@ export default function TimetableGrid({
         </div>
       </div>
 
-      {/* Session Details Modal */}
+      {/* MODAL XEM CHI TIẾT BUỔI HỌC (TÍCH HỢP BÀI TẬP, KẾ HOẠCH & DẶN DÒ) */}
       {selectedSession && !showAbsenceModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-2xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            {/* Header Modal */}
+            <div className="flex justify-between items-start border-b border-gray-100 pb-3">
               <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
-                  Chi tiết buổi học
+                <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">
+                  {selectedSession.className || 'Lớp học'}
                 </span>
-                <h3 className="text-base font-bold text-slate-800 mt-1">
-                  {selectedSession.className} - {selectedSession.topic}
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 mt-0.5">
+                  {selectedSession.topic || selectedSession.contentSummary || 'Chi tiết buổi học'}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedSession(null)}
-                className="text-slate-400 hover:text-slate-600 text-xl font-bold p-1"
+                className="text-gray-400 hover:text-gray-700 text-lg font-bold p-1 cursor-pointer"
               >
-                &times;
+                ✕
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-5 space-y-4 text-sm text-slate-700">
-              <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 text-xs">
-                <div>
-                  <span className="text-slate-500 block">Thời gian:</span>
-                  <span className="font-semibold text-slate-800">{selectedSession.timeRangeStr || selectedSession.startTime}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Thời lượng:</span>
-                  <span className="font-semibold text-slate-800">{selectedSession.durationMinutes || 90} phút</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Sĩ số lớp:</span>
-                  <span className="font-semibold text-slate-800">{selectedSession.studentCount != null ? selectedSession.studentCount : '—'}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Mã lớp:</span>
-                  <span className="font-semibold text-slate-800">{selectedSession.classCode || '—'}</span>
-                </div>
-              </div>
-
-              {/* Content / Plan details */}
+            {/* Thông tin thời gian */}
+            <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3 rounded-xl border border-slate-100">
               <div>
-                <h4 className="font-semibold text-slate-800 mb-1">Nội dung bài học:</h4>
-                <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-100 text-slate-700">
-                  {selectedSession.contentSummary || selectedSession.topic || 'Chưa cập nhật nội dung'}
-                </div>
+                <span className="text-slate-500 block">Thời gian:</span>
+                <strong className="text-slate-800 font-semibold">{selectedSession.timeRangeStr}</strong>
               </div>
+              <div>
+                <span className="text-slate-500 block">Thời lượng:</span>
+                <strong className="text-slate-800 font-semibold">{selectedSession.durationMinutes || 90} phút</strong>
+              </div>
+            </div>
 
-              {/* Student preparation & Sections */}
-              {selectedSession.sections && selectedSession.sections.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-slate-800 text-xs uppercase tracking-wide">
-                    Học phần & Dặn dò chuẩn bị bài:
+            {/* PHẦN 1: BÀI TẬP VỀ NHÀ CỦA BUỔI HỌC */}
+            {selectedSession.assignments && selectedSession.assignments.length > 0 && (
+              <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wider">
+                    Bài tập về nhà buổi này
                   </h4>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {selectedSession.sections.map((sec, idx) => (
-                      <div key={sec.id || idx} className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
-                        <div className="flex items-center justify-between font-bold text-slate-800">
-                          <span>Phần {idx + 1}: {sec.content}</span>
-                          <span className="text-[11px] text-slate-500 font-normal">{sec.timeAllocation || `${sec.durationMinutes || 15}p`}</span>
-                        </div>
-                        {sec.studentPreparation && (
-                          <div className="p-2 bg-amber-50 border border-amber-200 rounded text-amber-900 text-xs">
-                            <span className="font-bold block mb-0.5">Dặn dò học sinh chuẩn bị bài:</span>
-                            {sec.studentPreparation}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                  {selectedSession.homeworkStatus === 'GRADED' && (
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                      Đã chấm: {selectedSession.homeworkScore} đ
+                    </span>
+                  )}
+                  {selectedSession.homeworkStatus === 'SUBMITTED' && (
+                    <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded border border-blue-300">
+                      Đã nộp bài
+                    </span>
+                  )}
+                  {selectedSession.homeworkStatus === 'DRAFT' && (
+                    <span className="text-xs font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                      Bản nháp đang làm dở
+                    </span>
+                  )}
+                  {selectedSession.homeworkStatus === 'NOT_SUBMITTED' && (
+                    <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded border border-red-300">
+                      Chưa nộp bài
+                    </span>
+                  )}
                 </div>
-              )}
 
-              {/* Student specific section: Preparation & Attendance status */}
-              {isStudent && (
-                <>
-                  {selectedSession.homeworkStatus && selectedSession.homeworkStatus !== 'NONE' && (
-                    <div className="p-3 rounded-lg border flex items-center justify-between text-xs bg-slate-50">
-                      <span className="text-slate-600">Trạng thái bài tập:</span>
-                      {selectedSession.homeworkStatus === 'GRADED' ? (
-                        <span className="font-bold px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                          ✓ Đã làm bài tập (Đã chấm{selectedSession.homeworkScore ? `: ${selectedSession.homeworkScore}` : ''})
-                        </span>
-                      ) : selectedSession.homeworkStatus === 'SUBMITTED' ? (
-                        <span className="font-bold px-2.5 py-1 rounded bg-blue-100 text-blue-800 border border-blue-300">
-                          ✓ Đã làm bài tập
-                        </span>
-                      ) : (
-                        <span className="font-bold px-2.5 py-1 rounded bg-amber-100 text-amber-800 border border-amber-300">
-                          Chưa làm bài tập
-                        </span>
+                {selectedSession.assignments.map(asgn => (
+                  <div key={asgn.id} className="bg-white p-3 rounded-lg border border-blue-100 space-y-1.5">
+                    <div className="font-bold text-xs text-gray-800">{asgn.title}</div>
+                    {asgn.description && (
+                      <p className="text-xs text-gray-600 leading-relaxed">{asgn.description}</p>
+                    )}
+                    <div className="text-[11px] text-gray-500 flex flex-wrap items-center gap-2 pt-1">
+                      <span>Điểm tối đa: <b>{asgn.maxScore || 10}đ</b></span>
+                      {asgn.dueDate && (
+                        <span>Hạn nộp: <b>{new Date(asgn.dueDate).toLocaleDateString('vi-VN')}</b></span>
                       )}
                     </div>
-                  )}
+                  </div>
+                ))}
 
-                  {selectedSession.attendanceStatus && (
-                    <div className="p-3 rounded-lg border flex items-center justify-between text-xs bg-slate-50">
-                      <span className="text-slate-600">Trạng thái điểm danh:</span>
-                      <span className={`font-bold px-2 py-0.5 rounded ${selectedSession.attendanceStatus === 'ABSENT' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                        {selectedSession.attendanceStatus === 'ABSENT' ? 'Vắng mặt' : selectedSession.attendanceStatus}
-                      </span>
-                    </div>
-                  )}
-
-                  {selectedSession.attendanceNote && (
-                    <div className="p-2.5 bg-amber-50 rounded border border-amber-200 text-xs text-amber-800">
-                      <strong>Ghi chú:</strong> {selectedSession.attendanceNote}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Modal Actions */}
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedSession(null)}
-                className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
-              >
-                Đóng
-              </button>
-
-              {/* Student Actions */}
-              {isStudent && (
-                <>
-                  {onGoToAssignment && (
+                {isStudent && onGoToAssignment && (
+                  <div className="pt-1">
                     <button
                       type="button"
                       onClick={() => {
@@ -542,91 +611,130 @@ export default function TimetableGrid({
                         setSelectedSession(null);
                         onGoToAssignment(s);
                       }}
-                      className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition shadow-xs cursor-pointer text-center"
                     >
-                      Làm bài tập
+                      {selectedSession.homeworkStatus === 'DRAFT' ? 'Tiếp tục làm bài tập (Mở bản nháp)' : selectedSession.homeworkStatus === 'SUBMITTED' || selectedSession.homeworkStatus === 'GRADED' ? 'Xem lại bài nộp' : 'Làm bài tập ngay'}
                     </button>
-                  )}
+                  </div>
+                )}
+              </div>
+            )}
 
-                  <button
-                    type="button"
-                    disabled={!canReportAbsence(selectedSession)}
-                    onClick={() => handleOpenAbsenceModal(selectedSession)}
-                    className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors shadow-sm ${
-                      canReportAbsence(selectedSession)
-                        ? 'text-white bg-rose-600 hover:bg-rose-700'
-                        : 'text-slate-400 bg-slate-200 cursor-not-allowed'
-                    }`}
-                    title={getAbsenceTimeRemaining(selectedSession)}
-                  >
-                    Báo vắng
-                  </button>
-                </>
+            {/* PHẦN 2: KẾ HOẠCH GIẢNG DẠY & DẶN DÒ CHUẨN BỊ BÀI */}
+            {selectedSession.sections && selectedSession.sections.length > 0 ? (
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Kế hoạch bài học & Dặn dò chuẩn bị
+                </h4>
+                <div className="space-y-2">
+                  {selectedSession.sections.map((sec, idx) => (
+                    <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-800">
+                          {idx + 1}. {sec.title || sec.activity || 'Nội dung học'}
+                        </span>
+                        <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono">
+                          {sec.timeAllocation || `${sec.durationMinutes || 15} phút`}
+                        </span>
+                      </div>
+                      {sec.content && <p className="text-slate-600 leading-relaxed">{sec.content}</p>}
+                      {sec.studentPreparation && (
+                        <div className="p-2 bg-amber-50 text-amber-900 rounded-lg border border-amber-200 mt-1">
+                          <strong className="text-amber-800">Dặn dò chuẩn bị:</strong> {sec.studentPreparation}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                Chưa có nội dung dặn dò chi tiết cho buổi học này.
+              </div>
+            )}
+
+            {/* Footer modal */}
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+              {isStudent && canReportAbsence(selectedSession) && selectedSession.attendanceStatus !== 'ABSENT' && (
+                <button
+                  type="button"
+                  onClick={(e) => handleOpenAbsence(e, selectedSession)}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-lg transition cursor-pointer"
+                >
+                  Báo vắng buổi này
+                </button>
               )}
+              <button
+                type="button"
+                onClick={() => setSelectedSession(null)}
+                className="ml-auto px-4 py-1.5 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition cursor-pointer"
+              >
+                Đóng
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Absence Report Confirmation Modal */}
+      {/* MODAL XÁC NHẬN BÁO VẮNG */}
       {showAbsenceModal && selectedSession && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-4 border-b border-slate-200 bg-rose-50 flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-2xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 border border-rose-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-start">
               <div>
                 <h3 className="text-base font-bold text-rose-800">Xác nhận báo vắng buổi học</h3>
-                <p className="text-xs text-rose-600 mt-0.5">
-                  {selectedSession.className} - {selectedSession.topic}
+                <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                  {selectedSession.className} - {selectedSession.topic || selectedSession.contentSummary}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAbsenceModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-xl font-bold p-1"
+                className="text-gray-400 hover:text-gray-700 text-lg font-bold p-1 cursor-pointer"
               >
-                &times;
+                ✕
               </button>
             </div>
 
-            <form onSubmit={handleSubmitAbsence} className="p-5 space-y-4">
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-                <p className="font-semibold mb-1">Quy định báo vắng:</p>
-                <p>Học sinh phải báo vắng trước giờ bắt đầu buổi học ít nhất 2 tiếng. Lý do báo vắng sẽ được tự động chuyển đến giáo viên phụ trách.</p>
-                <p className="mt-1 font-medium text-amber-900">{getAbsenceTimeRemaining(selectedSession)}</p>
+            <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+              <p className="font-semibold mb-1">Quy định báo vắng:</p>
+              <p>Học sinh phải báo vắng trước giờ bắt đầu buổi học ít nhất 2 tiếng. Lý do báo vắng sẽ được tự động chuyển đến giáo viên phụ trách.</p>
+              <p className="font-bold text-amber-800 pt-1">{getAbsenceTimeRemaining(selectedSession)}</p>
+            </div>
+
+            {absenceError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-700">
+                {absenceError}
               </div>
+            )}
 
-              {absenceError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 font-medium">
-                  {absenceError}
-                </div>
-              )}
-
+            <form onSubmit={handleSubmitAbsence} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Lý do xin phép vắng <span className="text-rose-500">*</span>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Lý do xin phép vắng <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   required
                   rows={3}
                   value={absenceReason}
                   onChange={(e) => setAbsenceReason(e.target.value)}
-                  placeholder="Ví dụ: Em bị sốt, gia đình có việc bận đột xuất..."
-                  className="w-full text-sm p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none"
+                  placeholder="Ví dụ: Em bị sốt / gia đình có việc đột xuất..."
+                  className="w-full border border-gray-300 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowAbsenceModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+                  className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-lg transition cursor-pointer"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingAbsence}
-                  className="px-4 py-2 text-sm font-semibold text-white bg-rose-600 rounded-lg hover:bg-rose-700 disabled:opacity-50 transition-colors shadow-sm"
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white text-xs font-bold rounded-lg transition shadow-xs cursor-pointer"
                 >
                   {isSubmittingAbsence ? 'Đang gửi...' : 'Xác nhận báo vắng'}
                 </button>

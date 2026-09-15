@@ -1,18 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { sessionApi } from '../api/sessionApi';
 import { teachingPlanApi } from '../api/teachingPlanApi';
 import { activityApi } from '../api/activityApi';
 import { fileApi } from '../api/fileApi';
 import ActivityLibraryModal from './ActivityLibraryModal';
 
-export default function SessionList({ classId, onSelectSessionForAttendance }) {
+export default function SessionList({ classId, classInfo, onSelectSessionForAttendance }) {
   const [sessions, setSessions] = useState([]);
   const [plans, setPlans] = useState([]);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Accordion mở xem kế hoạch của buổi học (lưu danh sách ID các buổi đang mở)
+  // Accordion mở xem kế hoạch của buổi học (mặc định đóng hết)
   const [expandedSessionIds, setExpandedSessionIds] = useState(new Set());
+
+  // Batch selection states
+  const [selectedSessionIds, setSelectedSessionIds] = useState(new Set());
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
+
+  // Dropdown menu state per session card
+  const [openMenuSessionId, setOpenMenuSessionId] = useState(null);
 
   // Thư viện hoạt động modal
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
@@ -107,11 +114,6 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
       } else {
         setActivities([]);
       }
-
-      // Mặc định mở accordion buổi học đầu tiên nếu có
-      if (sessionList.length > 0 && expandedSessionIds.size === 0) {
-        setExpandedSessionIds(new Set([sessionList[0].id]));
-      }
     } catch (error) {
       console.error('Lỗi khi tải dữ liệu buổi học:', error);
     } finally {
@@ -121,7 +123,25 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
 
   useEffect(() => {
     loadData();
+    setSelectedSessionIds(new Set());
+    setExpandedSessionIds(new Set()); // Mặc định không bung ra
   }, [classId]);
+
+  // Phân chia buổi học thành: Buổi sắp tới và Buổi đã xong
+  const { upcomingSessions, pastSessions } = useMemo(() => {
+    const now = new Date();
+    const upcoming = [];
+    const past = [];
+    sessions.forEach(s => {
+      const end = s.endTime ? new Date(s.endTime) : (s.startTime ? new Date(new Date(s.startTime).getTime() + (s.durationMinutes || 90) * 60000) : null);
+      if (end && end < now) {
+        past.push(s);
+      } else {
+        upcoming.push(s);
+      }
+    });
+    return { upcomingSessions: upcoming, pastSessions: past };
+  }, [sessions]);
 
   // Đóng / mở accordion của buổi học
   const toggleSessionExpand = (sessionId) => {
@@ -136,6 +156,120 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
     });
   };
 
+  // Chọn hoặc bỏ chọn 1 buổi học
+  const toggleSelectSession = (sessionId) => {
+    setSelectedSessionIds(prev => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) next.delete(sessionId);
+      else next.add(sessionId);
+      return next;
+    });
+  };
+
+  // Chọn / Bỏ chọn tất cả
+  const toggleSelectAll = (sessionList) => {
+    const allSelected = sessionList.every(s => selectedSessionIds.has(s.id));
+    setSelectedSessionIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) {
+        sessionList.forEach(s => next.delete(s.id));
+      } else {
+        sessionList.forEach(s => next.add(s.id));
+      }
+      return next;
+    });
+  };
+
+  // Sao chép nhanh 1 buổi học sang tuần sau (+7 ngày)
+  const handleQuickCopyNextWeek = async (session) => {
+    if (!session || !session.startTime) return;
+    try {
+      setLoading(true);
+      const oldStart = new Date(session.startTime);
+      const newStart = new Date(oldStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const newStartLocal = new Date(newStart.getTime() - newStart.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+      const createdSession = await sessionApi.create({
+        classId,
+        topic: `${session.topic || 'Buổi học'} (Tuần sau)`,
+        startTime: newStartLocal,
+        durationMinutes: session.durationMinutes || 90
+      });
+
+      const matchedPlan = plans.find(p => (p.sessionId === session.id) || (p.session && p.session.id === session.id));
+      if (matchedPlan && matchedPlan.sections && matchedPlan.sections.length > 0) {
+        await teachingPlanApi.copy(matchedPlan.id, createdSession.id);
+      }
+
+      await loadData();
+      alert(`Đã nhân bản buổi học sang tuần sau (${newStart.toLocaleDateString('vi-VN')}) thành công!`);
+    } catch (err) {
+      alert('Lỗi sao chép sang tuần sau: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
+      setOpenMenuSessionId(null);
+    }
+  };
+
+  // Thao tác hàng loạt (Batch): Sao chép sang tuần sau (+7 ngày) cho tất cả buổi đã chọn
+  const handleBatchCopyNextWeek = async () => {
+    if (selectedSessionIds.size === 0) return;
+    if (!window.confirm(`Bạn có chắc muốn sao chép ${selectedSessionIds.size} buổi học đã chọn sang tuần sau (+7 ngày)?`)) return;
+
+    try {
+      setIsBatchProcessing(true);
+      const selectedList = sessions.filter(s => selectedSessionIds.has(s.id));
+
+      for (const session of selectedList) {
+        if (!session.startTime) continue;
+        const oldStart = new Date(session.startTime);
+        const newStart = new Date(oldStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+        const newStartLocal = new Date(newStart.getTime() - newStart.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+        const createdSession = await sessionApi.create({
+          classId,
+          topic: `${session.topic || 'Buổi học'} (Tuần sau)`,
+          startTime: newStartLocal,
+          durationMinutes: session.durationMinutes || 90
+        });
+
+        const matchedPlan = plans.find(p => (p.sessionId === session.id) || (p.session && p.session.id === session.id));
+        if (matchedPlan && matchedPlan.sections && matchedPlan.sections.length > 0) {
+          await teachingPlanApi.copy(matchedPlan.id, createdSession.id);
+        }
+      }
+
+      await loadData();
+      setSelectedSessionIds(new Set());
+      alert(`Đã sao chép thành công ${selectedList.length} buổi học sang tuần sau!`);
+    } catch (err) {
+      alert('Lỗi sao chép hàng loạt: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
+  // Thao tác hàng loạt (Batch): Xóa tất cả các buổi đã chọn
+  const handleBatchDelete = async () => {
+    if (selectedSessionIds.size === 0) return;
+    if (!window.confirm(`CẢNH BÁO: Bạn có chắc chắn muốn XÓA VĨNH VIỄN ${selectedSessionIds.size} buổi học đã chọn kèm kế hoạch giảng dạy?`)) return;
+
+    try {
+      setIsBatchProcessing(true);
+      const idsToDelete = Array.from(selectedSessionIds);
+      for (const sId of idsToDelete) {
+        await sessionApi.delete(classId, sId);
+      }
+      await loadData();
+      setSelectedSessionIds(new Set());
+      alert(`Đã xóa thành công ${idsToDelete.length} buổi học!`);
+    } catch (err) {
+      alert('Lỗi xóa hàng loạt: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
   // Mở modal Thêm buổi học mới (có sẵn khung Kế hoạch giảng dạy)
   const openCreateModal = () => {
     setSessionFormData({
@@ -148,7 +282,7 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
       {
         timeAllocation: '30 phút',
         content: '',
-        activity: activities.length > 0 ? activities[0].name : '',
+        activity: '',
         studentPreparation: '',
         handoutType: 'NONE',
         handoutText: '',
@@ -159,14 +293,14 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
     setIsCreateModalOpen(true);
   };
 
-  // Thêm 1 dòng học phần nháp trong modal tạo buổi học
-  const addDraftSectionRow = () => {
+  // Xử lý thêm 1 học phần nháp trong form Thêm buổi học
+  const handleAddDraftSection = () => {
     setDraftSections(prev => [
       ...prev,
       {
-        timeAllocation: '30 phút',
+        timeAllocation: '15 phút',
         content: '',
-        activity: activities.length > 0 ? activities[0].name : '',
+        activity: '',
         studentPreparation: '',
         handoutType: 'NONE',
         handoutText: '',
@@ -176,73 +310,102 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
     ]);
   };
 
-  // Xóa 1 dòng học phần nháp
-  const removeDraftSectionRow = (idx) => {
-    setDraftSections(prev => prev.filter((_, i) => i !== idx));
-  };
-
-  // Cập nhật thông tin học phần nháp
-  const updateDraftSection = (idx, field, value) => {
+  // Cập nhật giá trị học phần nháp
+  const handleUpdateDraftSection = (index, field, value) => {
     setDraftSections(prev => {
-      const copy = [...prev];
-      copy[idx] = { ...copy[idx], [field]: value };
-      return copy;
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
     });
   };
 
+  // Xóa 1 học phần nháp
+  const handleRemoveDraftSection = (index) => {
+    setDraftSections(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  // Chọn hoạt động từ Thư viện vào học phần nháp
+  const handlePickActivityForDraft = (index) => {
+    setActivitySelectCallback(() => (pickedActivity) => {
+      handleUpdateDraftSection(index, 'activity', pickedActivity.name);
+      if (pickedActivity.timeAllocation) {
+        handleUpdateDraftSection(index, 'timeAllocation', pickedActivity.timeAllocation);
+      }
+      if (pickedActivity.studentPreparation && !draftSections[index]?.studentPreparation) {
+        handleUpdateDraftSection(index, 'studentPreparation', pickedActivity.studentPreparation);
+      }
+    });
+    setIsActivityModalOpen(true);
+  };
+
   // Upload file handout cho học phần nháp
-  const handleDraftFileUpload = async (idx, file) => {
+  const handleDraftFileUpload = async (index, file) => {
     if (!file) return;
     try {
+      setUploadingHandoutFile(true);
       const res = await fileApi.upload(file);
-      updateDraftSection(idx, 'handoutType', 'FILE');
-      updateDraftSection(idx, 'handoutFileName', res.fileName);
-      updateDraftSection(idx, 'handoutFilePath', res.fileUrl);
+      setDraftSections(prev => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          handoutType: 'FILE',
+          handoutFileName: res.fileName,
+          handoutFilePath: res.fileUrl
+        };
+        return updated;
+      });
     } catch (err) {
-      alert('Lỗi tải tệp lên: ' + (err.response?.data?.message || err.message));
+      alert('Lỗi tải file: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setUploadingHandoutFile(false);
     }
   };
 
-  // XỬ LÝ LƯU BUỔI HỌC MỚI & KẾ HOẠCH GIẢNG DẠY
-  const handleCreateSessionWithPlan = async (e) => {
+  // Xử lý lưu Tạo buổi học mới (+ Kế hoạch giảng dạy nếu có)
+  const handleCreateSessionSubmit = async (e) => {
     e.preventDefault();
+    if (!sessionFormData.topic.trim() || !sessionFormData.startTime) {
+      alert('Vui lòng nhập đầy đủ Chủ đề và Thời gian bắt đầu buổi học.');
+      return;
+    }
+
     try {
       setCreating(true);
-      // 1. Tạo buổi học
-      const newSession = await sessionApi.create(classId, {
-        topic: sessionFormData.topic,
+      const createdSession = await sessionApi.create({
+        classId,
+        topic: sessionFormData.topic.trim(),
         startTime: sessionFormData.startTime,
-        durationMinutes: parseInt(sessionFormData.durationMinutes, 10)
+        durationMinutes: parseInt(sessionFormData.durationMinutes) || 90
       });
 
-      // 2. Tạo Kế hoạch giảng dạy nếu có nhập học phần
-      const validSections = draftSections.filter(sec => sec.content.trim() !== '');
-      if (enablePlanInCreate && validSections.length > 0) {
-        const sectionsPayload = validSections.map((sec, i) => ({
-          durationMinutes: parseInt(sec.timeAllocation) || 30,
-          timeAllocation: sec.timeAllocation,
-          content: sec.content,
-          activity: sec.activity || null,
-          studentPreparation: sec.studentPreparation || null,
-          handoutType: sec.handoutType === 'NONE' ? null : sec.handoutType,
-          handoutText: sec.handoutType === 'TEXT' ? sec.handoutText : null,
-          handoutFileName: sec.handoutType === 'FILE' ? sec.handoutFileName : null,
-          handoutFilePath: sec.handoutType === 'FILE' ? sec.handoutFilePath : null,
-          orderIndex: i + 1
-        }));
+      if (enablePlanInCreate && draftSections.length > 0) {
+        const validSections = draftSections
+          .filter(sec => sec.content.trim() !== '')
+          .map((sec, idx) => ({
+            durationMinutes: parseInt(sec.timeAllocation) || 15,
+            timeAllocation: sec.timeAllocation || '15 phút',
+            content: sec.content.trim(),
+            activity: sec.activity?.trim() || null,
+            studentPreparation: sec.studentPreparation?.trim() || null,
+            handoutType: sec.handoutType === 'NONE' ? null : sec.handoutType,
+            handoutText: sec.handoutType === 'TEXT' ? sec.handoutText : null,
+            handoutFileName: sec.handoutType === 'FILE' ? sec.handoutFileName : null,
+            handoutFilePath: sec.handoutType === 'FILE' ? sec.handoutFilePath : null,
+            orderIndex: idx + 1
+          }));
 
-        await teachingPlanApi.create(classId, newSession.id, {
-          title: `Kế hoạch: ${newSession.topic}`,
-          sections: sectionsPayload
-        });
+        if (validSections.length > 0) {
+          await teachingPlanApi.create(classId, createdSession.id, {
+            title: `Kế hoạch: ${createdSession.topic}`,
+            sections: validSections
+          });
+        }
       }
 
       await loadData();
-      // Tự động mở xem buổi học vừa tạo
-      setExpandedSessionIds(prev => new Set([...prev, newSession.id]));
       setIsCreateModalOpen(false);
     } catch (error) {
-      alert('Lỗi khi tạo buổi học và kế hoạch: ' + (error.response?.data?.message || error.message));
+      alert('Lỗi khi tạo buổi học: ' + (error.response?.data?.message || error.message));
     } finally {
       setCreating(false);
     }
@@ -251,21 +414,28 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
   // Mở modal Sửa buổi học
   const openEditModal = (session) => {
     setEditingSession(session);
+    let startLocal = '';
+    if (session.startTime) {
+      const d = new Date(session.startTime);
+      startLocal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    }
     setEditFormData({
       topic: session.topic || '',
-      startTime: session.startTime ? session.startTime.substring(0, 16) : '',
+      startTime: startLocal,
       durationMinutes: session.durationMinutes || 90
     });
+    setOpenMenuSessionId(null);
   };
 
-  // Xử lý Cập nhật Buổi học
-  const handleEditSessionSubmit = async (e) => {
+  // Lưu Sửa buổi học
+  const handleEditSubmit = async (e) => {
     e.preventDefault();
+    if (!editingSession) return;
     try {
       await sessionApi.update(classId, editingSession.id, {
-        topic: editFormData.topic,
+        topic: editFormData.topic.trim(),
         startTime: editFormData.startTime,
-        durationMinutes: parseInt(editFormData.durationMinutes, 10)
+        durationMinutes: parseInt(editFormData.durationMinutes) || 90
       });
       await loadData();
       setEditingSession(null);
@@ -274,28 +444,35 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
     }
   };
 
-  // Mở modal Nhân bản buổi học
+  // Mở modal Nhân bản / Copy buổi học (Tự động điền ngày giờ cũ để sửa nhanh)
   const openCopyModal = (session) => {
     setCopyingSession(session);
+    let startLocal = '';
+    if (session.startTime) {
+      const d = new Date(session.startTime);
+      startLocal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    }
     setCopyFormData({
       topic: `${session.topic || 'Buổi học'} (Bản sao)`,
-      startTime: '',
+      startTime: startLocal,
       durationMinutes: session.durationMinutes || 90,
       includePlan: true
     });
+    setOpenMenuSessionId(null);
   };
 
-  // Xử lý Nhân bản buổi học (+ Kế hoạch nếu tích chọn)
-  const handleCopySessionSubmit = async (e) => {
+  // Lưu Nhân bản buổi học
+  const handleCopySubmit = async (e) => {
     e.preventDefault();
+    if (!copyingSession) return;
     try {
-      const created = await sessionApi.create(classId, {
-        topic: copyFormData.topic,
+      const created = await sessionApi.create({
+        classId,
+        topic: copyFormData.topic.trim(),
         startTime: copyFormData.startTime,
-        durationMinutes: parseInt(copyFormData.durationMinutes, 10)
+        durationMinutes: parseInt(copyFormData.durationMinutes) || 90
       });
 
-      // Nếu có kế hoạch ở buổi gốc và giáo viên muốn sao chép cả kế hoạch
       if (copyFormData.includePlan) {
         const sourcePlan = plans.find(p => (p.sessionId === copyingSession.id) || (p.session && p.session.id === copyingSession.id));
         if (sourcePlan) {
@@ -305,13 +482,12 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
 
       await loadData();
       setCopyingSession(null);
-      setExpandedSessionIds(prev => new Set([...prev, created.id]));
     } catch (error) {
       alert('Lỗi nhân bản buổi học: ' + (error.response?.data?.message || error.message));
     }
   };
 
-  // Xóa buổi học
+  // Xóa buổi học đơn lẻ
   const handleDeleteSession = async () => {
     if (!deletingSession) return;
     try {
@@ -448,13 +624,13 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
   const handleCopySection = async (plan, section) => {
     try {
       const currentSections = [...(plan.sections || [])];
-      const copiedSection = {
+      const copied = {
         ...section,
+        id: undefined,
         content: `${section.content} (Bản sao)`,
         orderIndex: currentSections.length + 1
       };
-      currentSections.push(copiedSection);
-
+      currentSections.push(copied);
       await teachingPlanApi.update(plan.id, {
         title: plan.title,
         sections: currentSections
@@ -465,18 +641,19 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
     }
   };
 
-  // Sao chép kế hoạch sang buổi học khác
-  const handleCopyPlanToOtherSession = async (e) => {
-    e.preventDefault();
-    if (!copyTargetSessionId) {
-      alert('Vui lòng chọn buổi học đích!');
+  // Sao chép toàn bộ Kế hoạch sang 1 buổi học khác
+  const handleExecuteCopyPlan = async () => {
+    if (!copyingPlanSource || !copyTargetSessionId) {
+      alert('Vui lòng chọn buổi học đích để dán kế hoạch.');
       return;
     }
+
     try {
       await teachingPlanApi.copy(copyingPlanSource.id, copyTargetSessionId);
       await loadData();
       setCopyingPlanSource(null);
       setCopyTargetSessionId('');
+      alert('Đã sao chép kế hoạch giảng dạy sang buổi học đích thành công!');
     } catch (error) {
       alert('Lỗi khi sao chép kế hoạch: ' + (error.response?.data?.message || error.message));
     }
@@ -494,7 +671,255 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
     });
   };
 
-  if (loading) return <div className="text-gray-500 py-6 text-sm">Đang tải lịch buổi học & kế hoạch giảng dạy...</div>;
+  // Render thẻ 1 buổi học
+  const renderSessionCard = (session, index, isPast = false) => {
+    const plan = plans.find(p => (p.sessionId === session.id) || (p.session && p.session.id === session.id));
+    const sections = plan?.sections || [];
+    const isExpanded = expandedSessionIds.has(session.id);
+    const isSelected = selectedSessionIds.has(session.id);
+    const isMenuOpen = openMenuSessionId === session.id;
+
+    return (
+      <div
+        key={session.id}
+        className={`bg-white border rounded-xl shadow-xs overflow-hidden transition-all duration-150 ${
+          isSelected ? 'border-blue-500 ring-2 ring-blue-200' : isPast ? 'border-slate-200 opacity-90' : 'border-gray-200'
+        }`}>
+        {/* THANH TIÊU ĐỀ BUỔI HỌC (CARD HEADER) */}
+        <div className={`p-4 sm:p-4.5 border-b border-gray-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 ${
+          isPast ? 'bg-slate-100/70' : 'bg-slate-50'
+        }`}>
+          <div className="flex items-start gap-3 w-full lg:w-auto">
+            {/* Checkbox chọn buổi học */}
+            <div className="pt-0.5">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => toggleSelectSession(session.id)}
+                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300 cursor-pointer"
+                title="Chọn buổi học này để thao tác hàng loạt"
+              />
+            </div>
+
+            <div className="space-y-1 w-full lg:w-auto">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Badge Tên lớp thay thế cho Buổi 1, Buổi 2 */}
+                <span className="px-2.5 py-0.5 text-xs font-bold bg-blue-600 text-white rounded">
+                  {classInfo?.name || 'Lớp học'}
+                </span>
+                <span className="text-xs font-semibold text-slate-500">
+                  #{index + 1}
+                </span>
+                <h4 className="font-bold text-gray-800 text-base">{session.topic || 'Chưa đặt tên'}</h4>
+                {sections.length > 0 ? (
+                  <span className="px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
+                    {sections.length} học phần
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full border border-amber-200">
+                    Chưa có học phần
+                  </span>
+                )}
+                {isPast && (
+                  <span className="px-2 py-0.5 text-[11px] font-medium bg-slate-200 text-slate-700 rounded">
+                    Đã hoàn thành
+                  </span>
+                )}
+              </div>
+              <div className="text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1 pt-0.5">
+                <span>Bắt đầu: <b className="text-gray-700">{formatDateTime(session.startTime)}</b></span>
+                <span>Thời lượng: <b className="text-gray-700">{session.durationMinutes || 90} phút</b></span>
+                <span>Dự kiến kết thúc: <b className="text-gray-700">{formatDateTime(session.endTime)}</b></span>
+              </div>
+            </div>
+          </div>
+
+          {/* NÚT THAO TÁC: GIỮ XEM KẾ HOẠCH, THÊM HỌC PHẦN, ĐIỂM DANH + GOM COPY/SỬA/XÓA VÀO DROPDOWN */}
+          <div className="flex flex-wrap items-center gap-1.5 w-full lg:w-auto justify-start lg:justify-end pt-2 lg:pt-0 border-t lg:border-t-0 border-gray-200 relative">
+            <button
+              onClick={() => toggleSessionExpand(session.id)}
+              className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition cursor-pointer">
+              {isExpanded ? 'Ẩn kế hoạch ▲' : `Xem kế hoạch (${sections.length}) ▼`}
+            </button>
+            <button
+              onClick={() => openAddSectionModal(session, plan)}
+              className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition cursor-pointer">
+              + Thêm học phần
+            </button>
+            <button
+              onClick={() => onSelectSessionForAttendance && onSelectSessionForAttendance(session.id)}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition cursor-pointer">
+              Điểm danh
+            </button>
+
+            {/* NÚT DROPDOWN GOM COPY, SỬA, XÓA, COPY TUẦN SAU */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenMenuSessionId(isMenuOpen ? null : session.id)}
+                className="p-1.5 px-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition cursor-pointer flex items-center gap-1"
+                title="Tùy chọn khác">
+                <span>⋮</span>
+              </button>
+
+              {/* Menu dropdown */}
+              {isMenuOpen && (
+                <div className="absolute right-0 mt-1 w-56 bg-white border border-slate-200 rounded-xl shadow-xl z-30 py-1.5 animate-in fade-in zoom-in-95 duration-100 text-xs font-medium">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickCopyNextWeek(session)}
+                    className="w-full text-left px-3.5 py-2 hover:bg-blue-50 text-blue-700 font-semibold flex items-center justify-between cursor-pointer">
+                    <span>Copy sang tuần sau (+7 ngày)</span>
+                    <span className="text-[10px] bg-blue-100 px-1 rounded">+7d</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openCopyModal(session)}
+                    className="w-full text-left px-3.5 py-2 hover:bg-purple-50 text-purple-700 flex items-center justify-between cursor-pointer">
+                    <span>Tùy chỉnh sao chép (Copy)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(session)}
+                    className="w-full text-left px-3.5 py-2 hover:bg-slate-50 text-slate-700 cursor-pointer">
+                    Chỉnh sửa thông tin
+                  </button>
+                  <div className="border-t border-slate-100 my-1"></div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenMenuSessionId(null);
+                      setDeletingSession(session);
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-rose-50 text-rose-700 font-semibold cursor-pointer">
+                    Xóa buổi học này
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* VÙNG CHI TIẾT KẾ HOẠCH GIẢNG DẠY (ACCORDION EXPAND) */}
+        {isExpanded && (
+          <div className="p-4 sm:p-5 bg-white space-y-4 animate-fade-in">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-gray-100">
+              <div>
+                <h5 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Kế Hoạch Giảng Dạy Chi Tiết ({session.topic})
+                </h5>
+                <p className="text-[11px] text-gray-400">
+                  Học sinh sẽ xem được nội dung sách, dặn dò chuẩn bị và tài liệu này trong thời khóa biểu
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {plan && sections.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setCopyingPlanSource(plan);
+                      setCopyTargetSessionId('');
+                    }}
+                    className="text-xs font-medium text-purple-700 hover:underline cursor-pointer">
+                    Sao chép kế hoạch sang buổi khác
+                  </button>
+                )}
+                <button
+                  onClick={() => openAddSectionModal(session, plan)}
+                  className="px-3 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition cursor-pointer shadow-xs">
+                  + Thêm Học Phần Mới
+                </button>
+              </div>
+            </div>
+
+            {sections.length === 0 ? (
+              <div className="p-6 bg-slate-50 border border-dashed border-gray-300 rounded-lg text-center">
+                <p className="text-xs text-gray-500 mb-3">Buổi học này chưa có học phần chi tiết nào.</p>
+                <button
+                  onClick={() => openAddSectionModal(session, plan)}
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition cursor-pointer shadow-xs">
+                  + Nhập Học Phần Đầu Tiên
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {sections.map((sec, secIdx) => (
+                  <div
+                    key={sec.id || secIdx}
+                    className="p-3.5 bg-slate-50/60 border border-gray-200 rounded-lg space-y-2 hover:bg-slate-50 transition">
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="px-2 py-0.5 text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded">
+                          Phần {secIdx + 1}
+                        </span>
+                        <span className="font-bold text-sm text-gray-800">{sec.content}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-500 bg-white border border-gray-200 px-2.5 py-0.5 rounded">
+                          {sec.timeAllocation || `${sec.durationMinutes || 15} phút`}
+                        </span>
+                        <button
+                          onClick={() => handleCopySection(plan, sec)}
+                          title="Nhân bản học phần"
+                          className="px-2 py-0.5 text-xs text-purple-700 hover:bg-purple-100 rounded cursor-pointer transition">
+                          Copy
+                        </button>
+                        <button
+                          onClick={() => openEditSectionModal(session, plan, sec, secIdx)}
+                          className="px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-200 rounded cursor-pointer transition">
+                          Sửa
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSection(plan, secIdx)}
+                          className="px-2 py-0.5 text-xs text-red-600 hover:bg-red-100 rounded cursor-pointer transition">
+                          Xóa
+                        </button>
+                      </div>
+                    </div>
+
+                    {sec.activity && (
+                      <div className="text-xs text-purple-700 font-medium">
+                        Hoạt động: <span className="font-semibold">{sec.activity}</span>
+                      </div>
+                    )}
+
+                    {sec.studentPreparation && (
+                      <div className="p-2.5 bg-amber-50 border border-amber-200 rounded text-xs text-amber-900 leading-relaxed">
+                        <span className="font-bold text-amber-800 block mb-0.5">Dặn dò học sinh chuẩn bị:</span>
+                        {sec.studentPreparation}
+                      </div>
+                    )}
+
+                    {sec.handoutType === 'TEXT' && sec.handoutText && (
+                      <div>
+                        <button
+                          onClick={() => setViewingHandoutText(sec.handoutText)}
+                          className="text-xs font-semibold text-blue-600 hover:underline cursor-pointer">
+                          Xem văn bản đã dán
+                        </button>
+                      </div>
+                    )}
+                    {sec.handoutType === 'FILE' && sec.handoutFilePath && (
+                      <div>
+                        <a
+                          href={sec.handoutFilePath}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded hover:bg-emerald-100">
+                          Tải tài liệu: {sec.handoutFileName || 'Tệp đính kèm'}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -526,6 +951,41 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
         </div>
       </div>
 
+      {/* THANH THAO TÁC HÀNG LOẠT (BATCH BAR - HIỆN KHI CÓ BUỔI ĐƯỢC CHỌN) */}
+      {selectedSessionIds.size > 0 && (
+        <div className="p-3.5 bg-blue-900 text-white rounded-xl shadow-lg flex flex-wrap items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold flex items-center justify-center">
+              {selectedSessionIds.size}
+            </span>
+            <span className="text-xs font-bold">Buổi học đang được chọn</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={isBatchProcessing}
+              onClick={handleBatchCopyNextWeek}
+              className="px-3 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition cursor-pointer shadow-xs">
+              {isBatchProcessing ? 'Đang xử lý...' : 'Sao chép sang tuần sau (+7 ngày)'}
+            </button>
+            <button
+              type="button"
+              disabled={isBatchProcessing}
+              onClick={handleBatchDelete}
+              className="px-3 py-1.5 text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white rounded-lg transition cursor-pointer shadow-xs">
+              {isBatchProcessing ? 'Đang xóa...' : 'Xóa các buổi đã chọn'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedSessionIds(new Set())}
+              className="px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition cursor-pointer border border-slate-700">
+              Bỏ chọn
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* DANH SÁCH BUỔI HỌC VỚI KẾ HOẠCH GIẢNG DẠY TRỰC TIẾP */}
       {sessions.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-8 sm:p-12 text-center shadow-xs">
@@ -540,250 +1000,100 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
           </button>
         </div>
       ) : (
-        <div className="space-y-4">
-          {sessions.map((session, index) => {
-            const plan = plans.find(p => (p.sessionId === session.id) || (p.session && p.session.id === session.id));
-            const sections = plan?.sections || [];
-            const isExpanded = expandedSessionIds.has(session.id);
-
-            return (
-              <div
-                key={session.id}
-                className="bg-white border border-gray-200 rounded-xl shadow-xs overflow-hidden transition-all duration-150">
-                {/* THANH TIÊU ĐỀ BUỔI HỌC (CARD HEADER) */}
-                <div className="p-4 sm:p-5 bg-slate-50 border-b border-gray-200 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
-                  <div className="space-y-1 w-full lg:w-auto">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="px-2.5 py-0.5 text-xs font-bold bg-slate-800 text-white rounded">
-                        Buổi {index + 1}
-                      </span>
-                      <h4 className="font-bold text-gray-800 text-base">{session.topic || 'Chưa đặt tên'}</h4>
-                      {sections.length > 0 ? (
-                        <span className="px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
-                          {sections.length} học phần
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full border border-amber-200">
-                          Chưa có học phần
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500 flex flex-wrap gap-x-4 gap-y-1 pt-0.5">
-                      <span>Bắt đầu: <b className="text-gray-700">{formatDateTime(session.startTime)}</b></span>
-                      <span>Thời lượng: <b className="text-gray-700">{session.durationMinutes || 90} phút</b></span>
-                      <span>Dự kiến kết thúc: <b className="text-gray-700">{formatDateTime(session.endTime)}</b></span>
-                    </div>
-                  </div>
-
-                  {/* NÚT THAO TÁC NHANH CHO BUỔI HỌC */}
-                  <div className="flex flex-wrap items-center gap-1.5 w-full lg:w-auto justify-start lg:justify-end pt-2 lg:pt-0 border-t lg:border-t-0 border-gray-200">
-                    <button
-                      onClick={() => toggleSessionExpand(session.id)}
-                      className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition cursor-pointer">
-                      {isExpanded ? 'Ẩn kế hoạch ▲' : `Xem kế hoạch (${sections.length}) ▼`}
-                    </button>
-                    <button
-                      onClick={() => openAddSectionModal(session, plan)}
-                      className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition cursor-pointer">
-                      + Thêm học phần
-                    </button>
-                    <button
-                      onClick={() => onSelectSessionForAttendance && onSelectSessionForAttendance(session.id)}
-                      className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition cursor-pointer">
-                      Điểm danh
-                    </button>
-                    <button
-                      onClick={() => openCopyModal(session)}
-                      title="Nhân bản buổi học này"
-                      className="px-2.5 py-1.5 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition cursor-pointer">
-                      Copy
-                    </button>
-                    <button
-                      onClick={() => openEditModal(session)}
-                      className="px-2.5 py-1.5 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-lg transition cursor-pointer">
-                      Sửa
-                    </button>
-                    <button
-                      onClick={() => setDeletingSession(session)}
-                      className="px-2.5 py-1.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition cursor-pointer">
-                      Xóa
-                    </button>
-                  </div>
-                </div>
-
-                {/* VÙNG CHI TIẾT KẾ HOẠCH GIẢNG DẠY (ACCORDION EXPAND) */}
-                {isExpanded && (
-                  <div className="p-4 sm:p-5 bg-white space-y-4 animate-fade-in">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-2 border-b border-gray-100">
-                      <div>
-                        <h5 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                          Kế Hoạch Giảng Dạy Chi Tiết Buổi {index + 1}
-                        </h5>
-                        <p className="text-[11px] text-gray-400">
-                          Học sinh sẽ xem được nội dung sách, dặn dò chuẩn bị và tài liệu này trong thời khóa biểu
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {plan && sections.length > 0 && (
-                          <button
-                            onClick={() => {
-                              setCopyingPlanSource(plan);
-                              setCopyTargetSessionId('');
-                            }}
-                            className="text-xs font-medium text-purple-700 hover:underline cursor-pointer">
-                            Sao chép kế hoạch sang buổi khác
-                          </button>
-                        )}
-                        <button
-                          onClick={() => openAddSectionModal(session, plan)}
-                          className="px-3 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition cursor-pointer shadow-xs">
-                          + Thêm Học Phần Mới
-                        </button>
-                      </div>
-                    </div>
-
-                    {sections.length === 0 ? (
-                      <div className="p-6 bg-slate-50 border border-dashed border-gray-300 rounded-lg text-center">
-                        <p className="text-xs text-gray-500 mb-3">Buổi học này chưa có học phần chi tiết nào.</p>
-                        <button
-                          onClick={() => openAddSectionModal(session, plan)}
-                          className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition cursor-pointer shadow-xs">
-                          + Nhập Học Phần Đầu Tiên
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {sections.map((sec, secIdx) => (
-                          <div
-                            key={sec.id || secIdx}
-                            className="p-3.5 bg-slate-50/60 border border-gray-200 rounded-lg space-y-2 hover:bg-slate-50 transition">
-                            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="px-2 py-0.5 text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 rounded">
-                                  Phần {secIdx + 1}
-                                </span>
-                                <span className="font-bold text-sm text-gray-800">{sec.content}</span>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-medium text-gray-500 bg-white border border-gray-200 px-2.5 py-0.5 rounded">
-                                  {sec.timeAllocation || `${sec.durationMinutes || 15} phút`}
-                                </span>
-                                <button
-                                  onClick={() => handleCopySection(plan, sec)}
-                                  title="Nhân bản học phần"
-                                  className="px-2 py-0.5 text-xs text-purple-700 hover:bg-purple-100 rounded cursor-pointer transition">
-                                  Copy
-                                </button>
-                                <button
-                                  onClick={() => openEditSectionModal(session, plan, sec, secIdx)}
-                                  className="px-2 py-0.5 text-xs text-blue-700 hover:bg-blue-100 rounded cursor-pointer transition font-medium">
-                                  Sửa
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteSection(plan, secIdx)}
-                                  className="px-2 py-0.5 text-xs text-red-600 hover:bg-red-100 rounded cursor-pointer transition font-medium">
-                                  Xóa
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Hoạt động trên lớp */}
-                            {sec.activity && (
-                              <div className="text-xs text-purple-700 font-medium">
-                                Hoạt động: <span className="font-semibold">{sec.activity}</span>
-                              </div>
-                            )}
-
-                            {/* Dặn dò học sinh cần chuẩn bị gì */}
-                            {sec.studentPreparation ? (
-                              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-900 leading-relaxed">
-                                <span className="font-bold text-amber-800 block mb-0.5">Học sinh cần chuẩn bị:</span>
-                                {sec.studentPreparation}
-                              </div>
-                            ) : (
-                              <div className="text-xs text-gray-400 italic">
-                                (Không có yêu cầu chuẩn bị đặc biệt)
-                              </div>
-                            )}
-
-                            {/* Tài liệu Handout */}
-                            {sec.handoutType === 'TEXT' && sec.handoutText && (
-                              <div>
-                                <button
-                                  onClick={() => setViewingHandoutText(sec.handoutText)}
-                                  className="text-xs font-semibold text-blue-600 hover:underline cursor-pointer">
-                                  Xem văn bản bài học đã dán
-                                </button>
-                              </div>
-                            )}
-                            {sec.handoutType === 'FILE' && sec.handoutFilePath && (
-                              <div>
-                                <a
-                                  href={sec.handoutFilePath}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded hover:bg-emerald-100">
-                                  Tải tài liệu: {sec.handoutFileName || 'Tệp đính kèm'}
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+        <div className="space-y-6">
+          {/* PHẦN 1: BUỔI HỌC SẮP TỚI */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                  Buổi học sắp tới ({upcomingSessions.length})
+                </h4>
+                {upcomingSessions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => toggleSelectAll(upcomingSessions)}
+                    className="text-xs text-blue-600 hover:underline cursor-pointer font-medium">
+                    {upcomingSessions.every(s => selectedSessionIds.has(s.id)) ? 'Bỏ chọn nhóm này' : 'Chọn tất cả nhóm này'}
+                  </button>
                 )}
               </div>
-            );
-          })}
+            </div>
+
+            {upcomingSessions.length === 0 ? (
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                Không có buổi học sắp tới nào.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {upcomingSessions.map((session, index) => renderSessionCard(session, index, false))}
+              </div>
+            )}
+          </div>
+
+          {/* PHẦN 2: BUỔI HỌC ĐÃ XONG */}
+          {pastSessions.length > 0 && (
+            <div className="space-y-3 pt-4 border-t border-slate-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
+                    Buổi học đã xong ({pastSessions.length})
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => toggleSelectAll(pastSessions)}
+                    className="text-xs text-slate-500 hover:underline cursor-pointer font-medium">
+                    {pastSessions.every(s => selectedSessionIds.has(s.id)) ? 'Bỏ chọn nhóm này' : 'Chọn tất cả nhóm này'}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {pastSessions.map((session, index) => renderSessionCard(session, upcomingSessions.length + index, true))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* ================= MODAL 1: TẠO BUỔI HỌC KÈM KẾ HOẠCH GIẢNG DẠY ================= */}
+      {/* MODAL THÊM BUỔI HỌC MỚI (+ KẾ HOẠCH CHI TIẾT) */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl my-6 max-h-[90vh] flex flex-col overflow-hidden">
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 bg-slate-900 text-white flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto border border-gray-100">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3">
               <div>
-                <h3 className="text-lg font-bold">Thêm Buổi Học & Lập Kế Hoạch Giảng Dạy</h3>
-                <p className="text-xs text-slate-300 mt-0.5">
-                  Nhập thông tin buổi học và lên kế hoạch các học phần ngay trong cùng một bước
+                <h3 className="text-lg font-bold text-gray-800">Thêm Buổi Học Mới</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Lên lịch học và nhập trước kế hoạch giảng dạy chi tiết
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="text-slate-400 hover:text-white text-xl font-bold p-1 cursor-pointer">
+                className="text-gray-400 hover:text-gray-600 text-xl font-bold p-1">
                 ✕
               </button>
             </div>
 
-            {/* Modal Body (Scrollable) */}
-            <form onSubmit={handleCreateSessionWithPlan} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-              {/* PHẦN 1: THÔNG TIN BUỔI HỌC */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+            <form onSubmit={handleCreateSessionSubmit} className="space-y-4">
+              <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  1. Thông tin Buổi Học
+                  1. Thông tin buổi học
                 </h4>
-
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Chủ đề bài học <span className="text-red-500">*</span>
+                    Chủ đề / Tên buổi học <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
                     value={sessionFormData.topic}
                     onChange={(e) => setSessionFormData({ ...sessionFormData, topic: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                    placeholder="VD: Lesson 1: Introduction to Writing Task 1"
+                    placeholder="Ví dụ: Unit 1 - Introduction & Ice Breaking"
+                    className="w-full border border-gray-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">
                       Thời gian bắt đầu <span className="text-red-500">*</span>
@@ -793,209 +1103,150 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
                       required
                       value={sessionFormData.startTime}
                       onChange={(e) => setSessionFormData({ ...sessionFormData, startTime: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      className="w-full border border-gray-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
-
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Thời lượng buổi học (phút) <span className="text-red-500">*</span>
+                      Thời lượng (Phút)
                     </label>
-                    <div className="flex gap-1.5 mb-1.5">
-                      {[45, 60, 90, 120].map((mins) => (
-                        <button
-                          key={mins}
-                          type="button"
-                          onClick={() => setSessionFormData({ ...sessionFormData, durationMinutes: mins })}
-                          className={`flex-1 py-1 text-xs font-semibold rounded border cursor-pointer transition ${Number(sessionFormData.durationMinutes) === mins ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'}`}>
-                          {mins}p
-                        </button>
-                      ))}
-                    </div>
                     <input
                       type="number"
-                      required
-                      min="15"
-                      max="480"
+                      min={15}
+                      step={15}
                       value={sessionFormData.durationMinutes}
                       onChange={(e) => setSessionFormData({ ...sessionFormData, durationMinutes: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      placeholder="Số phút"
+                      className="w-full border border-gray-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* PHẦN 2: KẾ HOẠCH GIẢNG DẠY (HỌC PHẦN) */}
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+              {/* KHUNG KẾ HOẠCH GIẢNG DẠY KÈM THEO */}
+              <div className="space-y-3 bg-blue-50/40 p-4 rounded-xl border border-blue-200">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
-                      id="enablePlanCheck"
+                      id="enablePlan"
                       checked={enablePlanInCreate}
                       onChange={(e) => setEnablePlanInCreate(e.target.checked)}
-                      className="h-4 w-4 text-blue-600 rounded cursor-pointer"
+                      className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300"
                     />
-                    <label htmlFor="enablePlanCheck" className="text-xs font-bold text-gray-800 uppercase tracking-wider cursor-pointer">
-                      2. Nhập Kế Hoạch Giảng Dạy Chi Tiết Cho Buổi Này
+                    <label htmlFor="enablePlan" className="text-xs font-bold text-blue-900 cursor-pointer">
+                      2. Nhập Kế hoạch giảng dạy chi tiết luôn cho buổi này
                     </label>
                   </div>
 
                   {enablePlanInCreate && (
                     <button
                       type="button"
-                      onClick={addDraftSectionRow}
-                      className="text-xs font-semibold text-blue-600 hover:text-blue-800 cursor-pointer self-start sm:self-auto">
-                      + Thêm học phần tiếp theo
+                      onClick={handleAddDraftSection}
+                      className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-100 hover:bg-blue-200 rounded transition cursor-pointer">
+                      + Thêm học phần
                     </button>
                   )}
                 </div>
 
                 {enablePlanInCreate && (
-                  <div className="space-y-4">
+                  <div className="space-y-3 pt-2">
                     {draftSections.map((sec, idx) => (
-                      <div key={idx} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3 relative">
+                      <div key={idx} className="bg-white p-3.5 rounded-lg border border-blue-200 space-y-2.5 shadow-2xs">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2.5 py-0.5 rounded">
+                          <span className="text-xs font-bold text-blue-800">
                             Học phần {idx + 1}
                           </span>
                           {draftSections.length > 1 && (
                             <button
                               type="button"
-                              onClick={() => removeDraftSectionRow(idx)}
-                              className="text-xs text-red-600 hover:underline cursor-pointer font-medium">
-                              Xóa học phần này
+                              onClick={() => handleRemoveDraftSection(idx)}
+                              className="text-xs text-red-500 hover:text-red-700">
+                              Xóa phần này
                             </button>
                           )}
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <div className="sm:col-span-2">
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">
-                              Nội dung (Tên sách, chương, bài) <span className="text-red-500">*</span>
-                            </label>
                             <input
                               type="text"
                               value={sec.content}
-                              onChange={(e) => updateDraftSection(idx, 'content', e.target.value)}
-                              placeholder="VD: English File Beginner - Unit 1A: Hello!"
-                              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 bg-white"
+                              onChange={(e) => handleUpdateDraftSection(idx, 'content', e.target.value)}
+                              placeholder="Nội dung bài dạy / Sách trang bao nhiêu..."
+                              className="w-full border border-gray-300 rounded p-1.5 text-xs"
                             />
                           </div>
-
                           <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">
-                              Thời gian phân bổ
-                            </label>
                             <input
                               type="text"
                               value={sec.timeAllocation}
-                              onChange={(e) => updateDraftSection(idx, 'timeAllocation', e.target.value)}
-                              placeholder="VD: 30 phút"
-                              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 bg-white"
+                              onChange={(e) => handleUpdateDraftSection(idx, 'timeAllocation', e.target.value)}
+                              placeholder="Thời lượng (vd: 20 phút)"
+                              className="w-full border border-gray-300 rounded p-1.5 text-xs"
                             />
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <label className="block text-xs font-semibold text-gray-700">
-                                Hoạt động trong lớp
-                              </label>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActivitySelectCallback(() => (actName) => updateDraftSection(idx, 'activity', actName));
-                                  setIsActivityModalOpen(true);
-                                }}
-                                className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold cursor-pointer underline">
-                                Tra cứu & chọn
-                              </button>
-                            </div>
-                            <select
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
                               value={sec.activity}
-                              onChange={(e) => updateDraftSection(idx, 'activity', e.target.value)}
-                              className="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-blue-500 bg-white">
-                              <option value="">-- Chọn hoạt động từ thư viện --</option>
-                              {activities.map(act => (
-                                <option key={act.id} value={act.name}>
-                                  {act.name} {act.category ? `(${act.category})` : ''}
-                                </option>
-                              ))}
-                            </select>
+                              onChange={(e) => handleUpdateDraftSection(idx, 'activity', e.target.value)}
+                              placeholder="Hoạt động trên lớp (tùy chọn)"
+                              className="flex-1 border border-gray-300 rounded p-1.5 text-xs"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handlePickActivityForDraft(idx)}
+                              title="Chọn từ thư viện"
+                              className="px-2 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded text-xs whitespace-nowrap cursor-pointer">
+                              Thư viện
+                            </button>
                           </div>
 
                           <div>
-                            <label className="block text-xs font-semibold text-amber-800 mb-1">
-                              Học sinh cần chuẩn bị gì?
-                            </label>
                             <input
                               type="text"
                               value={sec.studentPreparation}
-                              onChange={(e) => updateDraftSection(idx, 'studentPreparation', e.target.value)}
-                              placeholder="VD: Xem trước trang 4-6, chuẩn bị tai nghe & micro..."
-                              className="w-full border border-amber-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-amber-500 bg-amber-50/40 text-amber-900"
+                              onChange={(e) => handleUpdateDraftSection(idx, 'studentPreparation', e.target.value)}
+                              placeholder="Dặn dò học sinh chuẩn bị gì..."
+                              className="w-full border border-amber-300 bg-amber-50/50 rounded p-1.5 text-xs"
                             />
                           </div>
                         </div>
 
-                        {/* Tài liệu đính kèm Handout */}
-                        <div className="pt-2 border-t border-gray-200">
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
-                            Tài liệu học tập (Handout cho học sinh)
-                          </label>
-                          <div className="flex flex-wrap items-center gap-3">
-                            <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer">
-                              <input
-                                type="radio"
-                                name={`handoutType_${idx}`}
-                                checked={sec.handoutType === 'NONE'}
-                                onChange={() => updateDraftSection(idx, 'handoutType', 'NONE')}
-                              />
-                              Không có
-                            </label>
-                            <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer">
-                              <input
-                                type="radio"
-                                name={`handoutType_${idx}`}
-                                checked={sec.handoutType === 'TEXT'}
-                                onChange={() => updateDraftSection(idx, 'handoutType', 'TEXT')}
-                              />
-                              Dán văn bản trực tiếp
-                            </label>
-                            <label className="inline-flex items-center gap-1.5 text-xs cursor-pointer">
-                              <input
-                                type="radio"
-                                name={`handoutType_${idx}`}
-                                checked={sec.handoutType === 'FILE'}
-                                onChange={() => updateDraftSection(idx, 'handoutType', 'FILE')}
-                              />
-                              Đính kèm tệp (.docx, .pdf)
-                            </label>
-                          </div>
+                        {/* Handout trong phần nháp */}
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <select
+                            value={sec.handoutType}
+                            onChange={(e) => handleUpdateDraftSection(idx, 'handoutType', e.target.value)}
+                            className="text-xs border border-gray-300 rounded p-1 bg-white">
+                            <option value="NONE">Không đính kèm Handout</option>
+                            <option value="TEXT">Dán văn bản bài học</option>
+                            <option value="FILE">Tải tệp đính kèm (.pdf, .docx, .png...)</option>
+                          </select>
 
                           {sec.handoutType === 'TEXT' && (
                             <textarea
                               rows={2}
                               value={sec.handoutText}
-                              onChange={(e) => updateDraftSection(idx, 'handoutText', e.target.value)}
-                              placeholder="Nhập hoặc dán nội dung văn bản handout tại đây..."
-                              className="w-full mt-2 border border-gray-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 bg-white"
+                              onChange={(e) => handleUpdateDraftSection(idx, 'handoutText', e.target.value)}
+                              placeholder="Dán toàn bộ văn bản hoặc bài đọc vào đây..."
+                              className="w-full border border-gray-300 rounded p-1.5 text-xs font-mono"
                             />
                           )}
 
                           {sec.handoutType === 'FILE' && (
-                            <div className="mt-2 flex items-center gap-2">
+                            <div className="flex items-center gap-2 w-full">
                               <input
                                 type="file"
                                 onChange={(e) => handleDraftFileUpload(idx, e.target.files[0])}
-                                className="text-xs text-gray-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                className="text-xs"
                               />
                               {sec.handoutFileName && (
-                                <span className="text-xs text-emerald-700 font-medium truncate max-w-xs">
-                                  ✓ Đã chọn: {sec.handoutFileName}
+                                <span className="text-xs text-emerald-700 font-semibold truncate">
+                                  ✓ {sec.handoutFileName}
                                 </span>
                               )}
                             </div>
@@ -1003,202 +1254,22 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
                         </div>
                       </div>
                     ))}
-
-                    <button
-                      type="button"
-                      onClick={addDraftSectionRow}
-                      className="w-full py-2 border-2 border-dashed border-blue-200 text-blue-700 hover:bg-blue-50 rounded-xl text-xs font-semibold transition cursor-pointer">
-                      + Thêm Một Học Phần Khác Vào Buổi Học Này
-                    </button>
                   </div>
                 )}
               </div>
 
-              {/* Modal Footer Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 sticky bottom-0 bg-white pb-2">
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer">
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating}
-                  className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition cursor-pointer shadow-xs">
-                  {creating ? 'Đang lưu...' : 'Lưu Buổi Học & Kế Hoạch'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ================= MODAL 2: THÊM / SỬA HỌC PHẦN ĐƠN LẺ ================= */}
-      {activeSessionForSection && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg my-6 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
-              <div>
-                <h4 className="text-sm font-bold">
-                  {editingSectionIndex !== null ? 'Chỉnh Sửa Học Phần' : 'Thêm Học Phần Mới'}
-                </h4>
-                <p className="text-xs text-slate-300 truncate max-w-sm">
-                  Buổi: {activeSessionForSection.topic}
-                </p>
-              </div>
-              <button
-                onClick={() => setActiveSessionForSection(null)}
-                className="text-slate-400 hover:text-white font-bold p-1 cursor-pointer">
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveSection} className="p-5 space-y-4 overflow-y-auto">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Nội dung (Tên sách, chương, chủ đề) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={sectionFormData.content}
-                  onChange={(e) => setSectionFormData({ ...sectionFormData, content: e.target.value })}
-                  placeholder="VD: English File Beginner - Unit 1A: Hello!"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Khoảng thời gian
-                  </label>
-                  <input
-                    type="text"
-                    value={sectionFormData.timeAllocation}
-                    onChange={(e) => setSectionFormData({ ...sectionFormData, timeAllocation: e.target.value })}
-                    placeholder="VD: 15 phút, 30 phút"
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-xs font-semibold text-gray-700">
-                      Hoạt động
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActivitySelectCallback(() => (actName) => setSectionFormData(prev => ({ ...prev, activity: actName })));
-                        setIsActivityModalOpen(true);
-                      }}
-                      className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold cursor-pointer underline">
-                      Tra cứu & chọn
-                    </button>
-                  </div>
-                  <select
-                    value={sectionFormData.activity}
-                    onChange={(e) => setSectionFormData({ ...sectionFormData, activity: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="">-- Không chọn --</option>
-                    {activities.map(act => (
-                      <option key={act.id} value={act.name}>
-                        {act.name} {act.category ? `(${act.category})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-amber-800 mb-1">
-                  Học sinh cần chuẩn bị gì? (Sẽ hiện trên Thời khóa biểu học sinh)
-                </label>
-                <textarea
-                  rows={2}
-                  value={sectionFormData.studentPreparation}
-                  onChange={(e) => setSectionFormData({ ...sectionFormData, studentPreparation: e.target.value })}
-                  placeholder="VD: Xem trước trang 4-6 trong giáo trình, chuẩn bị micro để luyện đọc..."
-                  className="w-full border border-amber-300 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-amber-500 bg-amber-50/40 text-amber-900"
-                />
-              </div>
-
-              <div className="pt-2 border-t border-gray-200">
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Tài liệu Handout phát cho học sinh
-                </label>
-                <div className="flex flex-wrap items-center gap-3 mb-2">
-                  <label className="inline-flex items-center gap-1 text-xs cursor-pointer">
-                    <input
-                      type="radio"
-                      name="singleHandoutType"
-                      checked={sectionFormData.handoutType === 'NONE'}
-                      onChange={() => setSectionFormData({ ...sectionFormData, handoutType: 'NONE' })}
-                    />
-                    Không
-                  </label>
-                  <label className="inline-flex items-center gap-1 text-xs cursor-pointer">
-                    <input
-                      type="radio"
-                      name="singleHandoutType"
-                      checked={sectionFormData.handoutType === 'TEXT'}
-                      onChange={() => setSectionFormData({ ...sectionFormData, handoutType: 'TEXT' })}
-                    />
-                    Dán văn bản
-                  </label>
-                  <label className="inline-flex items-center gap-1 text-xs cursor-pointer">
-                    <input
-                      type="radio"
-                      name="singleHandoutType"
-                      checked={sectionFormData.handoutType === 'FILE'}
-                      onChange={() => setSectionFormData({ ...sectionFormData, handoutType: 'FILE' })}
-                    />
-                    Tải tệp (.docx, .pdf)
-                  </label>
-                </div>
-
-                {sectionFormData.handoutType === 'TEXT' && (
-                  <textarea
-                    rows={3}
-                    value={sectionFormData.handoutText}
-                    onChange={(e) => setSectionFormData({ ...sectionFormData, handoutText: e.target.value })}
-                    placeholder="Dán nội dung bài học..."
-                    className="w-full border border-gray-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500"
-                  />
-                )}
-
-                {sectionFormData.handoutType === 'FILE' && (
-                  <div className="space-y-2">
-                    <input
-                      type="file"
-                      onChange={handleSingleFileUpload}
-                      className="text-xs text-gray-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700"
-                    />
-                    {uploadingHandoutFile && (
-                      <span className="text-xs text-blue-600 block">Đang tải file lên...</span>
-                    )}
-                    {sectionFormData.handoutFileName && (
-                      <div className="text-xs text-emerald-700 font-medium">
-                        ✓ Tệp hiện tại: {sectionFormData.handoutFileName}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => setActiveSessionForSection(null)}
                   className="px-4 py-2 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer">
-                  Hủy
+                  Hủy bỏ
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg cursor-pointer shadow-xs">
-                  {editingSectionIndex !== null ? 'Lưu thay đổi' : 'Thêm học phần'}
+                  disabled={creating || uploadingHandoutFile}
+                  className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition cursor-pointer shadow-xs">
+                  {creating ? 'Đang tạo...' : 'Tạo Buổi Học & Kế Hoạch'}
                 </button>
               </div>
             </form>
@@ -1206,63 +1277,53 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
         </div>
       )}
 
-      {/* ================= MODAL 3: SỬA BUỔI HỌC ================= */}
+      {/* MODAL SỬA BUỔI HỌC */}
       {editingSession && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-5">
-            <h4 className="text-base font-bold text-gray-800 mb-4">Chỉnh Sửa Buổi Học</h4>
-            <form onSubmit={handleEditSessionSubmit} className="space-y-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-gray-800">Chỉnh Sửa Thông Tin Buổi Học</h3>
+            <form onSubmit={handleEditSubmit} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Chủ đề bài học <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Chủ đề buổi học</label>
                 <input
                   type="text"
                   required
                   value={editFormData.topic}
                   onChange={(e) => setEditFormData({ ...editFormData, topic: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg p-2 text-xs"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Thời gian bắt đầu <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Thời gian bắt đầu</label>
                 <input
                   type="datetime-local"
                   required
                   value={editFormData.startTime}
                   onChange={(e) => setEditFormData({ ...editFormData, startTime: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg p-2 text-xs"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Thời lượng (phút) <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Thời lượng (Phút)</label>
                 <input
                   type="number"
-                  required
-                  min="15"
-                  max="480"
+                  min={15}
+                  step={15}
                   value={editFormData.durationMinutes}
                   onChange={(e) => setEditFormData({ ...editFormData, durationMinutes: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg p-2 text-xs"
                 />
               </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-gray-200">
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setEditingSession(null)}
-                  className="px-4 py-2 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer">
+                  className="px-3 py-1.5 text-xs text-gray-600 bg-gray-100 rounded-lg">
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg cursor-pointer">
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-blue-600 rounded-lg">
                   Lưu thay đổi
                 </button>
               </div>
@@ -1271,77 +1332,68 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
         </div>
       )}
 
-      {/* ================= MODAL 4: NHÂN BẢN BUỔI HỌC ================= */}
+      {/* MODAL NHÂN BẢN / COPY BUỔI HỌC (TỰ ĐỘNG ĐIỀN THỜI GIAN CŨ ĐỂ SỬA NHANH) */}
       {copyingSession && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-5">
-            <h4 className="text-base font-bold text-gray-800 mb-2">Nhân Bản Buổi Học</h4>
-            <p className="text-xs text-gray-500 mb-4">
-              Tạo một buổi học mới dựa trên buổi "{copyingSession.topic}"
+          <div className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-gray-800">Tùy Chỉnh Sao Chép Buổi Học</h3>
+            <p className="text-xs text-gray-500">
+              Nhân bản buổi học này và tùy chỉnh lại thời gian hoặc tên theo ý bạn.
             </p>
-
-            <form onSubmit={handleCopySessionSubmit} className="space-y-4">
+            <form onSubmit={handleCopySubmit} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Chủ đề bài học mới <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Chủ đề buổi học mới</label>
                 <input
                   type="text"
                   required
                   value={copyFormData.topic}
                   onChange={(e) => setCopyFormData({ ...copyFormData, topic: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg p-2 text-xs"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Thời gian bắt đầu mới <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Thời gian bắt đầu</label>
                 <input
                   type="datetime-local"
                   required
                   value={copyFormData.startTime}
                   onChange={(e) => setCopyFormData({ ...copyFormData, startTime: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg p-2 text-xs"
                 />
               </div>
-
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Thời lượng (phút)
-                </label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Thời lượng (Phút)</label>
                 <input
                   type="number"
-                  required
+                  min={15}
+                  step={15}
                   value={copyFormData.durationMinutes}
                   onChange={(e) => setCopyFormData({ ...copyFormData, durationMinutes: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-gray-300 rounded-lg p-2 text-xs"
                 />
               </div>
-
-              <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
-                <label className="inline-flex items-center gap-2 text-xs font-semibold text-purple-900 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={copyFormData.includePlan}
-                    onChange={(e) => setCopyFormData({ ...copyFormData, includePlan: e.target.checked })}
-                    className="h-4 w-4 text-purple-600 rounded"
-                  />
-                  Sao chép kèm toàn bộ Kế hoạch giảng dạy (học phần, dặn dò, tài liệu)
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="includePlan"
+                  checked={copyFormData.includePlan}
+                  onChange={(e) => setCopyFormData({ ...copyFormData, includePlan: e.target.checked })}
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-gray-300"
+                />
+                <label htmlFor="includePlan" className="text-xs text-gray-700 font-medium cursor-pointer">
+                  Sao chép toàn bộ Kế hoạch & Học phần sang buổi mới
                 </label>
               </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-gray-200">
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setCopyingSession(null)}
-                  className="px-4 py-2 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer">
+                  className="px-3 py-1.5 text-xs text-gray-600 bg-gray-100 rounded-lg">
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg cursor-pointer">
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg">
                   Xác nhận nhân bản
                 </button>
               </div>
@@ -1350,72 +1402,176 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
         </div>
       )}
 
-      {/* ================= MODAL 5: XÁC NHẬN XÓA BUỔI HỌC ================= */}
+      {/* MODAL XÁC NHẬN XÓA BUỔI HỌC */}
       {deletingSession && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-5 text-center">
-            <h4 className="text-base font-bold text-gray-800 mb-2">Xác Nhận Xóa Buổi Học</h4>
-            <p className="text-xs text-gray-600 mb-5">
-              Bạn có chắc muốn xóa buổi học <b>"{deletingSession.topic}"</b>?<br />
-              Kế hoạch giảng dạy của buổi này cũng sẽ bị xóa.
+          <div className="bg-white rounded-xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-rose-700">Xác Nhận Xóa Buổi Học</h3>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Bạn có chắc muốn xóa buổi học <b>{deletingSession.topic}</b>? Kế hoạch giảng dạy và dữ liệu điểm danh của buổi học này cũng sẽ bị xóa.
             </p>
-            <div className="flex justify-center gap-3">
+            <div className="flex justify-end gap-2 pt-2">
               <button
+                type="button"
                 onClick={() => setDeletingSession(null)}
-                className="px-4 py-2 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer">
-                Hủy bỏ
+                className="px-3 py-1.5 text-xs text-gray-600 bg-gray-100 rounded-lg">
+                Hủy
               </button>
               <button
+                type="button"
                 onClick={handleDeleteSession}
-                className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg cursor-pointer shadow-xs">
-                Xác nhận xóa
+                className="px-4 py-1.5 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-lg">
+                Xóa vĩnh viễn
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ================= MODAL 6: SAO CHÉP KẾ HOẠCH SANG BUỔI KHÁC ================= */}
-      {copyingPlanSource && (
+      {/* MODAL THÊM / SỬA HỌC PHẦN TRỰC TIẾP CHO 1 BUỔI HỌC */}
+      {activeSessionForSection && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-5">
-            <h4 className="text-base font-bold text-gray-800 mb-2">Sao Chép Kế Hoạch Sang Buổi Khác</h4>
-            <p className="text-xs text-gray-500 mb-4">
-              Kế hoạch nguồn: <b>{copyingPlanSource.title}</b> ({copyingPlanSource.sections?.length || 0} học phần)
-            </p>
+          <div className="bg-white rounded-xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+              <h3 className="text-sm font-bold text-gray-800">
+                {editingSectionIndex !== null ? 'Chỉnh Sửa Học Phần' : 'Thêm Học Phần Vào Buổi Học'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveSessionForSection(null);
+                  setActivePlanForSection(null);
+                  setEditingSectionIndex(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 font-bold">
+                ✕
+              </button>
+            </div>
 
-            <form onSubmit={handleCopyPlanToOtherSession} className="space-y-4">
+            <form onSubmit={handleSaveSection} className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Chọn buổi học đích <span className="text-red-500">*</span>
+                  Nội dung học phần (Sách trang bao nhiêu / bài dạy) <span className="text-red-500">*</span>
                 </label>
-                <select
+                <input
+                  type="text"
                   required
-                  value={copyTargetSessionId}
-                  onChange={(e) => setCopyTargetSessionId(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 bg-white">
-                  <option value="">-- Chọn buổi học muốn áp dụng kế hoạch này --</option>
-                  {sessions
-                    .filter(s => (s.id !== copyingPlanSource.sessionId) && (!copyingPlanSource.session || s.id !== copyingPlanSource.session.id))
-                    .map((s, idx) => (
-                      <option key={s.id} value={s.id}>
-                        Buổi {idx + 1}: {s.topic || 'Buổi học'} ({formatDateTime(s.startTime)})
-                      </option>
-                    ))}
-                </select>
+                  value={sectionFormData.content}
+                  onChange={(e) => setSectionFormData({ ...sectionFormData, content: e.target.value })}
+                  placeholder="Ví dụ: SB Unit 2 Grammar Page 24"
+                  className="w-full border border-gray-300 rounded p-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
+                />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-gray-200">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Thời lượng phân bổ</label>
+                  <input
+                    type="text"
+                    value={sectionFormData.timeAllocation}
+                    onChange={(e) => setSectionFormData({ ...sectionFormData, timeAllocation: e.target.value })}
+                    placeholder="Ví dụ: 15 phút"
+                    className="w-full border border-gray-300 rounded p-2 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Hoạt động lớp học</label>
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      value={sectionFormData.activity}
+                      onChange={(e) => setSectionFormData({ ...sectionFormData, activity: e.target.value })}
+                      placeholder="Hoạt động..."
+                      className="flex-1 border border-gray-300 rounded p-2 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActivitySelectCallback(() => (picked) => {
+                          setSectionFormData(prev => ({
+                            ...prev,
+                            activity: picked.name,
+                            timeAllocation: picked.timeAllocation || prev.timeAllocation,
+                            studentPreparation: picked.studentPreparation || prev.studentPreparation
+                          }));
+                        });
+                        setIsActivityModalOpen(true);
+                      }}
+                      className="px-2 py-1 text-xs bg-purple-50 text-purple-700 rounded border border-purple-200">
+                      Kho
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-amber-800 mb-1">
+                  Dặn dò học sinh chuẩn bị bài ở nhà:
+                </label>
+                <textarea
+                  rows={2}
+                  value={sectionFormData.studentPreparation}
+                  onChange={(e) => setSectionFormData({ ...sectionFormData, studentPreparation: e.target.value })}
+                  placeholder="Học sinh đọc trước trang 24, làm bài tập khởi động..."
+                  className="w-full border border-amber-300 bg-amber-50/50 rounded p-2 text-xs"
+                />
+              </div>
+
+              {/* Handout */}
+              <div className="space-y-2 pt-1 border-t border-gray-100">
+                <label className="block text-xs font-semibold text-gray-700">Tài liệu đính kèm (Handout)</label>
+                <select
+                  value={sectionFormData.handoutType}
+                  onChange={(e) => setSectionFormData({ ...sectionFormData, handoutType: e.target.value })}
+                  className="w-full border border-gray-300 rounded p-1.5 text-xs bg-white">
+                  <option value="NONE">Không đính kèm</option>
+                  <option value="TEXT">Dán văn bản bài học</option>
+                  <option value="FILE">Tải tệp đính kèm (.docx, .pdf, .png...)</option>
+                </select>
+
+                {sectionFormData.handoutType === 'TEXT' && (
+                  <textarea
+                    rows={3}
+                    value={sectionFormData.handoutText}
+                    onChange={(e) => setSectionFormData({ ...sectionFormData, handoutText: e.target.value })}
+                    placeholder="Dán toàn bộ văn bản hoặc bài đọc vào đây..."
+                    className="w-full border border-gray-300 rounded p-2 text-xs font-mono"
+                  />
+                )}
+
+                {sectionFormData.handoutType === 'FILE' && (
+                  <div className="space-y-1">
+                    <input
+                      type="file"
+                      onChange={handleSingleFileUpload}
+                      className="text-xs"
+                    />
+                    {uploadingHandoutFile && <div className="text-xs text-blue-600">Đang tải file lên...</div>}
+                    {sectionFormData.handoutFileName && (
+                      <div className="text-xs text-emerald-700 font-semibold">
+                        ✓ Đã đính kèm: {sectionFormData.handoutFileName}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
                 <button
                   type="button"
-                  onClick={() => setCopyingPlanSource(null)}
-                  className="px-4 py-2 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer">
+                  onClick={() => {
+                    setActiveSessionForSection(null);
+                    setActivePlanForSection(null);
+                    setEditingSectionIndex(null);
+                  }}
+                  className="px-3 py-1.5 text-xs text-gray-600 bg-gray-100 rounded-lg">
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg cursor-pointer">
-                  Sao chép ngay
+                  disabled={uploadingHandoutFile}
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg">
+                  Lưu học phần
                 </button>
               </div>
             </form>
@@ -1423,11 +1579,52 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
         </div>
       )}
 
-      {/* ================= MODAL 7: XEM HANDOUT TEXT ================= */}
+      {/* MODAL SAO CHÉP KẾ HOẠCH SANG BUỔI KHÁC */}
+      {copyingPlanSource && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-gray-800">Sao Chép Kế Hoạch Sang Buổi Học Khác</h3>
+            <p className="text-xs text-gray-500">
+              Chọn buổi học đích trong lớp này để dán toàn bộ các học phần của kế hoạch hiện tại.
+            </p>
+            <div className="space-y-3">
+              <label className="block text-xs font-semibold text-gray-700">Buổi học đích:</label>
+              <select
+                value={copyTargetSessionId}
+                onChange={(e) => setCopyTargetSessionId(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg p-2 text-xs bg-white">
+                <option value="">-- Chọn buổi học --</option>
+                {sessions.map((s, idx) => (
+                  <option key={s.id} value={s.id}>
+                    Buổi #{idx + 1}: {s.topic} ({formatDateTime(s.startTime)})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setCopyingPlanSource(null)}
+                className="px-3 py-1.5 text-xs text-gray-600 bg-gray-100 rounded-lg">
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteCopyPlan}
+                disabled={!copyTargetSessionId}
+                className="px-4 py-1.5 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg">
+                Dán kế hoạch
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL XEM HANDOUT TEXT */}
       {viewingHandoutText && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-5">
-            <h4 className="text-sm font-bold text-gray-800 mb-2">Văn Bản Bài Học Đã Dán</h4>
+            <h4 className="text-sm font-bold text-gray-800 mb-2">Nội Dung Văn Bản Đã Dán</h4>
             <div className="max-h-80 overflow-y-auto p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono whitespace-pre-wrap text-gray-800 leading-relaxed">
               {viewingHandoutText}
             </div>
@@ -1443,17 +1640,20 @@ export default function SessionList({ classId, onSelectSessionForAttendance }) {
       )}
 
       {/* MODAL THƯ VIỆN HOẠT ĐỘNG */}
-      {isActivityModalOpen && (
-        <ActivityLibraryModal
-          isOpen={isActivityModalOpen}
-          onClose={() => {
-            setIsActivityModalOpen(false);
-            setActivitySelectCallback(null);
-            loadData();
-          }}
-          onSelectActivity={activitySelectCallback}
-        />
-      )}
+      <ActivityLibraryModal
+        isOpen={isActivityModalOpen}
+        onClose={() => {
+          setIsActivityModalOpen(false);
+          setActivitySelectCallback(null);
+        }}
+        onSelectActivity={(picked) => {
+          if (activitySelectCallback) {
+            activitySelectCallback(picked);
+          }
+          setIsActivityModalOpen(false);
+          setActivitySelectCallback(null);
+        }}
+      />
     </div>
   );
 }

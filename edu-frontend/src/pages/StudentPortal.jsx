@@ -110,9 +110,67 @@ export default function StudentPortal() {
     return assignments.filter(a => !submissions.some(sub => sub.assignmentId === a.id)).length;
   }, [assignments, submissions]);
 
+  const [draftSavedNotice, setDraftSavedNotice] = useState('');
+
+  // Tính toán trạng thái bài tập & kế hoạch chi tiết cho từng buổi học trong thời khóa biểu
+  const enrichedSchedule = useMemo(() => {
+    return schedule.map(session => {
+      const sId = session.sessionId || session.id;
+      // Tìm các bài tập gắn với buổi học này
+      const sessionAssignments = assignments.filter(a => a.sessionId === sId || (session.assignments && session.assignments.some(sa => sa.id === a.id)));
+      const combinedAssignments = sessionAssignments.length > 0 ? sessionAssignments : (session.assignments || []);
+
+      let homeworkStatus = null;
+      let homeworkScore = null;
+
+      if (combinedAssignments.length > 0) {
+        let hasGraded = false;
+        let hasSubmitted = false;
+        let hasDraft = false;
+
+        combinedAssignments.forEach(asgn => {
+          const sub = submissions.find(s => s.assignmentId === asgn.id);
+          if (sub) {
+            if (sub.status === 'GRADED' || (sub.score !== null && sub.score !== undefined)) {
+              hasGraded = true;
+              homeworkScore = sub.score;
+            } else {
+              hasSubmitted = true;
+            }
+          } else {
+            // Kiểm tra xem học sinh có bản nháp chưa nộp trong localStorage không
+            try {
+              const draftKey = `draft_asgn_${user?.id}_${asgn.id}`;
+              const draft = localStorage.getItem(draftKey);
+              if (draft) {
+                const parsed = JSON.parse(draft);
+                if (parsed && (parsed.submissionText || parsed.uploadedFileData?.fileUrl)) {
+                  hasDraft = true;
+                }
+              }
+            } catch {}
+          }
+        });
+
+        if (hasGraded) homeworkStatus = 'GRADED';
+        else if (hasSubmitted) homeworkStatus = 'SUBMITTED';
+        else if (hasDraft) homeworkStatus = 'DRAFT';
+        else homeworkStatus = 'NOT_SUBMITTED';
+      }
+
+      return {
+        ...session,
+        assignments: combinedAssignments,
+        homeworkStatus,
+        homeworkScore
+      };
+    });
+  }, [schedule, assignments, submissions, user?.id]);
+
   const openSubmitModal = (assignment) => {
     setActiveAssignmentToSubmit(assignment);
     setSubmissionSuccessMsg('');
+    setDraftSavedNotice('');
     const rawAllowed = (assignment.allowedSubmissionTypes || 'TEXT,DOCX,AUDIO,DIRECT_RECORD,IMAGE')
       .split(',')
       .map(s => s.trim().toUpperCase())
@@ -128,9 +186,46 @@ export default function StudentPortal() {
         fileName: existing.fileName || ''
       });
     } else {
-      setSelectedSubmissionMode(allowed[0] || 'TEXT');
-      setSubmissionText('');
-      setUploadedFileData({ fileUrl: '', fileName: '' });
+      // Kiểm tra xem có bản nháp đã lưu không
+      let loadedDraft = false;
+      try {
+        const draftStr = localStorage.getItem(`draft_asgn_${user?.id}_${assignment.id}`);
+        if (draftStr) {
+          const draft = JSON.parse(draftStr);
+          if (draft && (draft.submissionText || draft.uploadedFileData?.fileUrl)) {
+            setSelectedSubmissionMode(allowed.includes(draft.selectedSubmissionMode) ? draft.selectedSubmissionMode : (allowed[0] || 'TEXT'));
+            setSubmissionText(draft.submissionText || '');
+            setUploadedFileData(draft.uploadedFileData || { fileUrl: '', fileName: '' });
+            setDraftSavedNotice('Đã tự động tải lại bản nháp bạn đã lưu trước đó.');
+            loadedDraft = true;
+          }
+        }
+      } catch {}
+
+      if (!loadedDraft) {
+        setSelectedSubmissionMode(allowed[0] || 'TEXT');
+        setSubmissionText('');
+        setUploadedFileData({ fileUrl: '', fileName: '' });
+      }
+    }
+  };
+
+  const handleSaveDraft = () => {
+    if (!activeAssignmentToSubmit || !user?.id) return;
+    const draftData = {
+      selectedSubmissionMode,
+      submissionText,
+      uploadedFileData,
+      savedAt: new Date().toISOString()
+    };
+    try {
+      localStorage.setItem(`draft_asgn_${user.id}_${activeAssignmentToSubmit.id}`, JSON.stringify(draftData));
+      setDraftSavedNotice('Đã lưu bản nháp thành công!');
+      setTimeout(() => setDraftSavedNotice(''), 3500);
+      // Buộc cập nhật trạng thái thời khóa biểu
+      setSchedule(prev => [...prev]);
+    } catch {
+      alert('Không thể lưu bản nháp vào bộ nhớ trình duyệt.');
     }
   };
 
@@ -138,6 +233,7 @@ export default function StudentPortal() {
     stopCamera();
     setActiveAssignmentToSubmit(null);
     setSubmissionSuccessMsg('');
+    setDraftSavedNotice('');
   };
 
   const startCamera = async () => {
@@ -270,6 +366,11 @@ export default function StudentPortal() {
       }
 
       await submissionApi.submit(activeAssignmentToSubmit.id, user.id, payload);
+      // Xóa bản nháp sau khi đã nộp thành công
+      try {
+        localStorage.removeItem(`draft_asgn_${user.id}_${activeAssignmentToSubmit.id}`);
+      } catch {}
+
       setSubmissionSuccessMsg('Đã nộp bài tập thành công!');
       await loadData();
       setTimeout(() => {
@@ -454,7 +555,7 @@ export default function StudentPortal() {
               </div>
             </div>
 
-            {schedule.length === 0 ? (
+            {enrichedSchedule.length === 0 ? (
               <div className="bg-white rounded-xl border border-gray-200 p-8 sm:p-12 text-center shadow-xs">
                 <h4 className="font-bold text-gray-700 text-sm mb-1">Chưa có lịch học nào</h4>
                 <p className="text-xs text-gray-500 mb-4 max-w-sm mx-auto">
@@ -469,7 +570,7 @@ export default function StudentPortal() {
             ) : scheduleViewMode === 'grid' ? (
               /* DẠNG BẢNG THỜI KHÓA BIỂU TUẦN (07:00 - 22:00) */
               <TimetableGrid
-                sessions={schedule}
+                sessions={enrichedSchedule}
                 isStudent={true}
                 studentId={user?.id}
                 onReportAbsenceSuccess={loadData}
@@ -478,7 +579,7 @@ export default function StudentPortal() {
             ) : (
               /* DẠNG DANH SÁCH CHI TIẾT TỪNG BUỔI HỌC */
               <div className="space-y-4">
-                {schedule.map((item, idx) => {
+                {enrichedSchedule.map((item, idx) => {
                   const isAbsent = item.attendanceStatus === 'ABSENT';
                   const canAbsent = canReportAbsence(item);
 
@@ -1120,19 +1221,33 @@ export default function StudentPortal() {
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-gray-200">
+              {draftSavedNotice && (
+                <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs font-semibold text-center animate-in fade-in">
+                  {draftSavedNotice}
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={closeSubmitModal}
-                  className="px-4 py-2 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer">
-                  Đóng
+                  onClick={handleSaveDraft}
+                  className="px-3.5 py-2 text-xs font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 rounded-lg cursor-pointer transition shadow-2xs">
+                  Lưu bản nháp (chưa nộp)
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg cursor-pointer shadow-xs">
-                  {submitting ? 'Đang nộp bài...' : 'Xác Nhận Nộp Bài'}
-                </button>
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    type="button"
+                    onClick={closeSubmitModal}
+                    className="px-4 py-2 text-xs text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer">
+                    Đóng
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg cursor-pointer shadow-xs">
+                    {submitting ? 'Đang nộp bài...' : 'Xác Nhận Nộp Bài'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

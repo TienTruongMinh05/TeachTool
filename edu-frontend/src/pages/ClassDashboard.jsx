@@ -49,6 +49,10 @@ export default function ClassDashboard({ initialView }) {
   const [timetableSessions, setTimetableSessions] = useState([]);
   const [loadingTimetable, setLoadingTimetable] = useState(false);
 
+  // Danh sách tất cả các lớp của giáo viên để chuyển nhanh
+  const [classList, setClassList] = useState([]);
+  const [isClassesSubmenuOpen, setIsClassesSubmenuOpen] = useState(true);
+
   // Mobile drawer state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -56,6 +60,18 @@ export default function ClassDashboard({ initialView }) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({ name: '', startDate: '', endDate: '' });
 
+  const fetchClassList = useCallback(async () => {
+    try {
+      const data = await classApi.getAll();
+      setClassList(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Lỗi khi tải danh sách lớp:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchClassList();
+  }, [fetchClassList]);
 
   const fetchTimetable = useCallback(async (classId = null) => {
     try {
@@ -130,6 +146,24 @@ export default function ClassDashboard({ initialView }) {
     setActiveClassTab('sessions');
     setIsMobileMenuOpen(false);
     navigate(`/class/${classId}`);
+  };
+
+  // Chuyển sang lớp trước đó trong danh sách
+  const handlePrevClass = () => {
+    if (!classList || classList.length === 0 || !selectedClassId) return;
+    const currentIndex = classList.findIndex(c => String(c.id) === String(selectedClassId));
+    if (currentIndex === -1) return;
+    const prevIndex = (currentIndex - 1 + classList.length) % classList.length;
+    handleSelectClass(classList[prevIndex].id);
+  };
+
+  // Chuyển sang lớp tiếp theo trong danh sách
+  const handleNextClass = () => {
+    if (!classList || classList.length === 0 || !selectedClassId) return;
+    const currentIndex = classList.findIndex(c => String(c.id) === String(selectedClassId));
+    if (currentIndex === -1) return;
+    const nextIndex = (currentIndex + 1) % classList.length;
+    handleSelectClass(classList[nextIndex].id);
   };
 
   // Điều hướng menu chính
@@ -214,6 +248,7 @@ export default function ClassDashboard({ initialView }) {
           return (
             <SessionList
               classId={selectedClassId}
+              classInfo={classInfo}
               onSelectSessionForAttendance={handleSelectSessionForAttendance}
             />
           );
@@ -270,6 +305,7 @@ export default function ClassDashboard({ initialView }) {
           return (
             <SessionList
               classId={selectedClassId}
+              classInfo={classInfo}
               onSelectSessionForAttendance={handleSelectSessionForAttendance}
             />
           );
@@ -352,18 +388,59 @@ export default function ClassDashboard({ initialView }) {
             </button>
 
             {/* 1.2: DANH SÁCH LỚP HỌC (TRANG CHỦ) */}
-            <button
-              onClick={() => handleNavigateView('classes')}
-              className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium transition cursor-pointer flex items-center justify-between ${
-                currentView === 'classes'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'text-slate-300 hover:bg-slate-700/80'
-              }`}>
-              <span>Danh sách lớp học</span>
-              <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">
-                Trang chủ
-              </span>
-            </button>
+            <div className="space-y-1">
+              <div className="flex items-center">
+                <button
+                  onClick={() => handleNavigateView('classes')}
+                  className={`flex-1 text-left px-3.5 py-2.5 rounded-lg text-sm font-medium transition cursor-pointer flex items-center justify-between ${
+                    currentView === 'classes'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-300 hover:bg-slate-700/80'
+                  }`}>
+                  <span>Danh sách lớp học</span>
+                  <span className="text-[10px] bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-mono">
+                    {classList.length > 0 ? `${classList.length} lớp` : 'Trang chủ'}
+                  </span>
+                </button>
+                {classList.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsClassesSubmenuOpen(!isClassesSubmenuOpen)}
+                    className="p-2 text-slate-400 hover:text-white cursor-pointer"
+                    title={isClassesSubmenuOpen ? 'Thu gọn danh sách lớp' : 'Mở rộng danh sách lớp'}>
+                    <span className="text-xs">{isClassesSubmenuOpen ? '▲' : '▼'}</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Danh sách các lớp học con để click chuyển nhanh */}
+              {isClassesSubmenuOpen && classList.length > 0 && (
+                <div className="pl-3 pr-1 space-y-0.5 border-l-2 border-slate-700 ml-4 py-1">
+                  {classList.map(cls => {
+                    const isSelected = currentView === 'class_detail' && String(selectedClassId) === String(cls.id);
+                    return (
+                      <button
+                        key={cls.id}
+                        type="button"
+                        onClick={() => handleSelectClass(cls.id)}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-md text-xs transition cursor-pointer flex items-center justify-between truncate ${
+                          isSelected
+                            ? 'bg-blue-600/40 text-blue-200 font-bold border border-blue-400/30'
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50'
+                        }`}
+                        title={cls.name}>
+                        <span className="truncate">{cls.name}</span>
+                        {cls.classCode && (
+                          <span className="text-[10px] font-mono opacity-70 ml-1">
+                            {cls.classCode}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* 1.3: THỜI KHÓA BIỂU (TẤT CẢ CÁC LỚP) */}
             <button
@@ -386,10 +463,30 @@ export default function ClassDashboard({ initialView }) {
               {/* Card thông tin lớp học */}
               <div className="mx-3 p-3.5 bg-slate-900/90 rounded-xl border border-slate-700 mb-3 space-y-2">
                 <div className="flex items-start justify-between gap-1.5">
-                  <div className="truncate">
-                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block mb-0.5">
-                      Đang quản lý lớp:
-                    </span>
+                  <div className="truncate flex-1">
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">
+                        Đang quản lý lớp:
+                      </span>
+                      {classList.length > 1 && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={handlePrevClass}
+                            title="Chuyển sang lớp trước"
+                            className="w-5 h-5 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded text-xs font-bold border border-slate-700 cursor-pointer">
+                            &lt;
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleNextClass}
+                            title="Chuyển sang lớp tiếp theo"
+                            className="w-5 h-5 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded text-xs font-bold border border-slate-700 cursor-pointer">
+                            &gt;
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <h3 className="font-bold text-sm text-white truncate" title={classInfo?.name}>
                       {classInfo ? classInfo.name : `Lớp #${selectedClassId}`}
                     </h3>
@@ -400,7 +497,7 @@ export default function ClassDashboard({ initialView }) {
                   <button
                     onClick={() => setIsEditModalOpen(true)}
                     title="Chỉnh sửa thông tin lớp"
-                    className="p-1 px-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded transition cursor-pointer text-xs border border-slate-700">
+                    className="p-1 px-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded transition cursor-pointer text-xs border border-slate-700 self-start">
                     Sửa
                   </button>
                 </div>
