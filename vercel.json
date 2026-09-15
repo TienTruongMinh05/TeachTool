@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run build --prefix edu-frontend",
+  "outputDirectory": "edu-frontend/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
