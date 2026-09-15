@@ -167,6 +167,22 @@ export default function StudentPortal() {
     });
   }, [schedule, assignments, submissions, user?.id]);
 
+  // Phân chia buổi học thành: Buổi sắp tới và Buổi đã học
+  const { upcomingStudentSessions, pastStudentSessions } = useMemo(() => {
+    const now = new Date();
+    const upcoming = [];
+    const past = [];
+    enrichedSchedule.forEach(s => {
+      const end = s.endTime ? new Date(s.endTime) : (s.startTime ? new Date(new Date(s.startTime).getTime() + (s.durationMinutes || 90) * 60000) : null);
+      if (end && end < now) {
+        past.push(s);
+      } else {
+        upcoming.push(s);
+      }
+    });
+    return { upcomingStudentSessions: upcoming, pastStudentSessions: past };
+  }, [enrichedSchedule]);
+
   const openSubmitModal = (assignment) => {
     setActiveAssignmentToSubmit(assignment);
     setSubmissionSuccessMsg('');
@@ -432,7 +448,6 @@ export default function StudentPortal() {
   };
 
   const handleGoToAssignment = (session) => {
-    setActiveTab('assignments');
     if (session?.assignments && session.assignments.length > 0) {
       const assId = session.assignments[0].id;
       const fullAss = assignments.find(a => a.id === assId) || session.assignments[0];
@@ -490,21 +505,14 @@ export default function StudentPortal() {
 
       {/* NỘI DUNG CHÍNH */}
       <main className="max-w-6xl mx-auto px-3 sm:px-6 pt-5 sm:pt-7">
-        {/* THANH ĐIỀU HƯỚNG TAB (RESPONSIVE CHẠY MƯỢT TRÊN MOBILE & PC) */}
-        <div className="grid grid-cols-3 gap-1 bg-slate-200/80 p-1 rounded-xl max-w-lg mb-6 shadow-xs">
+        {/* THANH ĐIỀU HƯỚNG TAB (CHỈ CÒN 2 TAB: THỜI KHÓA BIỂU & LỚP CỦA TÔI) */}
+        <div className="grid grid-cols-2 gap-1 bg-slate-200/80 p-1 rounded-xl max-w-sm mb-6 shadow-xs">
           <button
             onClick={() => setActiveTab('schedule')}
             className={`py-2 px-1 text-center text-xs font-semibold rounded-lg transition cursor-pointer truncate ${
               activeTab === 'schedule' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-700 hover:text-gray-900'
             }`}>
             Thời Khóa Biểu ({upcomingSessionsCount})
-          </button>
-          <button
-            onClick={() => setActiveTab('assignments')}
-            className={`py-2 px-1 text-center text-xs font-semibold rounded-lg transition cursor-pointer truncate ${
-              activeTab === 'assignments' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-700 hover:text-gray-900'
-            }`}>
-            Bài Tập & Điểm ({pendingAssignmentsCount})
           </button>
           <button
             onClick={() => setActiveTab('classes')}
@@ -521,12 +529,12 @@ export default function StudentPortal() {
           </div>
         )}
 
-        {/* TAB 1: THỜI KHÓA BIỂU & KẾ HOẠCH HỌC TẬP */}
+        {/* TAB 1: THỜI KHÓA BIỂU */}
         {!loading && activeTab === 'schedule' && (
           <div className="space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <h2 className="text-xl font-bold text-gray-800">Thời Khóa Biểu & Kế Hoạch Học</h2>
+                <h2 className="text-xl font-bold text-gray-800">Thời Khóa Biểu</h2>
                 <p className="text-xs text-gray-500 mt-0.5">
                   Xem lịch học tuần (07:00 - 22:00), nội dung bài học, dặn dò chuẩn bị, làm bài tập và báo vắng
                 </p>
@@ -577,264 +585,376 @@ export default function StudentPortal() {
                 onGoToAssignment={handleGoToAssignment}
               />
             ) : (
-              /* DẠNG DANH SÁCH CHI TIẾT TỪNG BUỔI HỌC */
-              <div className="space-y-4">
-                {enrichedSchedule.map((item, idx) => {
-                  const isAbsent = item.attendanceStatus === 'ABSENT';
-                  const canAbsent = canReportAbsence(item);
+              /* DẠNG DANH SÁCH CHI TIẾT TỪNG BUỔI HỌC (CHIA 2 PHẦN: SẮP TỚI & ĐÃ HỌC) */
+              <div className="space-y-6">
+                {/* PHẦN 1: BUỔI HỌC SẮP TỚI */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                    Buổi học sắp tới ({upcomingStudentSessions.length})
+                  </h3>
 
-                  return (
-                    <div key={item.sessionId || idx} className="bg-white border border-gray-200 rounded-xl shadow-xs overflow-hidden">
-                      {/* Header của Buổi học */}
-                      <div className="p-4 bg-slate-50 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-2 py-0.5 text-xs font-bold bg-blue-600 text-white rounded">
-                              {item.className}
-                            </span>
-                            {item.classCode && (
-                              <span className="text-[11px] font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
-                                Mã: {item.classCode}
-                              </span>
-                            )}
-                            <h3 className="font-bold text-gray-800 text-base">
-                              Buổi {idx + 1}: {item.topic || 'Buổi học'}
-                            </h3>
-                            {isAbsent && (
-                              <span className="text-xs font-bold px-2 py-0.5 bg-rose-100 text-rose-700 border border-rose-200 rounded">
-                                Đã báo vắng
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                            <span>Bắt đầu: <b className="text-gray-700">{formatDateTime(item.startTime)}</b></span>
-                            <span>Thời lượng: <b className="text-gray-700">{item.durationMinutes ? `${item.durationMinutes} phút` : '90 phút'}</b></span>
-                          </div>
-                          {item.attendanceNote && (
-                            <div className="text-xs text-rose-600 mt-1">
-                              Lý do: {item.attendanceNote}
-                            </div>
-                          )}
-                        </div>
+                  {upcomingStudentSessions.length === 0 ? (
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                      Không có buổi học sắp tới nào.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {upcomingStudentSessions.map((item, idx) => {
+                        const isAbsent = item.attendanceStatus === 'ABSENT';
+                        const canAbsent = canReportAbsence(item);
 
-                        {/* Nút thao tác nhanh của buổi học: Làm bài tập & Báo vắng */}
-                        <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
-                          <button
-                            type="button"
-                            onClick={() => handleGoToAssignment(item)}
-                            className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition cursor-pointer shadow-xs">
-                            Làm bài tập
-                          </button>
-
-                          {isAbsent ? (
-                            <span className="px-3 py-1.5 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg border border-slate-200">
-                              Đã vắng
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={!canAbsent}
-                              onClick={() => handleOpenAbsenceModal(item)}
-                              title={getAbsenceRemainingNotice(item)}
-                              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer shadow-xs ${
-                                canAbsent
-                                  ? 'text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200'
-                                  : 'text-slate-400 bg-slate-100 cursor-not-allowed border border-slate-200'
-                              }`}>
-                              Báo vắng
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Chi tiết học phần (Nội dung, Sách, Chuẩn bị gì) */}
-                      <div className="p-4 space-y-4">
-                        {item.sections && item.sections.length > 0 ? (
-                          <div className="space-y-3">
-                            <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                              Nội dung chi tiết & Dặn dò chuẩn bị
-                            </h4>
-                            <div className="grid grid-cols-1 gap-3">
-                              {item.sections.map((sec, sIdx) => (
-                                <div key={sec.id || sIdx} className="p-3.5 bg-gray-50/70 border border-gray-200 rounded-lg space-y-2">
-                                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-1.5">
-                                    <div className="font-bold text-gray-800 text-sm">
-                                      Phần {sIdx + 1}: {sec.content}
-                                    </div>
-                                    <div className="text-xs text-gray-500 font-medium">
-                                      Thời gian: {sec.timeAllocation || `${sec.durationMinutes || 15} phút`}
-                                    </div>
-                                  </div>
-
-                                  {sec.activity && (
-                                    <div className="text-xs text-purple-700 font-medium">
-                                      Hoạt động trên lớp: <span className="font-semibold">{sec.activity}</span>
-                                    </div>
+                        return (
+                          <div key={item.sessionId || idx} className="bg-white border border-gray-200 rounded-xl shadow-xs overflow-hidden">
+                            {/* Header của Buổi học */}
+                            <div className="p-4 bg-slate-50 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="px-2.5 py-0.5 text-xs font-bold bg-blue-600 text-white rounded">
+                                    {item.className}
+                                  </span>
+                                  {item.classCode && (
+                                    <span className="text-[11px] font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                                      Mã: {item.classCode}
+                                    </span>
                                   )}
-
-                                  {/* DẶN DÒ HỌC SINH CẦN CHUẨN BỊ GÌ */}
-                                  {sec.studentPreparation ? (
-                                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-900 leading-relaxed">
-                                      <span className="font-bold text-amber-800 block mb-0.5">Học sinh cần chuẩn bị:</span>
-                                      {sec.studentPreparation}
-                                    </div>
-                                  ) : (
-                                    <div className="text-xs text-gray-400 italic">
-                                      (Không có yêu cầu chuẩn bị đặc biệt)
-                                    </div>
-                                  )}
-
-                                  {/* Tài liệu Handout */}
-                                  {sec.handoutType === 'TEXT' && sec.handoutText && (
-                                    <div>
-                                      <button
-                                        onClick={() => setViewingHandoutText(sec.handoutText)}
-                                        className="text-xs font-semibold text-blue-600 hover:underline cursor-pointer">
-                                        Xem văn bản bài học đã dán
-                                      </button>
-                                    </div>
-                                  )}
-                                  {sec.handoutType === 'FILE' && sec.handoutFilePath && (
-                                    <div>
-                                      <a
-                                        href={sec.handoutFilePath}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded hover:bg-emerald-100">
-                                        Tải tài liệu: {sec.handoutFileName || 'Tệp đính kèm'}
-                                      </a>
-                                    </div>
+                                  <h3 className="font-bold text-gray-800 text-base">
+                                    {item.topic || 'Buổi học'}
+                                  </h3>
+                                  {isAbsent && (
+                                    <span className="text-xs font-bold px-2 py-0.5 bg-rose-100 text-rose-700 border border-rose-200 rounded">
+                                      Đã báo vắng
+                                    </span>
                                   )}
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-xs text-gray-400 italic py-2">
-                            Chưa có kế hoạch chi tiết cho buổi học này.
-                          </div>
-                        )}
-
-                        {/* BÀI TẬP CỦA BUỔI HỌC */}
-                        {item.assignments && item.assignments.length > 0 && (
-                          <div className="pt-3 border-t border-gray-100 space-y-2">
-                            <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                              Bài tập liên kết với buổi học này
-                            </h4>
-                            <div className="space-y-2">
-                              {item.assignments.map((ass) => {
-                                const sub = submissions.find(s => s.assignmentId === ass.id);
-                                return (
-                                  <div key={ass.id} className="p-3 bg-blue-50/50 border border-blue-200 rounded-lg flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-                                    <div>
-                                      <div className="font-bold text-sm text-gray-800">{ass.title}</div>
-                                      <div className="text-xs text-gray-500 mt-0.5">
-                                        Hạn nộp: <b>{formatDateTime(ass.dueDate)}</b>
-                                      </div>
-                                      {sub?.score && (
-                                        <div className="text-xs font-bold text-emerald-700 mt-1">
-                                          Điểm của bạn: {sub.score} / 10
-                                        </div>
-                                      )}
-                                    </div>
-                                    <button
-                                      onClick={() => openSubmitModal(ass)}
-                                      className="px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition cursor-pointer shadow-xs self-start sm:self-auto">
-                                      {sub ? 'Xem lại bài đã nộp' : 'Làm & Nộp Bài'}
-                                    </button>
+                                <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                                  <span>Bắt đầu: <b className="text-gray-700">{formatDateTime(item.startTime)}</b></span>
+                                  <span>Thời lượng: <b className="text-gray-700">{item.durationMinutes ? `${item.durationMinutes} phút` : '90 phút'}</b></span>
+                                </div>
+                                {item.attendanceNote && (
+                                  <div className="text-xs text-rose-600 mt-1">
+                                    Lý do: {item.attendanceNote}
                                   </div>
-                                );
-                              })}
+                                )}
+                              </div>
+
+                              {/* Nút thao tác nhanh của buổi học: Làm bài tập & Báo vắng */}
+                              <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+                                {item.assignments && item.assignments.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleGoToAssignment(item)}
+                                    className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition cursor-pointer shadow-xs">
+                                    {item.homeworkStatus === 'DRAFT' ? 'Tiếp tục làm bài (Bản nháp)' : item.homeworkStatus === 'SUBMITTED' || item.homeworkStatus === 'GRADED' ? 'Xem lại bài đã nộp' : 'Làm bài tập'}
+                                  </button>
+                                )}
+
+                                {isAbsent ? (
+                                  <span className="px-3 py-1.5 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg border border-slate-200">
+                                    Đã vắng
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    disabled={!canAbsent}
+                                    onClick={() => handleOpenAbsenceModal(item)}
+                                    title={getAbsenceRemainingNotice(item)}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer shadow-xs ${
+                                      canAbsent
+                                        ? 'text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200'
+                                        : 'text-slate-400 bg-slate-100 cursor-not-allowed border border-slate-200'
+                                    }`}>
+                                    Báo vắng
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Chi tiết học phần (Nội dung, Sách, Chuẩn bị gì) */}
+                            <div className="p-4 space-y-4">
+                              {item.sections && item.sections.length > 0 ? (
+                                <div className="space-y-3">
+                                  <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                    Nội dung chi tiết & Dặn dò chuẩn bị
+                                  </h4>
+                                  <div className="grid grid-cols-1 gap-3">
+                                    {item.sections.map((sec, sIdx) => (
+                                      <div key={sec.id || sIdx} className="p-3.5 bg-gray-50/70 border border-gray-200 rounded-lg space-y-2">
+                                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-1.5">
+                                          <div className="font-bold text-gray-800 text-sm">
+                                            Phần {sIdx + 1}: {sec.content}
+                                          </div>
+                                          <div className="text-xs text-gray-500 font-medium">
+                                            Thời gian: {sec.timeAllocation || `${sec.durationMinutes || 15} phút`}
+                                          </div>
+                                        </div>
+
+                                        {sec.activity && (
+                                          <div className="text-xs text-purple-700 font-medium">
+                                            Hoạt động trên lớp: <span className="font-semibold">{sec.activity}</span>
+                                          </div>
+                                        )}
+
+                                        {/* DẶN DÒ HỌC SINH CẦN CHUẨN BỊ GÌ */}
+                                        {sec.studentPreparation ? (
+                                          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-900 leading-relaxed">
+                                            <span className="font-bold text-amber-800 block mb-0.5">Học sinh cần chuẩn bị:</span>
+                                            {sec.studentPreparation}
+                                          </div>
+                                        ) : (
+                                          <div className="text-xs text-gray-400 italic">
+                                            (Không có yêu cầu chuẩn bị đặc biệt)
+                                          </div>
+                                        )}
+
+                                        {/* Tài liệu Handout */}
+                                        {sec.handoutType === 'TEXT' && sec.handoutText && (
+                                          <div>
+                                            <button
+                                              onClick={() => setViewingHandoutText(sec.handoutText)}
+                                              className="text-xs font-semibold text-blue-600 hover:underline cursor-pointer">
+                                              Xem văn bản bài học đã dán
+                                            </button>
+                                          </div>
+                                        )}
+                                        {sec.handoutType === 'FILE' && sec.handoutFilePath && (
+                                          <div>
+                                            <a
+                                              href={sec.handoutFilePath}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded hover:bg-emerald-100">
+                                              Tải tài liệu: {sec.handoutFileName || 'Tệp đính kèm'}
+                                            </a>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-xs text-gray-400 italic py-2">
+                                  Chưa có kế hoạch chi tiết cho buổi học này.
+                                </div>
+                              )}
+
+                              {/* BÀI TẬP CỦA BUỔI HỌC */}
+                              {item.assignments && item.assignments.length > 0 && (
+                                <div className="pt-3 border-t border-gray-100 space-y-2">
+                                  <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                    Bài tập liên kết với buổi học này
+                                  </h4>
+                                  <div className="space-y-2">
+                                    {item.assignments.map((ass) => {
+                                      const sub = submissions.find(s => s.assignmentId === ass.id);
+                                      return (
+                                        <div key={ass.id} className="p-3 bg-blue-50/50 border border-blue-200 rounded-lg flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                                          <div>
+                                            <div className="font-bold text-sm text-gray-800">{ass.title}</div>
+                                            <div className="text-xs text-gray-500 mt-0.5">
+                                              Hạn nộp: <b>{formatDateTime(ass.dueDate)}</b>
+                                            </div>
+                                            {sub?.score !== null && sub?.score !== undefined && (
+                                              <div className="text-xs font-bold text-emerald-700 mt-1">
+                                                Điểm của bạn: {sub.score} / 10
+                                              </div>
+                                            )}
+                                          </div>
+                                          <button
+                                            onClick={() => openSubmitModal(ass)}
+                                            className="px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition cursor-pointer shadow-xs self-start sm:self-auto">
+                                            {sub ? 'Xem lại bài đã nộp' : 'Làm & Nộp Bài'}
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
-                        )}
-                      </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+                  )}
+                </div>
 
-        {/* TAB 2: TOÀN BỘ BÀI TẬP & KẾT QUẢ CHẤM ĐIỂM (TÍCH HỢP TẤT CẢ TRONG 1 DANH SÁCH DUY NHẤT) */}
-        {!loading && activeTab === 'assignments' && (
-          <div className="space-y-5">
-            <div>
-              <h2 className="text-xl font-bold text-gray-800">Bài Tập & Kết Quả Chấm Điểm</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Xem toàn bộ bài tập được giao, hạn nộp, trạng thái nộp bài, điểm số và nhận xét từ giáo viên
-              </p>
-            </div>
+                {/* PHẦN 2: BUỔI HỌC ĐÃ HỌC */}
+                {pastStudentSessions.length > 0 && (
+                  <div className="space-y-3 pt-4 border-t border-slate-200">
+                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">
+                      Buổi học đã học ({pastStudentSessions.length})
+                    </h3>
 
-            {assignments.length === 0 ? (
-              <div className="bg-white rounded-xl border border-gray-200 p-8 sm:p-12 text-center shadow-xs">
-                <h4 className="font-bold text-gray-700 text-sm mb-1">Hiện không có bài tập nào</h4>
-                <p className="text-xs text-gray-500">Giáo viên chưa giao bài tập nào cho các lớp của bạn.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {assignments.map((ass) => {
-                  const sub = submissions.find(s => s.assignmentId === ass.id);
-                  const isSubmitted = !!sub;
-                  const isGraded = !!sub?.score;
+                    <div className="space-y-4">
+                      {pastStudentSessions.map((item, idx) => {
+                        const isAbsent = item.attendanceStatus === 'ABSENT';
 
-                  return (
-                    <div key={ass.id} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-4">
-                      <div className="space-y-2.5">
-                        <div className="flex justify-between items-start gap-2">
-                          <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 text-blue-800 rounded truncate max-w-[200px]">
-                            {ass.sessionTopic ? `Buổi: ${ass.sessionTopic}` : 'Bài tập'}
-                          </span>
-                          {isGraded ? (
-                            <span className="px-2 py-0.5 text-xs font-bold bg-purple-100 text-purple-700 rounded border border-purple-200 whitespace-nowrap">
-                              Điểm: {sub.score} / 10
-                            </span>
-                          ) : isSubmitted ? (
-                            <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-800 rounded border border-emerald-200 whitespace-nowrap">
-                              Đã nộp bài
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-800 rounded border border-amber-200 whitespace-nowrap">
-                              Chưa nộp
-                            </span>
-                          )}
-                        </div>
+                        return (
+                          <div key={item.sessionId || idx} className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden opacity-90">
+                            {/* Header của Buổi học */}
+                            <div className="p-4 bg-slate-100/70 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="px-2.5 py-0.5 text-xs font-bold bg-blue-600 text-white rounded">
+                                    {item.className}
+                                  </span>
+                                  {item.classCode && (
+                                    <span className="text-[11px] font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                                      Mã: {item.classCode}
+                                    </span>
+                                  )}
+                                  <h3 className="font-bold text-gray-800 text-base">
+                                    {item.topic || 'Buổi học'}
+                                  </h3>
+                                  <span className="text-xs font-medium px-2 py-0.5 bg-slate-200 text-slate-700 rounded">
+                                    Đã học
+                                  </span>
+                                  {isAbsent && (
+                                    <span className="text-xs font-bold px-2 py-0.5 bg-rose-100 text-rose-700 border border-rose-200 rounded">
+                                      Đã báo vắng
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                                  <span>Bắt đầu: <b className="text-gray-700">{formatDateTime(item.startTime)}</b></span>
+                                  <span>Thời lượng: <b className="text-gray-700">{item.durationMinutes ? `${item.durationMinutes} phút` : '90 phút'}</b></span>
+                                </div>
+                                {item.attendanceNote && (
+                                  <div className="text-xs text-rose-600 mt-1">
+                                    Lý do: {item.attendanceNote}
+                                  </div>
+                                )}
+                              </div>
 
-                        <h3 className="font-bold text-gray-800 text-base">{ass.title}</h3>
-                        <p className="text-xs text-gray-600 line-clamp-3 leading-relaxed">
-                          {ass.description || 'Không có mô tả chi tiết'}
-                        </p>
+                              {/* Nút thao tác nhanh của buổi học */}
+                              <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+                                {item.assignments && item.assignments.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleGoToAssignment(item)}
+                                    className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition cursor-pointer shadow-xs">
+                                    {item.homeworkStatus === 'DRAFT' ? 'Tiếp tục làm bài (Bản nháp)' : item.homeworkStatus === 'SUBMITTED' || item.homeworkStatus === 'GRADED' ? 'Xem lại bài đã nộp' : 'Làm bài tập'}
+                                  </button>
+                                )}
 
-                        <div className="text-xs text-gray-500 pt-1">
-                          Hạn chót: <b className="text-gray-700">{formatDateTime(ass.dueDate)}</b>
-                        </div>
+                                {isAbsent && (
+                                  <span className="px-3 py-1.5 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg border border-slate-200">
+                                    Đã vắng
+                                  </span>
+                                )}
+                              </div>
+                            </div>
 
-                        {/* Nhận xét của giáo viên nếu đã chấm */}
-                        {sub?.feedback && (
-                          <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs space-y-1">
-                            <span className="font-bold text-purple-800 block">Lời nhận xét từ Giáo Viên:</span>
-                            <p className="text-purple-900 whitespace-pre-wrap">{sub.feedback}</p>
+                            {/* Chi tiết học phần (Nội dung, Sách, Chuẩn bị gì) */}
+                            <div className="p-4 space-y-4">
+                              {item.sections && item.sections.length > 0 ? (
+                                <div className="space-y-3">
+                                  <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                    Nội dung chi tiết & Dặn dò chuẩn bị
+                                  </h4>
+                                  <div className="grid grid-cols-1 gap-3">
+                                    {item.sections.map((sec, sIdx) => (
+                                      <div key={sec.id || sIdx} className="p-3.5 bg-gray-50/70 border border-gray-200 rounded-lg space-y-2">
+                                        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-1.5">
+                                          <div className="font-bold text-gray-800 text-sm">
+                                            Phần {sIdx + 1}: {sec.content}
+                                          </div>
+                                          <div className="text-xs text-gray-500 font-medium">
+                                            Thời gian: {sec.timeAllocation || `${sec.durationMinutes || 15} phút`}
+                                          </div>
+                                        </div>
+
+                                        {sec.activity && (
+                                          <div className="text-xs text-purple-700 font-medium">
+                                            Hoạt động trên lớp: <span className="font-semibold">{sec.activity}</span>
+                                          </div>
+                                        )}
+
+                                        {/* DẶN DÒ HỌC SINH CẦN CHUẨN BỊ GÌ */}
+                                        {sec.studentPreparation && (
+                                          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-900 leading-relaxed">
+                                            <span className="font-bold text-amber-800 block mb-0.5">Học sinh cần chuẩn bị:</span>
+                                            {sec.studentPreparation}
+                                          </div>
+                                        )}
+
+                                        {/* Tài liệu Handout */}
+                                        {sec.handoutType === 'TEXT' && sec.handoutText && (
+                                          <div>
+                                            <button
+                                              onClick={() => setViewingHandoutText(sec.handoutText)}
+                                              className="text-xs font-semibold text-blue-600 hover:underline cursor-pointer">
+                                              Xem văn bản bài học đã dán
+                                            </button>
+                                          </div>
+                                        )}
+                                        {sec.handoutType === 'FILE' && sec.handoutFilePath && (
+                                          <div>
+                                            <a
+                                              href={sec.handoutFilePath}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="inline-flex items-center text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded hover:bg-emerald-100">
+                                              Tải tài liệu: {sec.handoutFileName || 'Tệp đính kèm'}
+                                            </a>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-xs text-gray-400 italic py-2">
+                                  Chưa có kế hoạch chi tiết cho buổi học này.
+                                </div>
+                              )}
+
+                              {/* BÀI TẬP CỦA BUỔI HỌC */}
+                              {item.assignments && item.assignments.length > 0 && (
+                                <div className="pt-3 border-t border-gray-100 space-y-2">
+                                  <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                    Bài tập liên kết với buổi học này
+                                  </h4>
+                                  <div className="space-y-2">
+                                    {item.assignments.map((ass) => {
+                                      const sub = submissions.find(s => s.assignmentId === ass.id);
+                                      return (
+                                        <div key={ass.id} className="p-3 bg-blue-50/50 border border-blue-200 rounded-lg flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                                          <div>
+                                            <div className="font-bold text-sm text-gray-800">{ass.title}</div>
+                                            <div className="text-xs text-gray-500 mt-0.5">
+                                              Hạn nộp: <b>{formatDateTime(ass.dueDate)}</b>
+                                            </div>
+                                            {sub?.score !== null && sub?.score !== undefined && (
+                                              <div className="text-xs font-bold text-emerald-700 mt-1">
+                                                Điểm của bạn: {sub.score} / 10
+                                              </div>
+                                            )}
+                                          </div>
+                                          <button
+                                            onClick={() => openSubmitModal(ass)}
+                                            className="px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition cursor-pointer shadow-xs self-start sm:self-auto">
+                                            {sub ? 'Xem lại bài đã nộp' : 'Làm & Nộp Bài'}
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
-                      </div>
-
-                      <div className="pt-3 border-t border-gray-100 flex justify-end">
-                        <button
-                          onClick={() => openSubmitModal(ass)}
-                          className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition cursor-pointer shadow-xs text-center">
-                          {isSubmitted ? 'Xem lại bài đã nộp / Nộp lại' : 'Làm & Nộp Bài'}
-                        </button>
-                      </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
 
-        {/* TAB 3: DANH SÁCH LỚP HỌC CỦA TÔI */}
+        {/* TAB 2: DANH SÁCH LỚP HỌC CỦA TÔI */}
         {!loading && activeTab === 'classes' && (
           <div className="space-y-5">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
