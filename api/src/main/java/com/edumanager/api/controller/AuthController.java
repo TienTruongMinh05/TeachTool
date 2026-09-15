@@ -2,8 +2,10 @@ package com.edumanager.api.controller;
 
 import com.edumanager.api.dto.*;
 import com.edumanager.api.entity.User;
+import com.edumanager.api.security.RateLimiterService;
 import com.edumanager.api.service.AuthService;
 import com.edumanager.api.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -19,23 +21,27 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserService userService;
+    private final RateLimiterService rateLimiterService;
 
     @Data
     public static class GoogleLoginRequest {
         private String idToken;
-        private String email;
-        private String fullName;
-        private String avatarUrl;
     }
 
     @Data
     public static class RoleSelectionRequest {
-        private Long userId;
         private String role; // TEACHER or STUDENT
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<?> register(@RequestBody RegisterRequest request, HttpServletRequest servletRequest) {
+        String clientIp = RateLimiterService.getClientIp(servletRequest);
+        // Chống Spam đăng ký: tối đa 5 lần / 1 phút / IP
+        if (!rateLimiterService.tryAcquire("reg:" + clientIp, 5, 60_000)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Bạn đã thực hiện quá nhiều thao tác đăng ký. Vui lòng thử lại sau 1 phút."));
+        }
+
         try {
             AuthResponseDTO response = authService.register(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -48,7 +54,14 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@RequestBody LoginRequest request, HttpServletRequest servletRequest) {
+        String clientIp = RateLimiterService.getClientIp(servletRequest);
+        // Chống Brute-force mật khẩu & DoS CPU PBKDF2: tối đa 10 lần / 1 phút / IP
+        if (!rateLimiterService.tryAcquire("login:" + clientIp, 10, 60_000)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau 1 phút để bảo vệ tài khoản."));
+        }
+
         try {
             AuthResponseDTO response = authService.login(request);
             return ResponseEntity.ok(response);
@@ -61,14 +74,19 @@ public class AuthController {
     }
 
     @PostMapping("/google-login")
-    public ResponseEntity<?> googleLogin(@RequestBody GoogleLoginRequest request) {
+    public ResponseEntity<?> googleLogin(@RequestBody GoogleLoginRequest request, HttpServletRequest servletRequest) {
+        String clientIp = RateLimiterService.getClientIp(servletRequest);
+        if (!rateLimiterService.tryAcquire("google:" + clientIp, 15, 60_000)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Quá nhiều yêu cầu đăng nhập. Vui lòng chờ 1 phút."));
+        }
+
+        if (request == null || request.getIdToken() == null || request.getIdToken().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Google ID Token không được để trống."));
+        }
+
         try {
-            AuthResponseDTO response = authService.loginWithGoogle(
-                    request.getIdToken(),
-                    request.getEmail(),
-                    request.getFullName(),
-                    request.getAvatarUrl()
-            );
+            AuthResponseDTO response = authService.loginWithGoogle(request.getIdToken().trim());
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -79,9 +97,15 @@ public class AuthController {
     }
 
     @PostMapping("/select-role")
-    public ResponseEntity<?> selectRole(@RequestBody RoleSelectionRequest request) {
+    public ResponseEntity<?> selectRole(@RequestBody RoleSelectionRequest request, HttpServletRequest servletRequest) {
+        Long callerId = (Long) servletRequest.getAttribute("userId");
+        if (callerId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Vui lòng đăng nhập trước khi thiết lập vai trò."));
+        }
+
         try {
-            AuthResponseDTO response = authService.selectRole(request.getUserId(), request.getRole());
+            AuthResponseDTO response = authService.selectRole(callerId, request.getRole());
             return ResponseEntity.ok(response);
         } catch (IllegalStateException | IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -92,17 +116,17 @@ public class AuthController {
     }
 
     @PostMapping("/change-password")
-    public ResponseEntity<?> changePassword(@RequestBody Map<String, Object> body) {
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, Object> body, HttpServletRequest servletRequest) {
+        Long callerId = (Long) servletRequest.getAttribute("userId");
+        if (callerId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Vui lòng đăng nhập."));
+        }
+
         try {
-            Object userIdObj = body.get("userId");
-            if (userIdObj == null) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Thiếu thông tin người dùng"));
-            }
-            Long userId = Long.parseLong(userIdObj.toString());
             String oldPassword = (String) body.get("oldPassword");
             String newPassword = (String) body.get("newPassword");
 
-            authService.changePassword(userId, oldPassword, newPassword);
+            authService.changePassword(callerId, oldPassword, newPassword);
             return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công!"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -113,13 +137,25 @@ public class AuthController {
     }
 
     @GetMapping("/me/{userId}")
-    public ResponseEntity<UserResponseDTO> getCurrentUser(@PathVariable Long userId) {
+    public ResponseEntity<?> getCurrentUser(@PathVariable Long userId, HttpServletRequest servletRequest) {
+        Long callerId = (Long) servletRequest.getAttribute("userId");
+        if (callerId == null || !callerId.equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Bạn không có quyền truy cập thông tin tài khoản này."));
+        }
+
         User user = userService.getUserById(userId);
         return ResponseEntity.ok(UserResponseDTO.fromEntity(user));
     }
 
     @DeleteMapping("/account/{userId}")
-    public ResponseEntity<?> deleteAccount(@PathVariable Long userId) {
+    public ResponseEntity<?> deleteAccount(@PathVariable Long userId, HttpServletRequest servletRequest) {
+        Long callerId = (Long) servletRequest.getAttribute("userId");
+        if (callerId == null || !callerId.equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Bạn chỉ được phép xóa tài khoản của chính mình."));
+        }
+
         authService.deleteAccount(userId);
         return ResponseEntity.ok(Map.of("message", "Đã xóa tài khoản thành công."));
     }

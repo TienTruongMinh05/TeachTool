@@ -37,16 +37,25 @@ public class ClassRoomService {
     }
 
     // Lưu lớp học mới vào DB
-    public ClassRoom createClass(ClassRoom classRoom) {
+    public ClassRoom createClass(ClassRoom classRoom, Long teacherId) {
         if (classRoom.getClassCode() == null || classRoom.getClassCode().trim().isEmpty()) {
             classRoom.setClassCode(generateUniqueClassCode());
+        }
+        if (teacherId != null) {
+            classRoom.setTeacherId(teacherId);
         }
         return repository.save(classRoom);
     }
 
-    // Lấy danh sách toàn bộ lớp học
+    // Lấy danh sách toàn bộ lớp học (hoặc lớp của giáo viên phụ trách)
     public List<ClassRoom> getAllClasses() {
-        List<ClassRoom> list = repository.findAll();
+        return getClassesByTeacher(null);
+    }
+
+    public List<ClassRoom> getClassesByTeacher(Long teacherId) {
+        List<ClassRoom> list = (teacherId != null)
+                ? repository.findByTeacherIdOrTeacherIdIsNull(teacherId)
+                : repository.findAll();
         for (ClassRoom c : list) {
             if (c.getClassCode() == null || c.getClassCode().trim().isEmpty()) {
                 c.setClassCode(generateUniqueClassCode());
@@ -63,8 +72,14 @@ public class ClassRoomService {
     }
 
     // Cập nhật thông tin lớp học
-    public ClassRoom updateClass(Long id, ClassRoom updated) {
+    public ClassRoom updateClass(Long id, ClassRoom updated, Long teacherId) {
         ClassRoom classRoom = getClassById(id);
+        if (classRoom.getTeacherId() != null && teacherId != null && !classRoom.getTeacherId().equals(teacherId)) {
+            throw new SecurityException("Bạn không phải giáo viên phụ trách lớp học này.");
+        }
+        if (classRoom.getTeacherId() == null && teacherId != null) {
+            classRoom.setTeacherId(teacherId);
+        }
         classRoom.setName(updated.getName());
         classRoom.setStartDate(updated.getStartDate());
         classRoom.setEndDate(updated.getEndDate());
@@ -73,9 +88,10 @@ public class ClassRoomService {
 
     // Xóa lớp học và toàn bộ dữ liệu phụ thuộc
     @Transactional
-    public void deleteClass(Long id) {
-        if (!repository.existsById(id)) {
-            throw new RuntimeException("Không tìm thấy lớp học có ID: " + id);
+    public void deleteClass(Long id, Long teacherId) {
+        ClassRoom classRoom = getClassById(id);
+        if (classRoom.getTeacherId() != null && teacherId != null && !classRoom.getTeacherId().equals(teacherId)) {
+            throw new SecurityException("Bạn không có quyền xóa lớp học của giáo viên khác.");
         }
         
         // 1. Xóa bài nộp và bài tập liên quan

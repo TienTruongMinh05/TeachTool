@@ -129,7 +129,8 @@ public class StudentPortalController {
             return ResponseEntity.badRequest().body(Map.of("message", "Buổi học chưa có thời gian bắt đầu!"));
         }
 
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        // Chuẩn hóa múi giờ Việt Nam (UTC+7) trên máy chủ Cloud
+        java.time.LocalDateTime now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDateTime();
         long minutesUntilStart = java.time.Duration.between(now, session.getStartTime()).toMinutes();
 
         if (minutesUntilStart < 120) {

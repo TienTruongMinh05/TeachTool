@@ -102,20 +102,15 @@ public class AuthService {
         User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Email hoặc mật khẩu không chính xác"));
 
-        // Nếu tài khoản cũ chưa có mật khẩu (tạo từ Google trước đó), cho phép khởi tạo mật khẩu lần đầu
+        // Nếu tài khoản được tạo từ Google (chưa có mật khẩu), bắt buộc đăng nhập bằng Google
         if (user.getPassword() == null || user.getPassword().isEmpty()) {
-            if (request.getPassword().trim().length() >= 6) {
-                user.setPassword(passwordHasher.hash(request.getPassword().trim()));
-                userRepository.save(user);
-            } else {
-                throw new IllegalArgumentException("Tài khoản này chưa có mật khẩu. Vui lòng nhập mật khẩu từ 6 ký tự trở lên để thiết lập.");
-            }
-        } else {
-            // Xác thực mật khẩu
-            boolean matched = passwordHasher.verify(request.getPassword().trim(), user.getPassword());
-            if (!matched) {
-                throw new IllegalArgumentException("Email hoặc mật khẩu không chính xác");
-            }
+            throw new IllegalArgumentException("Tài khoản này được liên kết qua Google. Vui lòng chọn 'Đăng nhập bằng Google' để tiếp tục.");
+        }
+
+        // Xác thực mật khẩu
+        boolean matched = passwordHasher.verify(request.getPassword().trim(), user.getPassword());
+        if (!matched) {
+            throw new IllegalArgumentException("Email hoặc mật khẩu không chính xác");
         }
 
         String token = jwtService.generateToken(user.getId(), user.getEmail(), user.getRole(), user.getFullName());
@@ -127,26 +122,16 @@ public class AuthService {
                 .build();
     }
 
-    public AuthResponseDTO loginWithGoogle(String idToken, String email, String fullName, String avatarUrl) {
-        String finalEmail = email;
-        String finalFullName = fullName;
-        String finalAvatarUrl = avatarUrl;
-
-        // Nếu có idToken, thực hiện xác thực bảo mật 100% qua Google
-        if (idToken != null && !idToken.trim().isEmpty()) {
-            GoogleTokenVerifier.GoogleUserInfo googleInfo = googleTokenVerifier.verify(idToken.trim());
-            finalEmail = googleInfo.email;
-            finalFullName = googleInfo.fullName;
-            finalAvatarUrl = googleInfo.avatarUrl;
+    public AuthResponseDTO loginWithGoogle(String idToken) {
+        if (idToken == null || idToken.trim().isEmpty()) {
+            throw new IllegalArgumentException("Google ID Token không được để trống. Vui lòng đăng nhập qua Google.");
         }
 
-        if (finalEmail == null || finalEmail.trim().isEmpty()) {
-            throw new IllegalArgumentException("Không xác định được email từ tài khoản Google");
-        }
-
-        String normalizedEmail = finalEmail.trim().toLowerCase();
-        final String effectiveFullName = finalFullName;
-        final String effectiveAvatarUrl = finalAvatarUrl;
+        // Xác thực bảo mật 100% qua Google TokenInfo API
+        GoogleTokenVerifier.GoogleUserInfo googleInfo = googleTokenVerifier.verify(idToken.trim());
+        String normalizedEmail = googleInfo.email;
+        String effectiveFullName = googleInfo.fullName;
+        String effectiveAvatarUrl = googleInfo.avatarUrl;
 
         User user = userRepository.findByEmail(normalizedEmail)
                 .map(existing -> {

@@ -18,7 +18,7 @@ public class CorsConfig implements WebMvcConfigurer {
 
     private final AuthInterceptor authInterceptor;
 
-    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173}")
+    @Value("${app.cors.allowed-origins:https://teachtool-app.vercel.app,https://teachtool-vn.vercel.app,https://teachtool-edu.vercel.app,https://edu-frontend-sigma-snowy.vercel.app,http://localhost:5173,http://localhost:3000}")
     private String allowedOrigins;
 
     @Override

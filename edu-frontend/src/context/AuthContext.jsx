@@ -71,9 +71,9 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const loginWithGoogle = async ({ idToken, email, fullName, avatarUrl }) => {
+  const loginWithGoogle = async ({ idToken }) => {
     try {
-      const response = await authApi.googleLogin({ idToken, email, fullName, avatarUrl });
+      const response = await authApi.googleLogin({ idToken });
       return saveAuthSession(response);
     } catch (error) {
       console.error('Lỗi đăng nhập Google:', error);

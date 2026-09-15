@@ -3,6 +3,7 @@ package com.edumanager.api.controller;
 import com.edumanager.api.dto.ClassResponseDTO;
 import com.edumanager.api.entity.ClassRoom;
 import com.edumanager.api.service.ClassRoomService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,13 +16,21 @@ public class ClassRoomController {
 
     private final ClassRoomService service;
 
-@PostMapping
-public ClassResponseDTO createClass(@RequestBody ClassRoom classRoom) {
-    return ClassResponseDTO.fromEntity(service.createClass(classRoom));
-}
+    @PostMapping
+    public ClassResponseDTO createClass(@RequestBody ClassRoom classRoom, HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        return ClassResponseDTO.fromEntity(service.createClass(classRoom, callerId));
+    }
 
     @GetMapping
-    public List<ClassResponseDTO> getAllClasses() {
+    public List<ClassResponseDTO> getAllClasses(HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        String callerRole = (String) request.getAttribute("userRole");
+        if ("TEACHER".equalsIgnoreCase(callerRole) && callerId != null) {
+            return service.getClassesByTeacher(callerId).stream()
+                    .map(ClassResponseDTO::fromEntity)
+                    .toList();
+        }
         return service.getAllClasses().stream()
                 .map(ClassResponseDTO::fromEntity)
                 .toList();
@@ -33,8 +42,9 @@ public ClassResponseDTO createClass(@RequestBody ClassRoom classRoom) {
     }
 
     @PutMapping("/{id}")
-    public ClassResponseDTO updateClass(@PathVariable Long id, @RequestBody ClassRoom classRoom) {
-        return ClassResponseDTO.fromEntity(service.updateClass(id, classRoom));
+    public ClassResponseDTO updateClass(@PathVariable Long id, @RequestBody ClassRoom classRoom, HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        return ClassResponseDTO.fromEntity(service.updateClass(id, classRoom, callerId));
     }
 
     @GetMapping("/timetable")
@@ -44,7 +54,8 @@ public ClassResponseDTO createClass(@RequestBody ClassRoom classRoom) {
     }
 
     @DeleteMapping("/{id}")
-    public void deleteClass(@PathVariable Long id) {
-        service.deleteClass(id);
+    public void deleteClass(@PathVariable Long id, HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        service.deleteClass(id, callerId);
     }
 }

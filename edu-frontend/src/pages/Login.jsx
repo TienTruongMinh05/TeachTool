@@ -122,26 +122,6 @@ export default function Login() {
     }
   };
 
-  // Đăng nhập nhanh Google (Mock)
-  const handleQuickGoogleMock = async (e) => {
-    e.preventDefault();
-    const promptEmail = window.prompt('Nhập địa chỉ Gmail để đăng nhập nhanh:', 'giaovien.lan@gmail.com');
-    if (!promptEmail) return;
-
-    try {
-      setLoading(true);
-      setError('');
-      await loginWithGoogle({
-        email: promptEmail.trim(),
-        fullName: promptEmail.split('@')[0],
-        avatarUrl: ''
-      });
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Lỗi đăng nhập nhanh.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // Đánh giá độ mạnh mật khẩu
   const getPasswordStrength = (pass) => {
@@ -263,16 +243,8 @@ export default function Login() {
                 <div className="flex-grow border-t border-gray-200"></div>
               </div>
 
-              {/* Đăng nhập nhanh Google / GSI */}
-              <div id="googleSignInDiv" className="w-full"></div>
-
-              <button
-                type="button"
-                onClick={handleQuickGoogleMock}
-                disabled={loading}
-                className="w-full bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition cursor-pointer shadow-xs flex items-center justify-center gap-2">
-                <span>Đăng nhập nhanh bằng Gmail</span>
-              </button>
+              {/* Đăng nhập chính thức bằng Google Sign-In */}
+              <div id="googleSignInDiv" className="w-full flex justify-center"></div>
             </form>
           )}
 

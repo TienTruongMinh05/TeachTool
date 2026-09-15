@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface ClassRoomRepository extends JpaRepository<ClassRoom, Long> {
     Optional<ClassRoom> findByClassCode(String classCode);
     boolean existsByClassCode(String classCode);
+    java.util.List<ClassRoom> findByTeacherId(Long teacherId);
+    java.util.List<ClassRoom> findByTeacherIdOrTeacherIdIsNull(Long teacherId);
 }

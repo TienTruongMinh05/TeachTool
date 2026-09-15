@@ -114,11 +114,9 @@ public class AuthInterceptor implements HandlerInterceptor {
             }
         }
 
-        // Quản lý kế hoạch giảng dạy (Teaching Plans)
+        // Quản lý kế hoạch giảng dạy (Teaching Plans): Chỉ dành riêng cho Giáo viên
         if (path.contains("/plans")) {
-            if ("POST".equals(method) || "PUT".equals(method) || "DELETE".equals(method)) {
-                return true;
-            }
+            return true;
         }
 
         // Quản lý bài tập (Tạo, sửa, xóa bài tập)

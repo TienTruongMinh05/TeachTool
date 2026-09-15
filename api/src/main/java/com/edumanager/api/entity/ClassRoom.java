@@ -25,4 +25,7 @@ public class ClassRoom {
     
     private LocalDate startDate;
     private LocalDate endDate;
+
+    @Column(name = "teacher_id")
+    private Long teacherId;
 }
