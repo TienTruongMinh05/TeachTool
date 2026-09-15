@@ -1,0 +1,52 @@
+# ==========================================
+# TEACHTOOL PROJECT .GITIGNORE (PRE-DEPLOYMENT)
+# ==========================================
+
+# 1. Local Database & Development Tools (CRITICAL: DO NOT COMMIT)
+POSTGRE/
+DBEAVER/
+pgadmin*
+
+# 2. Build Artifacts & Dependencies
+api/target/
+target/
+**/target/
+edu-frontend/node_modules/
+node_modules/
+**/node_modules/
+edu-frontend/dist/
+dist/
+**/dist/
+
+# 3. Environment Variables & Credentials (CRITICAL: PROTECT SECRETS)
+.env
+.env.local
+.env.*.local
+*.env
+!*.env.example
+
+# 4. User Uploaded Files (Preserve folder structure via .gitkeep)
+uploads/*
+!uploads/.gitkeep
+api/uploads/*
+!api/uploads/.gitkeep
+
+# 5. Logs & Temporary Files
+*.log
+logs/
+api/logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 6. IDEs & OS Metadata
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.DS_Store
+Thumbs.db
+Desktop.ini

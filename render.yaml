@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: teachtool-api
+    runtime: docker
+    dockerfilePath: api/Dockerfile
+    dockerContext: api
+    plan: free
+    region: singapore # hoặc oregon / frankfurt
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: APP_JWT_SECRET
+        generateValue: true
+      - key: APP_CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
