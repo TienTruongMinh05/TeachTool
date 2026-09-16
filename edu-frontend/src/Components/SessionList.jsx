@@ -590,22 +590,6 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
     });
   };
 
-  // Mở modal thêm học phần và mở ngay kho hoạt động để chọn
-  const openAddSectionWithActivity = (session, existingPlan) => {
-    openAddSectionModal(session, existingPlan);
-    setActivitySelectCallback(() => (picked) => {
-      const actName = typeof picked === 'string' ? picked : (picked?.name || '');
-      setSectionFormData(prev => ({
-        ...prev,
-        activity: actName,
-        timeAllocation: (picked && typeof picked === 'object' && picked.timeAllocation) || prev.timeAllocation,
-        studentPreparation: (picked && typeof picked === 'object' && picked.studentPreparation) || prev.studentPreparation
-      }));
-      toast.success(`Đã chọn hoạt động: "${actName}"`);
-    });
-    setIsActivityModalOpen(true);
-  };
-
   // Mở modal Sửa học phần đã có
   const openEditSectionModal = (session, plan, section, index) => {
     setActiveSessionForSection(session);
@@ -978,12 +962,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                 <button
                   onClick={() => openAddSectionModal(session, plan)}
                   className="px-3 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition cursor-pointer shadow-xs">
-                  + Thêm Học Phần
-                </button>
-                <button
-                  onClick={() => openAddSectionWithActivity(session, plan)}
-                  className="px-3 py-1 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-md transition cursor-pointer shadow-xs flex items-center gap-1">
-                  <span>🎯 Chọn từ kho</span>
+                  + Thêm Học Phần Mới
                 </button>
               </div>
             </div>
@@ -991,18 +970,11 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
             {sections.length === 0 ? (
               <div className="p-6 bg-slate-50 border border-dashed border-gray-300 rounded-lg text-center">
                 <p className="text-xs text-gray-500 mb-3">Buổi học này chưa có học phần chi tiết nào.</p>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <button
-                    onClick={() => openAddSectionModal(session, plan)}
-                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition cursor-pointer shadow-xs">
-                    + Nhập Học Phần Đầu Tiên
-                  </button>
-                  <button
-                    onClick={() => openAddSectionWithActivity(session, plan)}
-                    className="px-3.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold rounded-md transition cursor-pointer shadow-xs flex items-center gap-1">
-                    <span>🎯 Chọn từ kho hoạt động</span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => openAddSectionModal(session, plan)}
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition cursor-pointer shadow-xs">
+                  + Nhập Học Phần Đầu Tiên
+                </button>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1383,14 +1355,14 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                                 type="button"
                                 onClick={() => handlePickActivityForDraft(idx)}
                                 title="Chọn từ kho hoạt động"
-                                className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded text-xs whitespace-nowrap cursor-pointer shadow-xs transition flex items-center gap-1">
-                                <span>🎯 Kho</span>
+                                className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded text-xs whitespace-nowrap cursor-pointer shadow-xs transition">
+                                Chọn từ kho
                               </button>
                             </div>
                             {sec.activity && (
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded font-medium truncate max-w-[220px]">
-                                  ✓ {sec.activity}
+                                  {sec.activity}
                                 </span>
                                 <button
                                   type="button"
@@ -1754,14 +1726,14 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                         });
                         setIsActivityModalOpen(true);
                       }}
-                      className="px-2.5 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded shadow-xs cursor-pointer flex items-center gap-1 transition whitespace-nowrap">
-                      <span>🎯 Chọn từ kho</span>
+                      className="px-2.5 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded shadow-xs cursor-pointer transition whitespace-nowrap">
+                      Chọn từ kho
                     </button>
                   </div>
                   {sectionFormData.activity && (
                     <div className="mt-1.5 flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-md">
-                        ✓ Đã chọn: {sectionFormData.activity}
+                      <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-md">
+                        Đã chọn: {sectionFormData.activity}
                       </span>
                       <button
                         type="button"

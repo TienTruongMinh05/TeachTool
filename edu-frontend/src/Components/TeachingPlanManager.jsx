@@ -627,14 +627,14 @@ export default function TeachingPlanManager({ classId }) {
                   <button 
                     type="button"
                     onClick={() => setIsActivityModalOpen(true)}
-                    className="px-3 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded shadow-xs cursor-pointer flex items-center gap-1 transition whitespace-nowrap">
-                    <span>🎯 Chọn từ kho</span>
+                    className="px-3 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded shadow-xs cursor-pointer transition whitespace-nowrap">
+                    Chọn từ kho
                   </button>
                 </div>
                 {sectionFormData.activity && (
                   <div className="mt-1.5 flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-md">
-                      ✓ Đã chọn: {sectionFormData.activity}
+                    <span className="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-md">
+                      Đã chọn: {sectionFormData.activity}
                     </span>
                     <button
                       type="button"

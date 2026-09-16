@@ -121,21 +121,13 @@ export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity
               <span className="text-xs font-bold uppercase tracking-wider text-blue-400 bg-blue-900/50 px-2 py-0.5 rounded border border-blue-700/50">
                 Sư phạm & TESOL
               </span>
-              {onSelectActivity ? (
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-300 bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-600/60 animate-pulse">
-                  🎯 Đang chọn hoạt động cho bài dạy
-                </span>
-              ) : (
-                <span className="text-xs text-slate-400">({activities.length} hoạt động mẫu)</span>
-              )}
+              <span className="text-xs text-slate-400">({activities.length} hoạt động mẫu)</span>
             </div>
             <h3 className="text-base sm:text-lg font-bold text-white mt-1">
               Thư Viện Hoạt Động Giảng Dạy & Tương Tác
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              {onSelectActivity 
-                ? 'Bấm "Chọn hoạt động này" trên bất kỳ thẻ nào để đưa trực tiếp vào học phần giảng dạy.'
-                : 'Hoạt động tương tác dễ làm, ít công nghệ (low-tech/no-tech), kèm hướng dẫn chi tiết từng bước'}
+              Hoạt động tương tác dễ làm, ít công nghệ (low-tech/no-tech), kèm hướng dẫn chi tiết từng bước
             </p>
           </div>
           <button
@@ -358,9 +350,9 @@ export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity
                               onSelectActivity(act);
                               onClose();
                             }}
-                            className="w-full sm:w-auto px-3.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
+                            className="w-full sm:w-auto px-3.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition cursor-pointer shadow-xs"
                           >
-                            <span>✓ Chọn hoạt động này</span>
+                            Chọn hoạt động này
                           </button>
                         </div>
                       ) : (
@@ -371,10 +363,10 @@ export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity
                               navigator.clipboard?.writeText(act.name);
                               toast.success(`Đã sao chép tên: "${act.name}"`);
                             }}
-                            className="text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-2.5 py-1 rounded transition cursor-pointer border border-slate-200 flex items-center gap-1"
+                            className="text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-2.5 py-1 rounded transition cursor-pointer border border-slate-200"
                             title="Sao chép tên hoạt động vào clipboard"
                           >
-                            <span>📋 Sao chép tên</span>
+                            Sao chép tên
                           </button>
                         </div>
                       )}
