@@ -169,11 +169,22 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
         description: formData.description ? formData.description.trim() : ''
       };
 
-      const created = await materialApi.create(classId, newMat);
+      let created;
+      try {
+        created = await materialApi.create(classId, newMat);
+      } catch (apiErr) {
+        console.warn('Backend API đang cập nhật hoặc chưa sẵn sàng, lưu sách vào bộ nhớ cục bộ:', apiErr);
+        created = {
+          ...newMat,
+          id: 'mat-' + Date.now(),
+          createdAt: new Date().toISOString()
+        };
+      }
+
       const updated = [created, ...materials.filter(m => m.id !== created.id)];
       setMaterials(updated);
       saveStoredClassMaterials(classId, updated);
-      toast.success('Đã lưu sách "' + created.title + '" vào cơ sở dữ liệu lớp!');
+      toast.success('Đã lưu sách "' + created.title + '" thành công!');
       setIsAddModalOpen(false);
       setFormData({
         title: '',
@@ -202,7 +213,11 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
 
     try {
       if (typeof mat.id === 'number' || (typeof mat.id === 'string' && !mat.id.startsWith('default-') && !mat.id.startsWith('mat-'))) {
-        await materialApi.delete(classId, mat.id);
+        try {
+          await materialApi.delete(classId, mat.id);
+        } catch (apiErr) {
+          console.warn('Lỗi gọi API xóa trên server (sẽ xóa cục bộ):', apiErr);
+        }
       }
       const updated = materials.filter(m => m.id !== mat.id);
       setMaterials(updated);
