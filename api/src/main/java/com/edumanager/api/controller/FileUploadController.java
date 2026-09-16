@@ -150,7 +150,7 @@ public class FileUploadController {
         }
     }
 
-    @GetMapping("/view/system-diag")
+    @GetMapping("/system-diag")
     public ResponseEntity<?> systemDiag() {
         Runtime rt = Runtime.getRuntime();
         return ResponseEntity.ok(Map.of(
