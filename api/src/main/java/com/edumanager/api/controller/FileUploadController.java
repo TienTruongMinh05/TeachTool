@@ -125,15 +125,15 @@ public class FileUploadController {
                 determinedContentType = probeContentTypeFromExtension(extension);
             }
 
-            StoredFile storedFile = StoredFile.builder()
-                    .storedName(storedName)
-                    .originalName(originalName != null ? originalName : storedName)
-                    .contentType(determinedContentType)
-                    .size(file.getSize())
-                    .data(null)
-                    .createdAt(LocalDateTime.now())
-                    .build();
-            storedFileRepository.save(storedFile);
+            // 6. Lưu Metadata gọn nhẹ vào StoredFile qua JdbcTemplate (hoàn toàn zero-heap, không qua Hibernate L1 cache)
+            jdbcTemplate.update(
+                    "INSERT INTO stored_files (stored_name, original_name, content_type, size, data, created_at) VALUES (?, ?, ?, ?, NULL, ?)",
+                    storedName,
+                    originalName != null ? originalName : storedName,
+                    determinedContentType,
+                    file.getSize(),
+                    LocalDateTime.now()
+            );
 
             // 7. Sinh URL động theo máy chủ hiện tại (Localhost hoặc Domain production trên Render)
             String baseUrl = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
@@ -148,6 +148,20 @@ public class FileUploadController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Không thể lưu trữ tệp tin: " + ex.getMessage()));
         }
+    }
+
+    @GetMapping("/view/system-diag")
+    public ResponseEntity<?> systemDiag() {
+        Runtime rt = Runtime.getRuntime();
+        return ResponseEntity.ok(Map.of(
+                "maxMemoryMB", rt.maxMemory() / (1024 * 1024),
+                "totalMemoryMB", rt.totalMemory() / (1024 * 1024),
+                "freeMemoryMB", rt.freeMemory() / (1024 * 1024),
+                "availableProcessors", rt.availableProcessors(),
+                "buildVersion", "v3-jdbc-all",
+                "javaVersion", System.getProperty("java.version"),
+                "javaOpts", System.getenv("JAVA_OPTS") != null ? System.getenv("JAVA_OPTS") : "null"
+        ));
     }
 
     @GetMapping(value = {"/download/{fileName:.+}", "/view/{fileName:.+}"})
