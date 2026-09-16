@@ -147,7 +147,7 @@ export default function TeachingPlanManager({ classId }) {
     setSectionFormData({
       timeAllocation: '15 phút',
       content: '',
-      activity: activities.length > 0 ? activities[0].name : '',
+      activity: '',
       handoutType: 'NONE',
       handoutText: '',
       handoutFileName: '',
@@ -613,28 +613,37 @@ export default function TeachingPlanManager({ classId }) {
 
               {/* 3. Hoạt động (Tùy chọn) */}
               <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="text-xs font-semibold text-gray-700">
-                    Hoạt động dạy học <span className="text-gray-400 font-normal">(Không bắt buộc)</span>
-                  </label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  Hoạt động dạy học <span className="text-gray-400 font-normal">(Không bắt buộc)</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={sectionFormData.activity || ''}
+                    onChange={(e) => setSectionFormData({ ...sectionFormData, activity: e.target.value })}
+                    placeholder="Nhập hoặc bấm 'Chọn từ kho'..."
+                    className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
                   <button 
                     type="button"
                     onClick={() => setIsActivityModalOpen(true)}
-                    className="text-xs text-blue-600 hover:underline cursor-pointer font-medium">
-                    Quản lý thư viện hoạt động
+                    className="px-3 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded shadow-xs cursor-pointer flex items-center gap-1 transition whitespace-nowrap">
+                    <span>🎯 Chọn từ kho</span>
                   </button>
                 </div>
-                <select 
-                  value={sectionFormData.activity}
-                  onChange={(e) => setSectionFormData({...sectionFormData, activity: e.target.value})}
-                  className="w-full bg-white border border-gray-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                  <option value="">-- Không chọn hoạt động --</option>
-                  {activities.map((act) => (
-                    <option key={act.id} value={act.name}>
-                      {act.name}
-                    </option>
-                  ))}
-                </select>
+                {sectionFormData.activity && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-md">
+                      ✓ Đã chọn: {sectionFormData.activity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSectionFormData(prev => ({ ...prev, activity: '' }))}
+                      className="text-[11px] text-red-500 hover:underline cursor-pointer">
+                      Bỏ chọn
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* 3.5. Học sinh cần chuẩn bị gì */}
@@ -764,9 +773,15 @@ export default function TeachingPlanManager({ classId }) {
         isOpen={isActivityModalOpen} 
         onClose={() => {
           setIsActivityModalOpen(false);
-          activityApi.getAll().then(setActivities);
+          activityApi.getAll().then(res => setActivities(res || []));
         }}
-        onSelectActivity={(name) => setSectionFormData(prev => ({ ...prev, activity: name }))}
+        onSelectActivity={activePlanForSection ? (picked) => {
+          const name = typeof picked === 'string' ? picked : (picked?.name || '');
+          setSectionFormData(prev => ({ ...prev, activity: name }));
+          toast.success(`Đã chọn hoạt động: "${name}"`);
+          setIsActivityModalOpen(false);
+          activityApi.getAll().then(res => setActivities(res || []));
+        } : null}
       />
     </div>
   );

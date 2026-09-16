@@ -112,7 +112,7 @@ export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-3 sm:p-4">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-[70] p-3 sm:p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="p-4 sm:p-5 bg-slate-900 text-white flex justify-between items-center border-b border-slate-800">
@@ -121,13 +121,21 @@ export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity
               <span className="text-xs font-bold uppercase tracking-wider text-blue-400 bg-blue-900/50 px-2 py-0.5 rounded border border-blue-700/50">
                 Sư phạm & TESOL
               </span>
-              <span className="text-xs text-slate-400">({activities.length} hoạt động mẫu)</span>
+              {onSelectActivity ? (
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-300 bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-600/60 animate-pulse">
+                  🎯 Đang chọn hoạt động cho bài dạy
+                </span>
+              ) : (
+                <span className="text-xs text-slate-400">({activities.length} hoạt động mẫu)</span>
+              )}
             </div>
             <h3 className="text-base sm:text-lg font-bold text-white mt-1">
               Thư Viện Hoạt Động Giảng Dạy & Tương Tác
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Hoạt động tương tác dễ làm, ít công nghệ (low-tech/no-tech), kèm hướng dẫn chi tiết từng bước
+              {onSelectActivity 
+                ? 'Bấm "Chọn hoạt động này" trên bất kỳ thẻ nào để đưa trực tiếp vào học phần giảng dạy.'
+                : 'Hoạt động tương tác dễ làm, ít công nghệ (low-tech/no-tech), kèm hướng dẫn chi tiết từng bước'}
             </p>
           </div>
           <button
@@ -341,18 +349,32 @@ export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity
                         )}
                       </div>
 
-                      {/* Footer: Select Button */}
-                      {onSelectActivity && (
+                      {/* Footer: Select Button or Copy Name Button */}
+                      {onSelectActivity ? (
                         <div className="pt-2 border-t border-slate-100 flex justify-end">
                           <button
                             type="button"
                             onClick={() => {
-                              onSelectActivity(act.name);
+                              onSelectActivity(act);
                               onClose();
                             }}
-                            className="w-full sm:w-auto px-3.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition cursor-pointer shadow-xs"
+                            className="w-full sm:w-auto px-3.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition cursor-pointer shadow-xs flex items-center justify-center gap-1.5"
                           >
-                            Chọn hoạt động này
+                            <span>✓ Chọn hoạt động này</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="pt-2 border-t border-slate-100 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard?.writeText(act.name);
+                              toast.success(`Đã sao chép tên: "${act.name}"`);
+                            }}
+                            className="text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-2.5 py-1 rounded transition cursor-pointer border border-slate-200 flex items-center gap-1"
+                            title="Sao chép tên hoạt động vào clipboard"
+                          >
+                            <span>📋 Sao chép tên</span>
                           </button>
                         </div>
                       )}

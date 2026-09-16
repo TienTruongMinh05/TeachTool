@@ -83,7 +83,6 @@ public class AuthInterceptor implements HandlerInterceptor {
         return path.startsWith("/api/auth/login") ||
                path.startsWith("/api/auth/register") ||
                path.startsWith("/api/auth/google-login") ||
-               path.startsWith("/api/auth/admin-") ||
                path.startsWith("/api/files/download/") ||
                path.startsWith("/api/files/view/") ||
                path.startsWith("/swagger-ui") ||

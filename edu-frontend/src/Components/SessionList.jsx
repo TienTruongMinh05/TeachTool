@@ -367,13 +367,17 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
   // Chọn hoạt động từ Thư viện vào học phần nháp
   const handlePickActivityForDraft = (index) => {
     setActivitySelectCallback(() => (pickedActivity) => {
-      handleUpdateDraftSection(index, 'activity', pickedActivity.name);
-      if (pickedActivity.timeAllocation) {
-        handleUpdateDraftSection(index, 'timeAllocation', pickedActivity.timeAllocation);
+      const actName = typeof pickedActivity === 'string' ? pickedActivity : (pickedActivity?.name || '');
+      handleUpdateDraftSection(index, 'activity', actName);
+      if (pickedActivity && typeof pickedActivity === 'object') {
+        if (pickedActivity.timeAllocation) {
+          handleUpdateDraftSection(index, 'timeAllocation', pickedActivity.timeAllocation);
+        }
+        if (pickedActivity.studentPreparation && !draftSections[index]?.studentPreparation) {
+          handleUpdateDraftSection(index, 'studentPreparation', pickedActivity.studentPreparation);
+        }
       }
-      if (pickedActivity.studentPreparation && !draftSections[index]?.studentPreparation) {
-        handleUpdateDraftSection(index, 'studentPreparation', pickedActivity.studentPreparation);
-      }
+      toast.success(`Đã chọn hoạt động: "${actName}"`);
     });
     setIsActivityModalOpen(true);
   };
@@ -574,7 +578,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
     setSectionFormData({
       timeAllocation: '15 phút',
       content: '',
-      activity: activities.length > 0 ? activities[0].name : '',
+      activity: '',
       studentPreparation: '',
       bookId: rememberedBookId,
       bookTitle: rememberedBookTitle,
@@ -584,6 +588,22 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
       handoutFileName: '',
       handoutFilePath: ''
     });
+  };
+
+  // Mở modal thêm học phần và mở ngay kho hoạt động để chọn
+  const openAddSectionWithActivity = (session, existingPlan) => {
+    openAddSectionModal(session, existingPlan);
+    setActivitySelectCallback(() => (picked) => {
+      const actName = typeof picked === 'string' ? picked : (picked?.name || '');
+      setSectionFormData(prev => ({
+        ...prev,
+        activity: actName,
+        timeAllocation: (picked && typeof picked === 'object' && picked.timeAllocation) || prev.timeAllocation,
+        studentPreparation: (picked && typeof picked === 'object' && picked.studentPreparation) || prev.studentPreparation
+      }));
+      toast.success(`Đã chọn hoạt động: "${actName}"`);
+    });
+    setIsActivityModalOpen(true);
   };
 
   // Mở modal Sửa học phần đã có
@@ -958,7 +978,12 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                 <button
                   onClick={() => openAddSectionModal(session, plan)}
                   className="px-3 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-md transition cursor-pointer shadow-xs">
-                  + Thêm Học Phần Mới
+                  + Thêm Học Phần
+                </button>
+                <button
+                  onClick={() => openAddSectionWithActivity(session, plan)}
+                  className="px-3 py-1 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-md transition cursor-pointer shadow-xs flex items-center gap-1">
+                  <span>🎯 Chọn từ kho</span>
                 </button>
               </div>
             </div>
@@ -966,11 +991,18 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
             {sections.length === 0 ? (
               <div className="p-6 bg-slate-50 border border-dashed border-gray-300 rounded-lg text-center">
                 <p className="text-xs text-gray-500 mb-3">Buổi học này chưa có học phần chi tiết nào.</p>
-                <button
-                  onClick={() => openAddSectionModal(session, plan)}
-                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition cursor-pointer shadow-xs">
-                  + Nhập Học Phần Đầu Tiên
-                </button>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    onClick={() => openAddSectionModal(session, plan)}
+                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-md transition cursor-pointer shadow-xs">
+                    + Nhập Học Phần Đầu Tiên
+                  </button>
+                  <button
+                    onClick={() => openAddSectionWithActivity(session, plan)}
+                    className="px-3.5 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-semibold rounded-md transition cursor-pointer shadow-xs flex items-center gap-1">
+                    <span>🎯 Chọn từ kho hoạt động</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1338,21 +1370,36 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="text"
-                              value={sec.activity}
-                              onChange={(e) => handleUpdateDraftSection(idx, 'activity', e.target.value)}
-                              placeholder="Hoạt động trên lớp (tùy chọn)"
-                              className="flex-1 border border-gray-300 rounded p-1.5 text-xs"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handlePickActivityForDraft(idx)}
-                              title="Chọn từ thư viện"
-                              className="px-2 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded text-xs whitespace-nowrap cursor-pointer">
-                              Thư viện
-                            </button>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                value={sec.activity || ''}
+                                onChange={(e) => handleUpdateDraftSection(idx, 'activity', e.target.value)}
+                                placeholder="Hoạt động trên lớp (tùy chọn)"
+                                className="flex-1 border border-gray-300 rounded p-1.5 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handlePickActivityForDraft(idx)}
+                                title="Chọn từ kho hoạt động"
+                                className="px-2.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded text-xs whitespace-nowrap cursor-pointer shadow-xs transition flex items-center gap-1">
+                                <span>🎯 Kho</span>
+                              </button>
+                            </div>
+                            {sec.activity && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded font-medium truncate max-w-[220px]">
+                                  ✓ {sec.activity}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateDraftSection(idx, 'activity', '')}
+                                  className="text-[10px] text-red-500 hover:underline cursor-pointer">
+                                  Bỏ chọn
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           <div>
@@ -1684,31 +1731,46 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1">Hoạt động lớp học</label>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1.5">
                     <input
                       type="text"
-                      value={sectionFormData.activity}
+                      value={sectionFormData.activity || ''}
                       onChange={(e) => setSectionFormData({ ...sectionFormData, activity: e.target.value })}
-                      placeholder="Hoạt động..."
-                      className="flex-1 border border-gray-300 rounded p-2 text-xs"
+                      placeholder="Nhập hoặc bấm 'Chọn từ kho'..."
+                      className="flex-1 border border-gray-300 rounded p-2 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-none"
                     />
                     <button
                       type="button"
                       onClick={() => {
                         setActivitySelectCallback(() => (picked) => {
+                          const actName = typeof picked === 'string' ? picked : (picked?.name || '');
                           setSectionFormData(prev => ({
                             ...prev,
-                            activity: picked.name,
-                            timeAllocation: picked.timeAllocation || prev.timeAllocation,
-                            studentPreparation: picked.studentPreparation || prev.studentPreparation
+                            activity: actName,
+                            timeAllocation: (picked && typeof picked === 'object' && picked.timeAllocation) || prev.timeAllocation,
+                            studentPreparation: (picked && typeof picked === 'object' && picked.studentPreparation) || prev.studentPreparation
                           }));
+                          toast.success(`Đã chọn hoạt động: "${actName}"`);
                         });
                         setIsActivityModalOpen(true);
                       }}
-                      className="px-2 py-1 text-xs bg-purple-50 text-purple-700 rounded border border-purple-200">
-                      Kho
+                      className="px-2.5 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded shadow-xs cursor-pointer flex items-center gap-1 transition whitespace-nowrap">
+                      <span>🎯 Chọn từ kho</span>
                     </button>
                   </div>
+                  {sectionFormData.activity && (
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 rounded-md">
+                        ✓ Đã chọn: {sectionFormData.activity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSectionFormData(prev => ({ ...prev, activity: '' }))}
+                        className="text-[11px] text-red-500 hover:underline cursor-pointer">
+                        Bỏ chọn
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1853,14 +1915,14 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
         onClose={() => {
           setIsActivityModalOpen(false);
           setActivitySelectCallback(null);
+          activityApi.getAll().then(res => setActivities(res || []));
         }}
-        onSelectActivity={(picked) => {
-          if (activitySelectCallback) {
-            activitySelectCallback(picked);
-          }
+        onSelectActivity={activitySelectCallback ? (picked) => {
+          activitySelectCallback(picked);
           setIsActivityModalOpen(false);
           setActivitySelectCallback(null);
-        }}
+          activityApi.getAll().then(res => setActivities(res || []));
+        } : null}
       />
 
       {/* MODAL MỞ SÁCH VÀ CHỌN TRANG */}
