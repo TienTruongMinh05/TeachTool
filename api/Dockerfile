@@ -18,10 +18,9 @@ COPY --from=build /workspace/app/target/*.jar app.jar
 ENV PORT=8080
 EXPOSE 8080
 
-# Cấu hình tối ưu bộ nhớ JVM trong Docker container (Render Free 512MB RAM)
-# Nâng trần Heap từ 25% (128MB) lên 75% (384MB) để xử lý mượt mà tệp lớn
-ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=40.0 -XX:+ExitOnOutOfMemoryError"
-ENV JAVA_TOOL_OPTIONS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=40.0 -XX:+ExitOnOutOfMemoryError"
+# Cấu hình tường minh bộ nhớ JVM cho Render 512MB RAM:
+# -Xms128m khởi đầu 128MB, -Xmx384m tối đa 384MB (75% RAM), chừa 128MB cho metaspace & OS
+ENV JAVA_OPTS="-Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Djava.security.egd=file:/dev/./urandom -jar /app/app.jar"]
 

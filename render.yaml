@@ -9,8 +9,6 @@ services:
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod
-      - key: JAVA_TOOL_OPTIONS
-        value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=40.0 -XX:+ExitOnOutOfMemoryError"
       - key: APP_JWT_SECRET
         generateValue: true
       - key: APP_CORS_ALLOWED_ORIGINS

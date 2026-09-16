@@ -153,15 +153,15 @@ public class FileUploadController {
     @GetMapping("/system-diag")
     public ResponseEntity<?> systemDiag() {
         Runtime rt = Runtime.getRuntime();
-        return ResponseEntity.ok(Map.of(
-                "maxMemoryMB", rt.maxMemory() / (1024 * 1024),
-                "totalMemoryMB", rt.totalMemory() / (1024 * 1024),
-                "freeMemoryMB", rt.freeMemory() / (1024 * 1024),
-                "availableProcessors", rt.availableProcessors(),
-                "buildVersion", "v3-jdbc-all",
-                "javaVersion", System.getProperty("java.version"),
-                "javaOpts", System.getenv("JAVA_OPTS") != null ? System.getenv("JAVA_OPTS") : "null"
-        ));
+        java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put("maxMemoryMB", rt.maxMemory() / (1024 * 1024));
+        map.put("totalMemoryMB", rt.totalMemory() / (1024 * 1024));
+        map.put("freeMemoryMB", rt.freeMemory() / (1024 * 1024));
+        map.put("availableProcessors", rt.availableProcessors());
+        map.put("buildVersion", "v4-xmx384m");
+        map.put("javaVersion", String.valueOf(System.getProperty("java.version")));
+        map.put("javaOpts", String.valueOf(System.getenv("JAVA_OPTS")));
+        return ResponseEntity.ok(map);
     }
 
     @GetMapping(value = {"/download/{fileName:.+}", "/view/{fileName:.+}"})
