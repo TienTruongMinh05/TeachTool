@@ -7,8 +7,8 @@ import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "stored_file_chunks", indexes = {
-    @Index(name = "idx_chunk_stored_name_idx", columnList = "storedName, chunkIndex"),
-    @Index(name = "idx_chunk_stored_name", columnList = "storedName")
+    @Index(name = "idx_chunk_name_idx", columnList = "stored_name, chunk_index"),
+    @Index(name = "idx_chunk_name", columnList = "stored_name")
 })
 @Getter
 @Setter
@@ -21,10 +21,10 @@ public class StoredFileChunk {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "stored_name", nullable = false)
     private String storedName;
 
-    @Column(nullable = false)
+    @Column(name = "chunk_index", nullable = false)
     private int chunkIndex;
 
     @Lob

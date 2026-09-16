@@ -4,6 +4,7 @@ import com.edumanager.api.entity.*;
 import com.edumanager.api.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,7 +28,7 @@ public class DataRetentionService {
 
     private final SubmissionRepository submissionRepository;
     private final StoredFileRepository storedFileRepository;
-    private final StoredFileChunkRepository storedFileChunkRepository;
+    private final JdbcTemplate jdbcTemplate;
     private final SessionRepository sessionRepository;
     private final AttendanceRepository attendanceRepository;
     private final TeachingPlanRepository teachingPlanRepository;
@@ -223,7 +224,7 @@ public class DataRetentionService {
     private void deleteStoredFile(String storedName) {
         if (storedName == null || storedName.isBlank()) return;
         try {
-            storedFileChunkRepository.deleteByStoredName(storedName);
+            jdbcTemplate.update("DELETE FROM stored_file_chunks WHERE stored_name = ?", storedName);
         } catch (Exception e) {
             log.warn("[DataRetention] Could not delete StoredFileChunk for {}: {}", storedName, e.getMessage());
         }

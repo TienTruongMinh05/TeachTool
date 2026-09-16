@@ -2,8 +2,8 @@ server:
   port: ${PORT:8081}
   tomcat:
     max-swallow-size: -1
-    max-http-form-post-size: 100MB
-    connection-timeout: 180000
+    max-http-form-post-size: 150MB
+    connection-timeout: 300000
 
 spring:
   datasource:
@@ -21,8 +21,8 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   servlet:
     multipart:
-      max-file-size: 100MB
-      max-request-size: 100MB
+      max-file-size: 150MB
+      max-request-size: 150MB
       file-size-threshold: 2MB
 
 app:

@@ -1,8 +1,6 @@
 package com.edumanager.api.controller;
 
 import com.edumanager.api.entity.StoredFile;
-import com.edumanager.api.entity.StoredFileChunk;
-import com.edumanager.api.repository.StoredFileChunkRepository;
 import com.edumanager.api.repository.StoredFileRepository;
 import com.edumanager.api.security.RateLimiterService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,6 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -37,7 +36,7 @@ public class FileUploadController {
     private final Path uploadDir = Paths.get("uploads").toAbsolutePath().normalize();
     private final RateLimiterService rateLimiterService;
     private final StoredFileRepository storedFileRepository;
-    private final StoredFileChunkRepository storedFileChunkRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     // Danh sách trắng các định dạng tệp tin cho phép trong giáo dục (Whitelist)
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
@@ -51,10 +50,10 @@ public class FileUploadController {
 
     public FileUploadController(RateLimiterService rateLimiterService, 
                                 StoredFileRepository storedFileRepository,
-                                StoredFileChunkRepository storedFileChunkRepository) {
+                                JdbcTemplate jdbcTemplate) {
         this.rateLimiterService = rateLimiterService;
         this.storedFileRepository = storedFileRepository;
-        this.storedFileChunkRepository = storedFileChunkRepository;
+        this.jdbcTemplate = jdbcTemplate;
         try {
             Files.createDirectories(uploadDir);
         } catch (IOException e) {
@@ -104,21 +103,19 @@ public class FileUploadController {
                 Files.copy(is, targetLocation, StandardCopyOption.REPLACE_EXISTING);
             }
 
-            // 5. Lưu phân đoạn 1MB vào Database PostgreSQL (Chống OOM Heap Space trên Render Free 512MB RAM)
+            // 5. Lưu phân đoạn 1MB vào Database PostgreSQL bằng JdbcTemplate (Zero-heap, hoàn toàn không giữ Entity trong Hibernate cache)
             byte[] chunkBuffer = new byte[1024 * 1024]; // Buffer cố định 1MB
             int chunkIndex = 0;
             try (InputStream fis = Files.newInputStream(targetLocation)) {
                 int bytesRead;
                 while ((bytesRead = fis.read(chunkBuffer)) != -1) {
                     byte[] chunkData = (bytesRead == chunkBuffer.length)
-                            ? chunkBuffer.clone()
+                            ? chunkBuffer
                             : Arrays.copyOf(chunkBuffer, bytesRead);
-                    StoredFileChunk chunk = StoredFileChunk.builder()
-                            .storedName(storedName)
-                            .chunkIndex(chunkIndex++)
-                            .data(chunkData)
-                            .build();
-                    storedFileChunkRepository.save(chunk);
+                    jdbcTemplate.update(
+                            "INSERT INTO stored_file_chunks (stored_name, chunk_index, data) VALUES (?, ?, ?)",
+                            storedName, chunkIndex++, chunkData
+                    );
                 }
             }
 
@@ -181,23 +178,26 @@ public class FileUploadController {
             }
 
             // 2. Nếu file không có trên đĩa cục bộ (ví dụ sau khi Render khởi động lại hoặc redeploy)
-            // Tự động khôi phục từ cơ sở dữ liệu PostgreSQL theo cơ chế stream
+            // Tự động khôi phục từ cơ sở dữ liệu PostgreSQL theo cơ chế stream từng 1MB chunk
             Optional<StoredFile> dbFileOpt = storedFileRepository.findByStoredName(fileName);
             if (dbFileOpt.isPresent()) {
                 StoredFile dbFile = dbFileOpt.get();
 
                 // Kiểm tra xem tệp có phân đoạn chunk không
-                List<Long> chunkIds = storedFileChunkRepository.findChunkIdsByStoredName(fileName);
-                if (!chunkIds.isEmpty()) {
+                List<Integer> chunkIndices = jdbcTemplate.queryForList(
+                        "SELECT chunk_index FROM stored_file_chunks WHERE stored_name = ? ORDER BY chunk_index ASC",
+                        Integer.class, fileName
+                );
+                if (chunkIndices != null && !chunkIndices.isEmpty()) {
                     try (OutputStream os = new BufferedOutputStream(Files.newOutputStream(filePath))) {
-                        for (Long chunkId : chunkIds) {
-                            storedFileChunkRepository.findById(chunkId).ifPresent(chunk -> {
-                                try {
-                                    os.write(chunk.getData());
-                                } catch (IOException e) {
-                                    throw new UncheckedIOException(e);
-                                }
-                            });
+                        for (Integer idx : chunkIndices) {
+                            byte[] chunkData = jdbcTemplate.queryForObject(
+                                    "SELECT data FROM stored_file_chunks WHERE stored_name = ? AND chunk_index = ?",
+                                    byte[].class, fileName, idx
+                            );
+                            if (chunkData != null) {
+                                os.write(chunkData);
+                            }
                         }
                     } catch (Exception ex) {
                         try { Files.deleteIfExists(filePath); } catch (IOException ignored) {}
