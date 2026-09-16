@@ -66,9 +66,20 @@ public class UserController {
             @PathVariable Long id,
             HttpServletRequest servletRequest) {
         
-        // Chặn xóa trực tiếp qua endpoint này để tránh xóa sót dữ liệu liên kết
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
-                "message", "Vui lòng xóa tài khoản qua /api/auth/account/{id} để dọn dẹp an toàn các bài nộp và lớp học."
-        ));
+        Long callerId = (Long) servletRequest.getAttribute("userId");
+        String callerRole = (String) servletRequest.getAttribute("userRole");
+
+        try {
+            service.deleteUserSafely(id, callerId, callerRole);
+            return ResponseEntity.ok(Map.of("message", "Đã xóa tài khoản học sinh thành công."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", e.getMessage()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", e.getMessage()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Lỗi khi xóa tài khoản: " + e.getMessage()));
+        }
     }
 }

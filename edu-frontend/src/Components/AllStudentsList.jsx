@@ -122,9 +122,14 @@ export default function AllStudentsList({ onSelectClass }) {
 
   // Xóa tài khoản học sinh
   const handleDeleteStudent = async (st) => {
+    if (st.enrolledClasses && st.enrolledClasses.length > 0) {
+      toast.warning(`Không thể xóa học sinh "${st.studentName}" vì đang tham gia ${st.enrolledClasses.length} lớp học. Vui lòng vào từng lớp và hủy ghi danh học sinh trước khi xóa tài khoản!`);
+      return;
+    }
+
     const ok = await confirm({
       title: 'Xóa tài khoản học sinh',
-      message: `Bạn có chắc muốn xóa tài khoản học sinh "${st.studentName}" (${st.studentEmail})? Toàn bộ dữ liệu điểm danh và bài làm của học sinh sẽ bị xóa vĩnh viễn.`,
+      message: `Bạn có chắc muốn xóa tài khoản học sinh "${st.studentName}" (${st.studentEmail}) khỏi hệ thống? Dữ liệu tài khoản sẽ bị xóa vĩnh viễn.`,
       confirmText: 'Xóa học sinh',
       type: 'danger'
     });
@@ -132,7 +137,7 @@ export default function AllStudentsList({ onSelectClass }) {
 
     try {
       await studentApi.delete(st.studentId);
-      toast.success(`Đã xóa học sinh "${st.studentName}" thành công!`);
+      toast.success(`Đã xóa tài khoản học sinh "${st.studentName}" thành công!`);
       await loadData();
     } catch (err) {
       toast.error('Lỗi khi xóa học sinh: ' + (err.response?.data?.message || err.message));
