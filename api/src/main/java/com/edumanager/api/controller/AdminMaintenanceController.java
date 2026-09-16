@@ -1,14 +1,12 @@
 package com.edumanager.api.controller;
 
-import com.edumanager.api.entity.ClassRoom;
 import com.edumanager.api.entity.User;
-import com.edumanager.api.repository.*;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
+import com.edumanager.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,8 +19,7 @@ import java.util.*;
 public class AdminMaintenanceController {
 
     private final UserRepository userRepository;
-    @PersistenceContext
-    private final EntityManager entityManager;
+    private final JdbcTemplate jdbcTemplate;
 
     private static final String ADMIN_SECRET = "teachtool_admin_secret_2026";
 
@@ -169,11 +166,11 @@ public class AdminMaintenanceController {
     }
 
     private void cascadeDeleteUser(Long userId) {
-        try { entityManager.createNativeQuery("DELETE FROM attendances WHERE student_id = :id").setParameter("id", userId).executeUpdate(); } catch (Exception ignored) {}
-        try { entityManager.createNativeQuery("DELETE FROM enrollments WHERE student_id = :id").setParameter("id", userId).executeUpdate(); } catch (Exception ignored) {}
-        try { entityManager.createNativeQuery("DELETE FROM submissions WHERE student_id = :id").setParameter("id", userId).executeUpdate(); } catch (Exception ignored) {}
-        try { entityManager.createNativeQuery("DELETE FROM class_teachers WHERE teacher_id = :id").setParameter("id", userId).executeUpdate(); } catch (Exception ignored) {}
-        try { entityManager.createNativeQuery("UPDATE classes SET teacher_id = NULL WHERE teacher_id = :id").setParameter("id", userId).executeUpdate(); } catch (Exception ignored) {}
-        try { entityManager.createNativeQuery("DELETE FROM users WHERE id = :id").setParameter("id", userId).executeUpdate(); } catch (Exception ignored) {}
+        try { jdbcTemplate.update("DELETE FROM attendances WHERE student_id = ?", userId); } catch (Exception ignored) {}
+        try { jdbcTemplate.update("DELETE FROM enrollments WHERE student_id = ?", userId); } catch (Exception ignored) {}
+        try { jdbcTemplate.update("DELETE FROM submissions WHERE student_id = ?", userId); } catch (Exception ignored) {}
+        try { jdbcTemplate.update("DELETE FROM class_teachers WHERE teacher_id = ?", userId); } catch (Exception ignored) {}
+        try { jdbcTemplate.update("UPDATE classes SET teacher_id = NULL WHERE teacher_id = ?", userId); } catch (Exception ignored) {}
+        try { jdbcTemplate.update("DELETE FROM users WHERE id = ?", userId); } catch (Exception ignored) {}
     }
 }
