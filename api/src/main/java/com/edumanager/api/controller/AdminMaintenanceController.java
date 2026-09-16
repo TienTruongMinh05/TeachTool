@@ -1,12 +1,12 @@
 package com.edumanager.api.controller;
 
-import com.edumanager.api.entity.ClassRoom;
 import com.edumanager.api.entity.User;
-import com.edumanager.api.repository.*;
+import com.edumanager.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,11 +19,7 @@ import java.util.*;
 public class AdminMaintenanceController {
 
     private final UserRepository userRepository;
-    private final EnrollmentRepository enrollmentRepository;
-    private final SubmissionRepository submissionRepository;
-    private final AttendanceRepository attendanceRepository;
-    private final ClassTeacherRepository classTeacherRepository;
-    private final ClassRoomRepository classRoomRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     private static final String ADMIN_SECRET = "teachtool_admin_secret_2026";
 
@@ -115,22 +111,13 @@ public class AdminMaintenanceController {
                     Long userId = user.getId();
                     log.info("Dọn dẹp tài khoản: ID={}, Name={}, Email={}, Role={}", userId, user.getFullName(), user.getEmail(), user.getRole());
 
-                    // Dọn dẹp quan hệ liên quan an toàn
-                    try { enrollmentRepository.findByStudentId(userId).forEach(enrollmentRepository::delete); } catch (Exception ignored) {}
-                    try { attendanceRepository.findByStudentId(userId).forEach(attendanceRepository::delete); } catch (Exception ignored) {}
-                    try { submissionRepository.findByStudentId(userId).forEach(submissionRepository::delete); } catch (Exception ignored) {}
-                    try { classTeacherRepository.findByTeacherId(userId).forEach(classTeacherRepository::delete); } catch (Exception ignored) {}
-
-                    // Nếu là giáo viên chủ nhiệm lớp, gỡ teacherId
-                    try {
-                        List<ClassRoom> ownedClasses = classRoomRepository.findByTeacherId(userId);
-                        for (ClassRoom cr : ownedClasses) {
-                            cr.setTeacherId(null);
-                            classRoomRepository.save(cr);
-                        }
-                    } catch (Exception ignored) {}
-
-                    userRepository.delete(user);
+                    // Xóa triệt để bằng JDBC
+                    jdbcTemplate.update("DELETE FROM attendances WHERE student_id = ?", userId);
+                    jdbcTemplate.update("DELETE FROM submissions WHERE student_id = ?", userId);
+                    jdbcTemplate.update("DELETE FROM enrollments WHERE student_id = ?", userId);
+                    jdbcTemplate.update("DELETE FROM class_teachers WHERE teacher_id = ?", userId);
+                    jdbcTemplate.update("UPDATE classes SET teacher_id = NULL WHERE teacher_id = ?", userId);
+                    jdbcTemplate.update("DELETE FROM users WHERE id = ?", userId);
 
                     Map<String, Object> delInfo = new LinkedHashMap<>();
                     delInfo.put("id", userId);
@@ -171,20 +158,12 @@ public class AdminMaintenanceController {
             }
 
             User user = userOpt.get();
-            try { enrollmentRepository.findByStudentId(id).forEach(enrollmentRepository::delete); } catch (Exception ignored) {}
-            try { attendanceRepository.findByStudentId(id).forEach(attendanceRepository::delete); } catch (Exception ignored) {}
-            try { submissionRepository.findByStudentId(id).forEach(submissionRepository::delete); } catch (Exception ignored) {}
-            try { classTeacherRepository.findByTeacherId(id).forEach(classTeacherRepository::delete); } catch (Exception ignored) {}
-
-            try {
-                List<ClassRoom> ownedClasses = classRoomRepository.findByTeacherId(id);
-                for (ClassRoom cr : ownedClasses) {
-                    cr.setTeacherId(null);
-                    classRoomRepository.save(cr);
-                }
-            } catch (Exception ignored) {}
-
-            userRepository.delete(user);
+            jdbcTemplate.update("DELETE FROM attendances WHERE student_id = ?", id);
+            jdbcTemplate.update("DELETE FROM submissions WHERE student_id = ?", id);
+            jdbcTemplate.update("DELETE FROM enrollments WHERE student_id = ?", id);
+            jdbcTemplate.update("DELETE FROM class_teachers WHERE teacher_id = ?", id);
+            jdbcTemplate.update("UPDATE classes SET teacher_id = NULL WHERE teacher_id = ?", id);
+            jdbcTemplate.update("DELETE FROM users WHERE id = ?", id);
 
             return ResponseEntity.ok(Map.of(
                     "message", "Đã xóa tài khoản ID=" + id + " (" + user.getFullName() + " - " + user.getEmail() + ")",

@@ -1,26 +1,17 @@
 package com.edumanager.api.service;
 
-import com.edumanager.api.entity.Enrollment;
 import com.edumanager.api.entity.User;
-import com.edumanager.api.repository.AttendanceRepository;
-import com.edumanager.api.repository.ClassTeacherRepository;
-import com.edumanager.api.repository.EnrollmentRepository;
-import com.edumanager.api.repository.SubmissionRepository;
 import com.edumanager.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository repository;
-    private final EnrollmentRepository enrollmentRepository;
-    private final SubmissionRepository submissionRepository;
-    private final AttendanceRepository attendanceRepository;
-    private final ClassTeacherRepository classTeacherRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     public User createUser(User user) {
         return repository.findByEmail(user.getEmail())
@@ -50,12 +41,12 @@ public class UserService {
 
         // Trường hợp 1: Người dùng tự xóa tài khoản của chính mình
         if (callerId != null && callerId.equals(targetUserId)) {
-            attendanceRepository.deleteByStudentId(targetUserId);
-            submissionRepository.deleteByStudentId(targetUserId);
-            enrollmentRepository.deleteByStudentId(targetUserId);
-            classTeacherRepository.deleteByTeacherId(targetUserId);
-            repository.delete(targetUser);
-            repository.flush();
+            jdbcTemplate.update("DELETE FROM attendances WHERE student_id = ?", targetUserId);
+            jdbcTemplate.update("DELETE FROM submissions WHERE student_id = ?", targetUserId);
+            jdbcTemplate.update("DELETE FROM enrollments WHERE student_id = ?", targetUserId);
+            jdbcTemplate.update("DELETE FROM class_teachers WHERE teacher_id = ?", targetUserId);
+            jdbcTemplate.update("UPDATE classes SET teacher_id = NULL WHERE teacher_id = ?", targetUserId);
+            jdbcTemplate.update("DELETE FROM users WHERE id = ?", targetUserId);
             return;
         }
 
@@ -66,17 +57,20 @@ public class UserService {
             }
 
             // Kiểm tra xem học sinh có đang tham gia lớp học nào không
-            List<Enrollment> enrollments = enrollmentRepository.findByStudentId(targetUserId);
-            if (!enrollments.isEmpty()) {
-                throw new IllegalStateException("Không thể xóa học sinh này vì đang tham gia " + enrollments.size() + " lớp học. Vui lòng xóa học sinh ra khỏi tất cả các lớp trước khi xóa tài khoản.");
+            Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM enrollments WHERE student_id = ?", 
+                Integer.class, 
+                targetUserId
+            );
+            if (count != null && count > 0) {
+                throw new IllegalStateException("Không thể xóa học sinh này vì đang tham gia " + count + " lớp học. Vui lòng xóa học sinh ra khỏi tất cả các lớp trước khi xóa tài khoản.");
             }
 
-            // Dọn dẹp dữ liệu và xóa tài khoản
-            attendanceRepository.deleteByStudentId(targetUserId);
-            submissionRepository.deleteByStudentId(targetUserId);
-            enrollmentRepository.deleteByStudentId(targetUserId);
-            repository.delete(targetUser);
-            repository.flush();
+            // Dọn dẹp dữ liệu liên quan và xóa tài khoản
+            jdbcTemplate.update("DELETE FROM attendances WHERE student_id = ?", targetUserId);
+            jdbcTemplate.update("DELETE FROM submissions WHERE student_id = ?", targetUserId);
+            jdbcTemplate.update("DELETE FROM enrollments WHERE student_id = ?", targetUserId);
+            jdbcTemplate.update("DELETE FROM users WHERE id = ?", targetUserId);
             return;
         }
 
@@ -84,10 +78,13 @@ public class UserService {
         throw new SecurityException("Bạn không có quyền xóa tài khoản này.");
     }
 
+    @Transactional
     public void deleteUser(Long id) {
-        if (!repository.existsById(id)) {
-            throw new IllegalArgumentException("Không tìm thấy người dùng có ID: " + id);
-        }
-        repository.deleteById(id);
+        jdbcTemplate.update("DELETE FROM attendances WHERE student_id = ?", id);
+        jdbcTemplate.update("DELETE FROM submissions WHERE student_id = ?", id);
+        jdbcTemplate.update("DELETE FROM enrollments WHERE student_id = ?", id);
+        jdbcTemplate.update("DELETE FROM class_teachers WHERE teacher_id = ?", id);
+        jdbcTemplate.update("UPDATE classes SET teacher_id = NULL WHERE teacher_id = ?", id);
+        jdbcTemplate.update("DELETE FROM users WHERE id = ?", id);
     }
 }
