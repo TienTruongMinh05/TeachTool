@@ -219,8 +219,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
       const newStart = new Date(oldStart.getTime() + 7 * 24 * 60 * 60 * 1000);
       const newStartLocal = new Date(newStart.getTime() - newStart.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
-      const createdSession = await sessionApi.create({
-        classId,
+      const createdSession = await sessionApi.create(classId, {
         topic: `${session.topic || 'Buổi học'} (Tuần sau)`,
         startTime: newStartLocal,
         durationMinutes: session.durationMinutes || 90
@@ -262,8 +261,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
         const newStart = new Date(oldStart.getTime() + 7 * 24 * 60 * 60 * 1000);
         const newStartLocal = new Date(newStart.getTime() - newStart.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
-        const createdSession = await sessionApi.create({
-          classId,
+        const createdSession = await sessionApi.create(classId, {
           topic: `${session.topic || 'Buổi học'} (Tuần sau)`,
           startTime: newStartLocal,
           durationMinutes: session.durationMinutes || 90
@@ -414,8 +412,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
 
     try {
       setCreating(true);
-      const createdSession = await sessionApi.create({
-        classId,
+      const createdSession = await sessionApi.create(classId, {
         topic: sessionFormData.topic.trim(),
         startTime: sessionFormData.startTime,
         durationMinutes: parseInt(sessionFormData.durationMinutes) || 90
@@ -511,8 +508,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
     e.preventDefault();
     if (!copyingSession) return;
     try {
-      const created = await sessionApi.create({
-        classId,
+      const created = await sessionApi.create(classId, {
         topic: copyFormData.topic.trim(),
         startTime: copyFormData.startTime,
         durationMinutes: parseInt(copyFormData.durationMinutes) || 90
