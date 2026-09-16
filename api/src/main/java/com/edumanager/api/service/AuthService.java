@@ -2,6 +2,8 @@ package com.edumanager.api.service;
 
 import com.edumanager.api.dto.*;
 import com.edumanager.api.entity.User;
+import com.edumanager.api.repository.AttendanceRepository;
+import com.edumanager.api.repository.ClassTeacherRepository;
 import com.edumanager.api.repository.EnrollmentRepository;
 import com.edumanager.api.repository.SubmissionRepository;
 import com.edumanager.api.repository.UserRepository;
@@ -26,6 +28,8 @@ public class AuthService {
     private final UserRepository userRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final SubmissionRepository submissionRepository;
+    private final AttendanceRepository attendanceRepository;
+    private final ClassTeacherRepository classTeacherRepository;
     private final PasswordHasher passwordHasher;
     private final JwtService jwtService;
     private final GoogleTokenVerifier googleTokenVerifier;
@@ -215,15 +219,21 @@ public class AuthService {
     @Transactional
     public void deleteAccount(Long userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản có ID: " + userId));
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản có ID: " + userId));
 
-        // Xóa các ghi danh của học sinh
+        // 1. Xóa các bản ghi điểm danh
+        attendanceRepository.findByStudentId(userId).forEach(attendanceRepository::delete);
+
+        // 2. Xóa các ghi danh của học sinh
         enrollmentRepository.findByStudentId(userId).forEach(enrollmentRepository::delete);
 
-        // Xóa các bài nộp của học sinh
+        // 3. Xóa các bài nộp của học sinh
         submissionRepository.findByStudentId(userId).forEach(submissionRepository::delete);
 
-        // Xóa tài khoản
+        // 4. Xóa phân công giáo viên nếu là giáo viên
+        classTeacherRepository.findByTeacherId(userId).forEach(classTeacherRepository::delete);
+
+        // 5. Xóa tài khoản
         userRepository.delete(user);
     }
 }

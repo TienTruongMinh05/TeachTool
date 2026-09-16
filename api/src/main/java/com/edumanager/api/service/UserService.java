@@ -3,6 +3,7 @@ package com.edumanager.api.service;
 import com.edumanager.api.entity.Enrollment;
 import com.edumanager.api.entity.User;
 import com.edumanager.api.repository.AttendanceRepository;
+import com.edumanager.api.repository.ClassTeacherRepository;
 import com.edumanager.api.repository.EnrollmentRepository;
 import com.edumanager.api.repository.SubmissionRepository;
 import com.edumanager.api.repository.UserRepository;
@@ -19,6 +20,7 @@ public class UserService {
     private final EnrollmentRepository enrollmentRepository;
     private final SubmissionRepository submissionRepository;
     private final AttendanceRepository attendanceRepository;
+    private final ClassTeacherRepository classTeacherRepository;
 
     public User createUser(User user) {
         return repository.findByEmail(user.getEmail())
@@ -51,6 +53,7 @@ public class UserService {
             enrollmentRepository.findByStudentId(targetUserId).forEach(enrollmentRepository::delete);
             submissionRepository.findByStudentId(targetUserId).forEach(submissionRepository::delete);
             attendanceRepository.findByStudentId(targetUserId).forEach(attendanceRepository::delete);
+            classTeacherRepository.findByTeacherId(targetUserId).forEach(classTeacherRepository::delete);
             repository.delete(targetUser);
             return;
         }
