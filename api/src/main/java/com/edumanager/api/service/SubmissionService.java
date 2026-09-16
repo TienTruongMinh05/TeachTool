@@ -17,6 +17,8 @@ public class SubmissionService {
     private final SubmissionRepository submissionRepo;
     private final AssignmentRepository assignmentRepo;
     private final UserRepository userRepo;
+    private final com.edumanager.api.repository.EnrollmentRepository enrollmentRepo;
+    private final ClassRoomService classRoomService;
 
     // Học viên nộp bài
     public Submission submitAssignment(Long assignmentId, Long studentId, String submissionType, String textContent, String fileUrl, String fileName) {
@@ -24,6 +26,11 @@ public class SubmissionService {
             .orElseThrow(() -> new RuntimeException("Không tìm thấy bài tập có ID: " + assignmentId));
         User student = userRepo.findById(studentId)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy học sinh có ID: " + studentId));
+
+        // Kiểm tra học sinh có ghi danh vào lớp của bài tập không
+        if (assignment.getClassRoom() != null && !enrollmentRepo.existsByClassRoomIdAndStudentId(assignment.getClassRoom().getId(), studentId)) {
+            throw new SecurityException("Bạn chưa ghi danh vào lớp học của bài tập này nên không thể nộp bài.");
+        }
 
         if (submissionType == null || submissionType.trim().isEmpty()) {
             throw new IllegalArgumentException("Vui lòng chọn hình thức nộp bài.");
@@ -79,10 +86,16 @@ public class SubmissionService {
     }
 
     // Giáo viên chấm điểm
-    public Submission gradeSubmission(Long submissionId, String score, Map<String, Double> scores, String feedback) {
+    public Submission gradeSubmission(Long submissionId, String score, Map<String, Double> scores, String feedback, Long teacherId) {
         Submission submission = submissionRepo.findById(submissionId)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy bài nộp có ID: " + submissionId));
         
+        if (teacherId != null && submission.getAssignment() != null && submission.getAssignment().getClassRoom() != null) {
+            if (!classRoomService.isTeacherOfClass(submission.getAssignment().getClassRoom(), teacherId)) {
+                throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học của bài tập này.");
+            }
+        }
+
         submission.setScore(score);
         submission.setScores(scores);
         submission.setFeedback(feedback);

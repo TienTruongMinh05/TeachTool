@@ -24,10 +24,16 @@ public class AssignmentService {
     private final SessionRepository sessionRepo;
     private final EnrollmentRepository enrollmentRepo;
     private final SubmissionRepository submissionRepo;
+    private final ClassRoomService classRoomService;
 
-    public Assignment createAssignment(Long classId, Long sessionId, Assignment assignment) {
+    public Assignment createAssignment(Long classId, Long sessionId, Assignment assignment, Long callerId) {
         ClassRoom classRoom = classRepo.findById(classId)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy lớp học có ID: " + classId));
+        
+        if (callerId != null && !classRoomService.isTeacherOfClass(classRoom, callerId)) {
+            throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học này.");
+        }
+
         assignment.setClassRoom(classRoom);
 
         if (sessionId != null) {
@@ -39,9 +45,13 @@ public class AssignmentService {
         return assignmentRepo.save(assignment);
     }
 
-    public Assignment updateAssignment(Long id, Assignment updated) {
+    public Assignment updateAssignment(Long id, Assignment updated, Long callerId) {
         Assignment existing = assignmentRepo.findById(id)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy bài tập có ID: " + id));
+
+        if (callerId != null && existing.getClassRoom() != null && !classRoomService.isTeacherOfClass(existing.getClassRoom(), callerId)) {
+            throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học của bài tập này.");
+        }
 
         existing.setTitle(updated.getTitle());
         existing.setDescription(updated.getDescription());
@@ -60,10 +70,14 @@ public class AssignmentService {
     }
 
     @Transactional
-    public void deleteAssignment(Long id) {
-        if (!assignmentRepo.existsById(id)) {
-            throw new RuntimeException("Không tìm thấy bài tập có ID: " + id);
+    public void deleteAssignment(Long id, Long callerId) {
+        Assignment existing = assignmentRepo.findById(id)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy bài tập có ID: " + id));
+
+        if (callerId != null && existing.getClassRoom() != null && !classRoomService.isTeacherOfClass(existing.getClassRoom(), callerId)) {
+            throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học của bài tập này.");
         }
+
         // Xóa các bài nộp của bài tập này trước
         submissionRepo.deleteAll(submissionRepo.findByAssignmentId(id));
         assignmentRepo.deleteById(id);

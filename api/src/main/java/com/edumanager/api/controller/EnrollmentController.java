@@ -17,6 +17,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class EnrollmentController {
     private final EnrollmentService service;
+    private final com.edumanager.api.repository.ClassRoomRepository classRoomRepo;
+    private final com.edumanager.api.service.ClassRoomService classRoomService;
 
     @PostMapping("/{classId}/enroll/{studentId}")
     public ResponseEntity<?> enrollStudent(
@@ -24,10 +26,21 @@ public class EnrollmentController {
             @PathVariable Long studentId,
             HttpServletRequest servletRequest) {
         
+        Long callerId = (Long) servletRequest.getAttribute("userId");
         String callerRole = (String) servletRequest.getAttribute("userRole");
         if (!"TEACHER".equalsIgnoreCase(callerRole)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "Chỉ có Giáo viên mới được quyền thêm học sinh vào lớp thủ công."));
+        }
+
+        com.edumanager.api.entity.ClassRoom classRoom = classRoomRepo.findById(classId).orElse(null);
+        if (classRoom == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Không tìm thấy lớp học!"));
+        }
+
+        if (callerId != null && !classRoomService.isTeacherOfClass(classRoom, callerId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Bạn không phải là giáo viên phụ trách lớp học này."));
         }
 
         return ResponseEntity.ok(EnrollmentResponseDTO.fromEntity(service.enrollStudent(classId, studentId)));
@@ -76,14 +89,27 @@ public class EnrollmentController {
     }
 
     @GetMapping("/{classId}/students")
-    public List<EnrollmentResponseDTO> getStudentsInClass(@PathVariable Long classId) {
+    public List<EnrollmentResponseDTO> getStudentsInClass(
+            @PathVariable Long classId,
+            HttpServletRequest servletRequest) {
+        Long callerId = (Long) servletRequest.getAttribute("userId");
+        String callerRole = (String) servletRequest.getAttribute("userRole");
+
+        if (callerId != null && !classRoomService.canAccessClass(classId, callerId, callerRole)) {
+            throw new SecurityException("Bạn không có quyền xem danh sách học sinh của lớp này.");
+        }
+
         return service.getStudentsByClass(classId).stream()
                 .map(EnrollmentResponseDTO::fromEntity)
                 .toList();
     }
 
     @GetMapping("/all-students")
-    public List<com.edumanager.api.dto.AllStudentDTO> getAllStudents() {
+    public List<com.edumanager.api.dto.AllStudentDTO> getAllStudents(HttpServletRequest servletRequest) {
+        String callerRole = (String) servletRequest.getAttribute("userRole");
+        if (!"TEACHER".equalsIgnoreCase(callerRole)) {
+            throw new SecurityException("Chức năng chỉ dành cho Giáo viên.");
+        }
         return service.getAllStudentsWithClasses();
     }
 
@@ -102,6 +128,14 @@ public class EnrollmentController {
         if (!isTeacher && !isSelfLeave) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "Bạn không có quyền xóa học sinh hoặc rời khỏi lớp học này."));
+        }
+
+        if (isTeacher && callerId != null) {
+            com.edumanager.api.entity.ClassRoom classRoom = classRoomRepo.findById(classId).orElse(null);
+            if (classRoom != null && !classRoomService.isTeacherOfClass(classRoom, callerId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("message", "Bạn không phải giáo viên phụ trách lớp học này."));
+            }
         }
 
         service.removeStudentFromClass(classId, studentId);

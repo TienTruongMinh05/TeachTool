@@ -13,32 +13,60 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SessionController {
     private final SessionService service;
+    private final com.edumanager.api.service.ClassRoomService classRoomService;
 
-// Sửa đổi kiểu trả về trong SessionController.java
-@PostMapping
-public SessionResponseDTO createSession(@PathVariable Long classId, @RequestBody Session session) {
-    return SessionResponseDTO.fromEntity(service.createSession(classId, session));
-}
+    @PostMapping
+    public SessionResponseDTO createSession(
+            @PathVariable Long classId, 
+            @RequestBody Session session,
+            jakarta.servlet.http.HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        return SessionResponseDTO.fromEntity(service.createSession(classId, session, callerId));
+    }
 
     @GetMapping
-    public List<SessionResponseDTO> getSessions(@PathVariable Long classId) {
+    public List<SessionResponseDTO> getSessions(
+            @PathVariable Long classId,
+            jakarta.servlet.http.HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        String callerRole = (String) request.getAttribute("userRole");
+        if (callerId != null && !classRoomService.canAccessClass(classId, callerId, callerRole)) {
+            throw new SecurityException("Bạn không có quyền truy cập danh sách buổi học của lớp này.");
+        }
         return service.getSessionsByClass(classId).stream()
                 .map(SessionResponseDTO::fromEntity)
                 .toList();
     }
 
     @GetMapping("/{sessionId}")
-    public SessionResponseDTO getSessionById(@PathVariable Long sessionId) {
+    public SessionResponseDTO getSessionById(
+            @PathVariable Long classId,
+            @PathVariable Long sessionId,
+            jakarta.servlet.http.HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        String callerRole = (String) request.getAttribute("userRole");
+        if (callerId != null && !classRoomService.canAccessClass(classId, callerId, callerRole)) {
+            throw new SecurityException("Bạn không có quyền truy cập thông tin buổi học này.");
+        }
         return SessionResponseDTO.fromEntity(service.getSessionById(sessionId));
     }
 
     @PutMapping("/{sessionId}")
-    public SessionResponseDTO updateSession(@PathVariable Long sessionId, @RequestBody Session session) {
-        return SessionResponseDTO.fromEntity(service.updateSession(sessionId, session));
+    public SessionResponseDTO updateSession(
+            @PathVariable Long classId,
+            @PathVariable Long sessionId, 
+            @RequestBody Session session,
+            jakarta.servlet.http.HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        return SessionResponseDTO.fromEntity(service.updateSession(sessionId, session, callerId));
     }
 
     @DeleteMapping("/{sessionId}")
-    public void deleteSession(@PathVariable Long sessionId) {
-        service.deleteSession(sessionId);
+    public void deleteSession(
+            @PathVariable Long classId,
+            @PathVariable Long sessionId,
+            jakarta.servlet.http.HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        service.deleteSession(sessionId, callerId);
     }
 }

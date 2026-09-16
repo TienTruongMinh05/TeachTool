@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -15,6 +16,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SubmissionController {
     private final SubmissionService service;
+    private final com.edumanager.api.repository.AssignmentRepository assignmentRepo;
+    private final com.edumanager.api.service.ClassRoomService classRoomService;
 
     @lombok.Data
     public static class SubmitRequest {
@@ -64,6 +67,7 @@ public class SubmissionController {
             HttpServletRequest servletRequest) {
         
         // Chỉ giáo viên mới được chấm điểm
+        Long callerId = (Long) servletRequest.getAttribute("userId");
         String callerRole = (String) servletRequest.getAttribute("userRole");
         if (!"TEACHER".equalsIgnoreCase(callerRole)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -71,15 +75,40 @@ public class SubmissionController {
         }
 
         return ResponseEntity.ok(SubmissionResponseDTO.fromEntity(
-                service.gradeSubmission(submissionId, request.getScore(), request.getScores(), request.getFeedback())
+                service.gradeSubmission(submissionId, request.getScore(), request.getScores(), request.getFeedback(), callerId)
         ));
     }
 
     @GetMapping("/assignment/{assignmentId}")
-    public java.util.List<SubmissionResponseDTO> getSubmissionsByAssignment(@PathVariable Long assignmentId) {
-        return service.getSubmissionsByAssignment(assignmentId).stream()
+    public ResponseEntity<?> getSubmissionsByAssignment(
+            @PathVariable Long assignmentId,
+            HttpServletRequest servletRequest) {
+        
+        Long callerId = (Long) servletRequest.getAttribute("userId");
+        String callerRole = (String) servletRequest.getAttribute("userRole");
+
+        // Chống BOLA/IDOR: Chỉ giáo viên phụ trách lớp của bài tập mới được xem toàn bộ bài nộp
+        if (!"TEACHER".equalsIgnoreCase(callerRole)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Bạn không có quyền truy cập danh sách bài nộp của lớp học này."));
+        }
+
+        com.edumanager.api.entity.Assignment assignment = assignmentRepo.findById(assignmentId)
+                .orElse(null);
+        if (assignment == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("message", "Không tìm thấy bài tập!"));
+        }
+
+        if (callerId != null && assignment.getClassRoom() != null && !classRoomService.isTeacherOfClass(assignment.getClassRoom(), callerId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Bạn không phải giáo viên phụ trách lớp học của bài tập này."));
+        }
+
+        List<SubmissionResponseDTO> result = service.getSubmissionsByAssignment(assignmentId).stream()
                 .map(SubmissionResponseDTO::fromEntity)
                 .toList();
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/student/{studentId}")

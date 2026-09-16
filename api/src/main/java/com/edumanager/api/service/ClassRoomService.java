@@ -2,6 +2,7 @@ package com.edumanager.api.service;
 
 import com.edumanager.api.entity.Assignment;
 import com.edumanager.api.entity.ClassRoom;
+import com.edumanager.api.entity.Enrollment;
 import com.edumanager.api.entity.Session;
 import com.edumanager.api.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -38,10 +39,24 @@ public class ClassRoomService {
         return code;
     }
 
+    // Kiểm tra xem người dùng có quyền truy cập lớp học không (GV phụ trách hoặc học sinh đã ghi danh)
+    public boolean canAccessClass(Long classId, Long userId, String userRole) {
+        if (classId == null || userId == null) return false;
+        ClassRoom classRoom = repository.findById(classId).orElse(null);
+        if (classRoom == null) return false;
+
+        if ("TEACHER".equalsIgnoreCase(userRole)) {
+            return isTeacherOfClass(classRoom, userId);
+        } else if ("STUDENT".equalsIgnoreCase(userRole)) {
+            return enrollmentRepository.existsByClassRoomIdAndStudentId(classId, userId);
+        }
+        return false;
+    }
+
     // Kiểm tra xem giáo viên có phụ trách lớp học không (Chủ nhiệm hoặc Đồng phụ trách)
     public boolean isTeacherOfClass(ClassRoom classRoom, Long teacherId) {
         if (teacherId == null || classRoom == null) return false;
-        if (classRoom.getTeacherId() == null || classRoom.getTeacherId().equals(teacherId)) {
+        if (classRoom.getTeacherId() != null && classRoom.getTeacherId().equals(teacherId)) {
             return true;
         }
         return classTeacherRepository.existsByClassRoomIdAndTeacherId(classRoom.getId(), teacherId);
@@ -265,11 +280,30 @@ public class ClassRoomService {
     public List<com.edumanager.api.dto.TimetableSessionDTO> getTimetable(Long classId, Long callerId, String callerRole) {
         List<ClassRoom> classes;
         if (classId != null) {
-            classes = repository.findById(classId).map(List::of).orElse(java.util.Collections.emptyList());
+            ClassRoom targetClass = repository.findById(classId).orElse(null);
+            if (targetClass == null) {
+                return java.util.Collections.emptyList();
+            }
+            if ("TEACHER".equalsIgnoreCase(callerRole)) {
+                if (callerId != null && !isTeacherOfClass(targetClass, callerId)) {
+                    return java.util.Collections.emptyList();
+                }
+            } else if ("STUDENT".equalsIgnoreCase(callerRole)) {
+                if (callerId != null && !enrollmentRepository.existsByClassRoomIdAndStudentId(classId, callerId)) {
+                    return java.util.Collections.emptyList();
+                }
+            }
+            classes = List.of(targetClass);
         } else if ("TEACHER".equalsIgnoreCase(callerRole) && callerId != null) {
             classes = getClassesByTeacher(callerId);
+        } else if ("STUDENT".equalsIgnoreCase(callerRole) && callerId != null) {
+            classes = enrollmentRepository.findByStudentId(callerId).stream()
+                    .map(Enrollment::getClassRoom)
+                    .filter(java.util.Objects::nonNull)
+                    .distinct()
+                    .toList();
         } else {
-            classes = repository.findAll();
+            classes = java.util.Collections.emptyList();
         }
 
         List<com.edumanager.api.dto.TimetableSessionDTO> result = new java.util.ArrayList<>();

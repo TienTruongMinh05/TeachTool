@@ -30,15 +30,22 @@ public class ClassRoomController {
             return service.getClassesByTeacher(callerId).stream()
                     .map(c -> ClassResponseDTO.fromEntity(c, callerId))
                     .toList();
+        } else if ("STUDENT".equalsIgnoreCase(callerRole) && callerId != null) {
+            return service.getClassesByTeacher(null).stream()
+                    .filter(c -> service.canAccessClass(c.getId(), callerId, callerRole))
+                    .map(c -> ClassResponseDTO.fromEntity(c, callerId))
+                    .toList();
         }
-        return service.getAllClasses().stream()
-                .map(c -> ClassResponseDTO.fromEntity(c, callerId))
-                .toList();
+        return java.util.Collections.emptyList();
     }
 
     @GetMapping("/{id}")
     public ClassResponseDTO getClassById(@PathVariable Long id, HttpServletRequest request) {
         Long callerId = (Long) request.getAttribute("userId");
+        String callerRole = (String) request.getAttribute("userRole");
+        if (callerId != null && !service.canAccessClass(id, callerId, callerRole)) {
+            throw new SecurityException("Bạn không có quyền truy cập thông tin lớp học này.");
+        }
         return ClassResponseDTO.fromEntity(service.getClassById(id), callerId);
     }
 

@@ -20,12 +20,21 @@ public class AttendanceService {
     private final AttendanceRepository attendanceRepo;
     private final SessionRepository sessionRepo;
     private final UserRepository userRepo;
+    private final ClassRoomService classRoomService;
 
     public Attendance markAttendance(Long sessionId, Long studentId, String status, String note) {
+        return markAttendance(sessionId, studentId, status, note, null);
+    }
+
+    public Attendance markAttendance(Long sessionId, Long studentId, String status, String note, Long callerId) {
         Session session = sessionRepo.findById(sessionId)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy buổi học có ID: " + sessionId));
         User student = userRepo.findById(studentId)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy học sinh có ID: " + studentId));
+
+        if (callerId != null && session.getClassRoom() != null && !classRoomService.isTeacherOfClass(session.getClassRoom(), callerId)) {
+            throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học của buổi học này.");
+        }
 
         Attendance attendance = attendanceRepo.findBySessionIdAndStudentId(sessionId, studentId)
                 .orElse(Attendance.builder()
@@ -38,9 +47,13 @@ public class AttendanceService {
     }
 
     @Transactional
-    public List<Attendance> batchMarkAttendance(Long sessionId, List<AttendanceItemDTO> items) {
+    public List<Attendance> batchMarkAttendance(Long sessionId, List<AttendanceItemDTO> items, Long callerId) {
         Session session = sessionRepo.findById(sessionId)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy buổi học có ID: " + sessionId));
+
+        if (callerId != null && session.getClassRoom() != null && !classRoomService.isTeacherOfClass(session.getClassRoom(), callerId)) {
+            throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học của buổi học này.");
+        }
 
         return items.stream().map(item -> {
             User student = userRepo.findById(item.studentId())

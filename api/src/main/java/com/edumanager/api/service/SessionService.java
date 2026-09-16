@@ -19,10 +19,16 @@ public class SessionService {
     private final ClassRoomRepository classRepo;
     private final AttendanceRepository attendanceRepo;
     private final com.edumanager.api.repository.TeachingPlanRepository teachingPlanRepo;
+    private final ClassRoomService classRoomService;
 
-    public Session createSession(Long classId, Session sessionInfo) {
+    public Session createSession(Long classId, Session sessionInfo, Long callerId) {
         ClassRoom classRoom = classRepo.findById(classId)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy lớp học có ID: " + classId));
+        
+        if (callerId != null && !classRoomService.isTeacherOfClass(classRoom, callerId)) {
+            throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học này.");
+        }
+
         sessionInfo.setClassRoom(classRoom);
 
         if (sessionInfo.getDurationMinutes() != null && sessionInfo.getDurationMinutes() > 0 && sessionInfo.getStartTime() != null) {
@@ -44,8 +50,12 @@ public class SessionService {
             .orElseThrow(() -> new RuntimeException("Không tìm thấy buổi học có ID: " + sessionId));
     }
 
-    public Session updateSession(Long sessionId, Session sessionInfo) {
+    public Session updateSession(Long sessionId, Session sessionInfo, Long callerId) {
         Session session = getSessionById(sessionId);
+        if (callerId != null && session.getClassRoom() != null && !classRoomService.isTeacherOfClass(session.getClassRoom(), callerId)) {
+            throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học của buổi học này.");
+        }
+
         session.setTopic(sessionInfo.getTopic());
         session.setStartTime(sessionInfo.getStartTime());
         session.setDurationMinutes(sessionInfo.getDurationMinutes());
@@ -60,10 +70,12 @@ public class SessionService {
     }
 
     @Transactional
-    public void deleteSession(Long sessionId) {
-        if (!sessionRepo.existsById(sessionId)) {
-            throw new RuntimeException("Không tìm thấy buổi học có ID: " + sessionId);
+    public void deleteSession(Long sessionId, Long callerId) {
+        Session session = getSessionById(sessionId);
+        if (callerId != null && session.getClassRoom() != null && !classRoomService.isTeacherOfClass(session.getClassRoom(), callerId)) {
+            throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học của buổi học này.");
         }
+
         attendanceRepo.deleteBySessionId(sessionId);
         teachingPlanRepo.deleteBySessionId(sessionId);
         sessionRepo.deleteById(sessionId);

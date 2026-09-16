@@ -86,7 +86,8 @@ public class AuthInterceptor implements HandlerInterceptor {
                path.startsWith("/api/files/download/") ||
                path.startsWith("/swagger-ui") ||
                path.startsWith("/v3/api-docs") ||
-               path.startsWith("/actuator") ||
+               path.equals("/actuator/health") ||
+               path.equals("/actuator/info") ||
                path.equals("/error");
     }
 
@@ -129,8 +130,11 @@ public class AuthInterceptor implements HandlerInterceptor {
             }
         }
 
-        // Chấm điểm bài nộp
+        // Chấm điểm bài nộp & Xem toàn bộ bài nộp của lớp
         if (path.contains("/grade")) {
+            return true;
+        }
+        if (path.matches("^/api/submissions/assignment/\\d+$") && "GET".equals(method)) {
             return true;
         }
 

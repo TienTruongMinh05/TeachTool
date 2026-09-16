@@ -157,6 +157,12 @@ public class StudentPortalController {
             return ResponseEntity.badRequest().body(Map.of("message", "Không tìm thấy buổi học!"));
         }
 
+        // Kiểm tra học sinh có thực sự thuộc lớp học của buổi này không
+        if (session.getClassRoom() != null && !enrollmentRepository.existsByClassRoomIdAndStudentId(session.getClassRoom().getId(), studentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Bạn chưa ghi danh vào lớp học của buổi học này nên không thể báo vắng."));
+        }
+
         if (session.getStartTime() == null) {
             return ResponseEntity.badRequest().body(Map.of("message", "Buổi học chưa có thời gian bắt đầu!"));
         }

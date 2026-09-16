@@ -21,6 +21,7 @@ public class TeachingPlanService {
     private final TeachingPlanRepository planRepository;
     private final ClassRoomRepository classRoomRepository;
     private final SessionRepository sessionRepository;
+    private final ClassRoomService classRoomService;
 
     public List<TeachingPlan> getPlansByClass(Long classId) {
         return planRepository.findByClassRoomId(classId);
@@ -32,11 +33,15 @@ public class TeachingPlanService {
     }
 
     @Transactional
-    public TeachingPlan createPlan(Long classId, Long sessionId, TeachingPlan plan) {
+    public TeachingPlan createPlan(Long classId, Long sessionId, TeachingPlan plan, Long callerId) {
         ClassRoom classRoom = classRoomRepository.findById(classId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy lớp học có ID: " + classId));
         Session session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy buổi học có ID: " + sessionId));
+
+        if (callerId != null && !classRoomService.isTeacherOfClass(classRoom, callerId)) {
+            throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học này.");
+        }
 
         Optional<TeachingPlan> existingPlanOpt = planRepository.findBySessionId(sessionId);
         TeachingPlan targetPlan;
@@ -70,8 +75,12 @@ public class TeachingPlanService {
     }
 
     @Transactional
-    public TeachingPlan updatePlan(Long planId, TeachingPlan updated) {
+    public TeachingPlan updatePlan(Long planId, TeachingPlan updated, Long callerId) {
         TeachingPlan existing = getPlanById(planId);
+
+        if (callerId != null && existing.getClassRoom() != null && !classRoomService.isTeacherOfClass(existing.getClassRoom(), callerId)) {
+            throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học của kế hoạch giảng dạy này.");
+        }
 
         if (updated.getTitle() != null && !updated.getTitle().isBlank()) {
             existing.setTitle(updated.getTitle());
@@ -97,18 +106,28 @@ public class TeachingPlanService {
     }
 
     @Transactional
-    public void deletePlan(Long planId) {
-        if (!planRepository.existsById(planId)) {
-            throw new RuntimeException("Không tìm thấy kế hoạch giảng dạy có ID: " + planId);
+    public void deletePlan(Long planId, Long callerId) {
+        TeachingPlan existing = getPlanById(planId);
+        if (callerId != null && existing.getClassRoom() != null && !classRoomService.isTeacherOfClass(existing.getClassRoom(), callerId)) {
+            throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học của kế hoạch giảng dạy này.");
         }
         planRepository.deleteById(planId);
     }
 
     @Transactional
-    public TeachingPlan copyPlan(Long planId, Long targetSessionId) {
+    public TeachingPlan copyPlan(Long planId, Long targetSessionId, Long callerId) {
         TeachingPlan source = getPlanById(planId);
         Session targetSession = sessionRepository.findById(targetSessionId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy buổi học đích có ID: " + targetSessionId));
+
+        if (callerId != null) {
+            if (source.getClassRoom() != null && !classRoomService.isTeacherOfClass(source.getClassRoom(), callerId)) {
+                throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học nguồn.");
+            }
+            if (targetSession.getClassRoom() != null && !classRoomService.isTeacherOfClass(targetSession.getClassRoom(), callerId)) {
+                throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học đích.");
+            }
+        }
 
         TeachingPlan copy = TeachingPlan.builder()
                 .classRoom(source.getClassRoom())

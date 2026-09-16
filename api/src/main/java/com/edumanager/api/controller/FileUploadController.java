@@ -19,12 +19,16 @@ import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import com.edumanager.api.security.RateLimiterService;
+import lombok.RequiredArgsConstructor;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/api/files")
 public class FileUploadController {
 
     private final Path uploadDir = Paths.get("uploads").toAbsolutePath().normalize();
+    private final RateLimiterService rateLimiterService;
 
     // Danh sách trắng các định dạng tệp tin cho phép trong giáo dục (Whitelist)
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
@@ -36,7 +40,8 @@ public class FileUploadController {
             ".jpg", ".jpeg", ".png", ".gif", ".webp"
     );
 
-    public FileUploadController() {
+    public FileUploadController(RateLimiterService rateLimiterService) {
+        this.rateLimiterService = rateLimiterService;
         try {
             Files.createDirectories(uploadDir);
         } catch (IOException e) {
@@ -45,7 +50,14 @@ public class FileUploadController {
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file, HttpServletRequest servletRequest) {
+        String clientIp = RateLimiterService.getClientIp(servletRequest);
+        // Chống DoS upload tràn ổ đĩa: tối đa 20 file / 1 phút / IP
+        if (rateLimiterService != null && !rateLimiterService.tryAcquire("upload:" + clientIp, 20, 60_000)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Bạn đã tải lên quá nhiều tệp tin liên tiếp. Vui lòng chờ 1 phút trước khi tải tiếp."));
+        }
+
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng chọn một tệp để tải lên."));
         }
