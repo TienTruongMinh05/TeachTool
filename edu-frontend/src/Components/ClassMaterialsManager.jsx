@@ -72,6 +72,13 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
       return;
     }
 
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.size > MAX_FILE_SIZE) {
+      toast.warning(`Dung lượng tệp (${(file.size / (1024 * 1024)).toFixed(1)} MB) vượt quá giới hạn tối đa cho phép là 50 MB! Vui lòng nén hoặc chọn tệp nhỏ hơn.`);
+      e.target.value = '';
+      return;
+    }
+
     try {
       setUploading(true);
 
