@@ -39,6 +39,7 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
   const [materials, setMaterials] = useState(() => getStoredClassMaterials(classId));
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [formData, setFormData] = useState({
     title: '',
     category: 'Sách giáo khoa',
@@ -72,15 +73,16 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
       return;
     }
 
-    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
     if (file.size > MAX_FILE_SIZE) {
-      toast.warning(`Dung lượng tệp (${(file.size / (1024 * 1024)).toFixed(1)} MB) vượt quá giới hạn tối đa cho phép là 50 MB! Vui lòng nén hoặc chọn tệp nhỏ hơn.`);
+      toast.warning(`Dung lượng tệp (${(file.size / (1024 * 1024)).toFixed(1)} MB) vượt quá giới hạn tối đa cho phép là 100 MB! Vui lòng chọn tệp nhỏ hơn.`);
       e.target.value = '';
       return;
     }
 
     try {
       setUploading(true);
+      setUploadProgress(0);
 
       // Tự động giải mã và đọc tổng số trang của file PDF
       let detectedPages = 1;
@@ -93,7 +95,10 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
         console.warn('Không thể đọc trước số trang PDF:', pdfErr);
       }
 
-      const res = await fileApi.upload(file);
+      const res = await fileApi.upload(file, (percent) => {
+        setUploadProgress(percent);
+      });
+
       setFormData(prev => ({
         ...prev,
         title: prev.title || file.name.replace(/\.[^/.]+$/, ''),
@@ -106,6 +111,7 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
       toast.error('Lỗi tải tệp: ' + (err.response?.data?.message || err.message));
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -318,10 +324,23 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
                   onChange={handleFileUpload}
                   className="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                 />
-                {uploading && <p className="text-[11px] text-blue-600 mt-1 animate-pulse">Đang tải và xử lý số trang PDF...</p>}
-                {formData.fileName && (
+                {uploading && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex justify-between text-[11px] text-blue-600 font-medium">
+                      <span>Đang tải lên máy chủ...</span>
+                      <span>{uploadProgress}%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-blue-600 h-1.5 rounded-full transition-all duration-200"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {formData.fileName && !uploading && (
                   <p className="text-[11px] text-emerald-700 font-medium mt-1">
-                    Đã tải lên: {formData.fileName} ({formData.totalPages} trang)
+                    ✓ Đã tải lên: {formData.fileName} ({formData.totalPages} trang)
                   </p>
                 )}
               </div>

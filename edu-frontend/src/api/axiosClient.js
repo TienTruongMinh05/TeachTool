@@ -14,6 +14,10 @@ axiosClient.interceptors.request.use((config) => {
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
+    // Nếu gửi FormData (tải file), xóa Content-Type để Axios và browser tự động thiết lập multipart boundary chuẩn
+    if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+    }
     return config;
 }, (error) => {
     return Promise.reject(error);

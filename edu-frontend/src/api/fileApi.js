@@ -2,12 +2,16 @@
 import axiosClient from './axiosClient';
 
 export const fileApi = {
-    upload: (file) => {
+    upload: (file, onProgress) => {
         const formData = new FormData();
         formData.append('file', file);
         return axiosClient.post('/files/upload', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
+            timeout: 180000, // 3 phút cho tệp tài liệu và sách lớn
+            onUploadProgress: (progressEvent) => {
+                if (onProgress && progressEvent.total) {
+                    const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                    onProgress(percent);
+                }
             },
         });
     },

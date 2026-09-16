@@ -58,8 +58,8 @@ public class FileUploadController {
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file, HttpServletRequest servletRequest) {
         String clientIp = RateLimiterService.getClientIp(servletRequest);
-        // Chống DoS upload tràn ổ đĩa: tối đa 20 file / 1 phút / IP
-        if (rateLimiterService != null && !rateLimiterService.tryAcquire("upload:" + clientIp, 20, 60_000)) {
+        // Chống DoS upload tràn ổ đĩa: tối đa 50 file / 1 phút / IP
+        if (rateLimiterService != null && !rateLimiterService.tryAcquire("upload:" + clientIp, 50, 60_000)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("message", "Bạn đã tải lên quá nhiều tệp tin liên tiếp. Vui lòng chờ 1 phút trước khi tải tiếp."));
         }
