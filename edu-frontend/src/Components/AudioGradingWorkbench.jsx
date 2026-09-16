@@ -67,9 +67,9 @@ export default function AudioGradingWorkbench({
         summary = '--- CHI TIẾT SỬA BÀI THEO MỐC THỜI GIAN ---\n' +
           sorted.map(c => {
             if (c.type === 'AUDIO') {
-              return `[${c.timeStr}] 🎙️ Nhận xét bằng giọng nói (${Math.round(c.duration || 0)}s)`;
+              return `[${c.timeStr}] Nhận xét bằng giọng nói (${Math.round(c.duration || 0)}s)`;
             }
-            return `[${c.timeStr}] 📝 ${c.text}`;
+            return `[${c.timeStr}] ${c.text}`;
           }).join('\n');
       }
       onUpdateFeedbackSummary(summary, sorted);
@@ -252,7 +252,6 @@ export default function AudioGradingWorkbench({
       {/* Header Player */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
         <div className="flex items-center gap-2">
-          <span className="p-2 bg-blue-600/30 text-blue-400 rounded-lg text-lg">🎧</span>
           <div>
             <h4 className="font-bold text-sm text-white">Chấm Speaking Audio & Sửa Mẫu</h4>
             <span className="text-[11px] text-slate-400">
@@ -301,9 +300,9 @@ export default function AudioGradingWorkbench({
         <button
           type="button"
           onClick={togglePlay}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-2"
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
         >
-          <span>{isPlaying ? '⏸ Tạm Dừng' : '▶ Nghe Tiếp'}</span>
+          {isPlaying ? 'Tạm dừng' : 'Nghe tiếp'}
         </button>
 
         {/* Nhóm nút Sửa Audio & Sửa Text */}
@@ -312,22 +311,20 @@ export default function AudioGradingWorkbench({
             type="button"
             onClick={handleStartAudioCorrection}
             disabled={isRecordingTeacherVoice}
-            className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
+            className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
             title="Dừng tại đây và thu âm giọng nói giáo viên chèn vào"
           >
-            <span>🎙️</span>
-            <span>Sửa bằng Audio ({formatSeconds(currentTime)})</span>
+            Sửa bằng Audio ({formatSeconds(currentTime)})
           </button>
 
           <button
             type="button"
             onClick={handleOpenTextComment}
             disabled={isRecordingTeacherVoice}
-            className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
+            className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition shadow-xs cursor-pointer"
             title="Dừng tại đây và nhập nhận xét văn bản"
           >
-            <span>📝</span>
-            <span>Sửa bằng Text ({formatSeconds(currentTime)})</span>
+            Sửa bằng Text ({formatSeconds(currentTime)})
           </button>
         </div>
       </div>
@@ -364,7 +361,7 @@ export default function AudioGradingWorkbench({
               onClick={handleStopAudioCorrection}
               className="px-4 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition shadow-xs cursor-pointer"
             >
-              ✓ Xong & Chèn vào mốc {formatSeconds(activeCorrectionTimestamp)}
+              Xong & Chèn vào mốc {formatSeconds(activeCorrectionTimestamp)}
             </button>
           </div>
         </div>
@@ -423,7 +420,7 @@ export default function AudioGradingWorkbench({
               disabled={isProcessingMerge}
               className="text-[11px] font-bold text-blue-400 hover:text-blue-300 underline cursor-pointer"
             >
-              {isProcessingMerge ? 'Đang ghép audio...' : '⚡ Nghe thử bản ghép hoàn chỉnh'}
+              {isProcessingMerge ? 'Đang ghép audio...' : 'Nghe thử bản ghép hoàn chỉnh'}
             </button>
           </div>
 
@@ -440,13 +437,13 @@ export default function AudioGradingWorkbench({
                     className="px-2 py-0.5 font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded text-[11px] hover:bg-blue-500/40 cursor-pointer"
                     title="Nhảy đến giây này trong bài nói"
                   >
-                    ⏱ {cor.timeStr}
+                    {cor.timeStr}
                   </button>
 
                   {cor.type === 'AUDIO' ? (
                     <div className="flex items-center gap-2 truncate">
                       <span className="font-semibold text-rose-400 flex items-center gap-1">
-                        <span>🎙️</span> Lời sửa giáo viên ({Math.round(cor.duration || 0)}s)
+                        Lời sửa giáo viên ({Math.round(cor.duration || 0)}s)
                       </span>
                       {cor.audioUrl && (
                         <audio controls src={cor.audioUrl} className="h-6 w-36" />
@@ -454,7 +451,7 @@ export default function AudioGradingWorkbench({
                     </div>
                   ) : (
                     <span className="text-slate-200 truncate" title={cor.text}>
-                      📝 {cor.text}
+                      {cor.text}
                     </span>
                   )}
                 </div>
@@ -477,7 +474,7 @@ export default function AudioGradingWorkbench({
       {mergedPreviewUrl && (
         <div className="p-3 bg-emerald-950/60 border border-emerald-500/50 rounded-xl space-y-1.5 animate-in fade-in">
           <div className="flex items-center justify-between text-xs text-emerald-300 font-bold">
-            <span>✨ Bản Audio Full Ghép Liền Mạch (Học sinh nói + Thầy sửa phát âm):</span>
+            <span>Bản Audio Ghép Liền Mạch (Học sinh nói + Thầy sửa phát âm):</span>
             <button
               type="button"
               onClick={() => setMergedPreviewUrl(null)}
