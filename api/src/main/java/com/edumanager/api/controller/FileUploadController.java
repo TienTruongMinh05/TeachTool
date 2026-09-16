@@ -1,10 +1,11 @@
 package com.edumanager.api.controller;
 
 import com.edumanager.api.entity.StoredFile;
+import com.edumanager.api.entity.StoredFileChunk;
+import com.edumanager.api.repository.StoredFileChunkRepository;
 import com.edumanager.api.repository.StoredFileRepository;
 import com.edumanager.api.security.RateLimiterService;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
@@ -15,13 +16,15 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.io.IOException;
+import java.io.*;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -34,6 +37,7 @@ public class FileUploadController {
     private final Path uploadDir = Paths.get("uploads").toAbsolutePath().normalize();
     private final RateLimiterService rateLimiterService;
     private final StoredFileRepository storedFileRepository;
+    private final StoredFileChunkRepository storedFileChunkRepository;
 
     // Danh sách trắng các định dạng tệp tin cho phép trong giáo dục (Whitelist)
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of(
@@ -45,9 +49,12 @@ public class FileUploadController {
             ".jpg", ".jpeg", ".png", ".gif", ".webp"
     );
 
-    public FileUploadController(RateLimiterService rateLimiterService, StoredFileRepository storedFileRepository) {
+    public FileUploadController(RateLimiterService rateLimiterService, 
+                                StoredFileRepository storedFileRepository,
+                                StoredFileChunkRepository storedFileChunkRepository) {
         this.rateLimiterService = rateLimiterService;
         this.storedFileRepository = storedFileRepository;
+        this.storedFileChunkRepository = storedFileChunkRepository;
         try {
             Files.createDirectories(uploadDir);
         } catch (IOException e) {
@@ -85,7 +92,6 @@ public class FileUploadController {
         String storedName = UUID.randomUUID().toString() + extension;
 
         try {
-            byte[] fileBytes = file.getBytes();
             Path targetLocation = this.uploadDir.resolve(storedName).normalize();
 
             // 3. Kiểm tra chống Path Traversal
@@ -93,10 +99,30 @@ public class FileUploadController {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Tên tệp không hợp lệ."));
             }
 
-            // 4. Lưu vào ổ đĩa cục bộ (Cache đệm truy xuất tốc độ cao)
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            // 4. Lưu trực tiếp từ luồng stream vào ổ đĩa cục bộ (Zero-heap streaming, không nạp byte[] vào RAM)
+            try (InputStream is = file.getInputStream()) {
+                Files.copy(is, targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            }
 
-            // 5. Lưu vĩnh viễn vào Database PostgreSQL (Chống mất file khi Render restart / redeploy)
+            // 5. Lưu phân đoạn 1MB vào Database PostgreSQL (Chống OOM Heap Space trên Render Free 512MB RAM)
+            byte[] chunkBuffer = new byte[1024 * 1024]; // Buffer cố định 1MB
+            int chunkIndex = 0;
+            try (InputStream fis = Files.newInputStream(targetLocation)) {
+                int bytesRead;
+                while ((bytesRead = fis.read(chunkBuffer)) != -1) {
+                    byte[] chunkData = (bytesRead == chunkBuffer.length)
+                            ? chunkBuffer.clone()
+                            : Arrays.copyOf(chunkBuffer, bytesRead);
+                    StoredFileChunk chunk = StoredFileChunk.builder()
+                            .storedName(storedName)
+                            .chunkIndex(chunkIndex++)
+                            .data(chunkData)
+                            .build();
+                    storedFileChunkRepository.save(chunk);
+                }
+            }
+
+            // 6. Lưu Metadata gọn nhẹ vào StoredFile (data = null để tránh tốn Heap khi query)
             String determinedContentType = file.getContentType();
             if (determinedContentType == null || determinedContentType.isBlank()) {
                 determinedContentType = probeContentTypeFromExtension(extension);
@@ -107,12 +133,12 @@ public class FileUploadController {
                     .originalName(originalName != null ? originalName : storedName)
                     .contentType(determinedContentType)
                     .size(file.getSize())
-                    .data(fileBytes)
+                    .data(null)
                     .createdAt(LocalDateTime.now())
                     .build();
             storedFileRepository.save(storedFile);
 
-            // 6. Sinh URL động theo máy chủ hiện tại (Localhost hoặc Domain production trên Render)
+            // 7. Sinh URL động theo máy chủ hiện tại (Localhost hoặc Domain production trên Render)
             String baseUrl = ServletUriComponentsBuilder.fromCurrentContextPath().build().toUriString();
             String downloadUrl = baseUrl + "/api/files/download/" + storedName;
 
@@ -155,35 +181,53 @@ public class FileUploadController {
             }
 
             // 2. Nếu file không có trên đĩa cục bộ (ví dụ sau khi Render khởi động lại hoặc redeploy)
-            // Tự động khôi phục từ cơ sở dữ liệu PostgreSQL
+            // Tự động khôi phục từ cơ sở dữ liệu PostgreSQL theo cơ chế stream
             Optional<StoredFile> dbFileOpt = storedFileRepository.findByStoredName(fileName);
             if (dbFileOpt.isPresent()) {
                 StoredFile dbFile = dbFileOpt.get();
-                byte[] data = dbFile.getData();
 
-                // Tái tạo tệp vào thư mục cache để phục vụ các lần gọi tiếp theo nhanh hơn
-                try {
-                    Files.write(filePath, data);
-                } catch (IOException ignored) {}
-
-                String contentType = dbFile.getContentType();
-                if (contentType == null || contentType.isBlank()) {
-                    contentType = determineContentType(filePath, fileName);
+                // Kiểm tra xem tệp có phân đoạn chunk không
+                List<Long> chunkIds = storedFileChunkRepository.findChunkIdsByStoredName(fileName);
+                if (!chunkIds.isEmpty()) {
+                    try (OutputStream os = new BufferedOutputStream(Files.newOutputStream(filePath))) {
+                        for (Long chunkId : chunkIds) {
+                            storedFileChunkRepository.findById(chunkId).ifPresent(chunk -> {
+                                try {
+                                    os.write(chunk.getData());
+                                } catch (IOException e) {
+                                    throw new UncheckedIOException(e);
+                                }
+                            });
+                        }
+                    } catch (Exception ex) {
+                        try { Files.deleteIfExists(filePath); } catch (IOException ignored) {}
+                    }
+                } else if (dbFile.getData() != null && dbFile.getData().length > 0) {
+                    // Fallback cho tệp cũ đã lưu trước khi triển khai chunking
+                    try {
+                        Files.write(filePath, dbFile.getData());
+                    } catch (IOException ignored) {}
                 }
-                String dispositionType = forceDownload ? "attachment" : "inline";
-                ByteArrayResource resource = new ByteArrayResource(data);
 
-                return ResponseEntity.ok()
-                        .contentType(MediaType.parseMediaType(contentType))
-                        .header(HttpHeaders.CONTENT_DISPOSITION, dispositionType + "; filename=\"" + dbFile.getOriginalName() + "\"")
-                        .header("Accept-Ranges", "bytes")
-                        .header("X-Content-Type-Options", "nosniff")
-                        .contentLength(data.length)
-                        .body(resource);
+                if (Files.exists(filePath) && Files.isReadable(filePath)) {
+                    Resource resource = new UrlResource(filePath.toUri());
+                    String contentType = dbFile.getContentType();
+                    if (contentType == null || contentType.isBlank()) {
+                        contentType = determineContentType(filePath, fileName);
+                    }
+                    String dispositionType = forceDownload ? "attachment" : "inline";
+
+                    return ResponseEntity.ok()
+                            .contentType(MediaType.parseMediaType(contentType))
+                            .header(HttpHeaders.CONTENT_DISPOSITION, dispositionType + "; filename=\"" + dbFile.getOriginalName() + "\"")
+                            .header("Accept-Ranges", "bytes")
+                            .header("X-Content-Type-Options", "nosniff")
+                            .body(resource);
+                }
             }
 
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("message", "Không tìm thấy tệp tin: " + fileName + ". Tệp có thể đã bị xóa hoặc được tải lên trước khi kích hoạt cơ chế lưu trữ cơ sở dữ liệu. Vui lòng tải lại tệp tin."));
+                    .body(Map.of("message", "Không tìm thấy tệp tin: " + fileName + ". Tệp có thể đã bị xóa hoặc chưa được lưu trữ. Vui lòng tải lại tệp tin."));
 
         } catch (MalformedURLException ex) {
             return ResponseEntity.badRequest().body(Map.of("message", "Đường dẫn tệp không hợp lệ."));

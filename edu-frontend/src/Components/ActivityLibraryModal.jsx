@@ -4,24 +4,63 @@ import { useToast } from '../context/ToastContext';
 
 const CATEGORIES = [
   { id: 'ALL', label: 'Tất cả hoạt động' },
-  { id: 'TESOL_SPEAKING', label: 'TESOL - Giao tiếp & Nói' },
+  { id: 'IELTS_LISTENING', label: 'IELTS Listening' },
+  { id: 'IELTS_READING', label: 'IELTS Reading' },
+  { id: 'IELTS_WRITING_T1', label: 'IELTS Writing Task 1' },
+  { id: 'IELTS_WRITING_T2', label: 'IELTS Writing Task 2' },
+  { id: 'IELTS_SPEAKING', label: 'IELTS Speaking' },
+  { id: 'TESOL_SPEAKING', label: 'TESOL - Giao tiếp' },
   { id: 'VOCAB_GRAMMAR', label: 'Từ vựng & Ngữ pháp' },
-  { id: 'READING_WRITING', label: 'Đọc & Viết hợp tác' },
-  { id: 'WARMUP_GAMES', label: 'Khởi động & Vận động (No-tech)' },
+  { id: 'WARMUP_GAMES', label: 'Khởi động & Game' },
 ];
 
 const categorizeActivity = (name = '', desc = '') => {
+  const n = (name || '').toLowerCase();
   const text = (name + ' ' + desc).toLowerCase();
+
+  if (n.includes('ielts listening') || (text.includes('listening') && !text.includes('reading'))) {
+    return 'IELTS_LISTENING';
+  }
+  if (n.includes('ielts reading') || (text.includes('reading') && !text.includes('task 1') && !text.includes('task 2') && !text.includes('chain writing'))) {
+    return 'IELTS_READING';
+  }
+  if (n.includes('writing task 1') || text.includes('task 1') || text.includes('human graph') || text.includes('helicopter view')) {
+    return 'IELTS_WRITING_T1';
+  }
+  if (n.includes('writing task 2') || text.includes('task 2') || text.includes('peel') || text.includes('band descriptors')) {
+    return 'IELTS_WRITING_T2';
+  }
+  if (n.includes('ielts speaking') || text.includes('part 1 & 3') || text.includes('cue card') || text.includes('just a minute') || text.includes('collocation bluff')) {
+    return 'IELTS_SPEAKING';
+  }
   if (text.includes('tìm người') || text.includes('khoảng trống') || text.includes('vòng tròn đối thoại') || text.includes('đóng vai') || text.includes('thám tử') || text.includes('speaking') || text.includes('giao tiếp')) {
     return 'TESOL_SPEAKING';
   }
   if (text.includes('ghế nóng') || text.includes('chính tả') || text.includes('từ cấm') || text.includes('đấu giá') || text.includes('tam sao') || text.includes('từ vựng') || text.includes('ngữ pháp') || text.includes('phát âm')) {
     return 'VOCAB_GRAMMAR';
   }
-  if (text.includes('mảnh ghép') || text.includes('câu chuyện') || text.includes('đọc hiểu') || text.includes('viết')) {
-    return 'READING_WRITING';
-  }
   return 'WARMUP_GAMES';
+};
+
+const getCategoryMeta = (cat) => {
+  switch (cat) {
+    case 'IELTS_LISTENING':
+      return { label: 'IELTS Listening', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+    case 'IELTS_READING':
+      return { label: 'IELTS Reading', color: 'bg-teal-50 text-teal-700 border-teal-200' };
+    case 'IELTS_WRITING_T1':
+      return { label: 'IELTS Writing Task 1', color: 'bg-cyan-50 text-cyan-700 border-cyan-200' };
+    case 'IELTS_WRITING_T2':
+      return { label: 'IELTS Writing Task 2', color: 'bg-purple-50 text-purple-700 border-purple-200' };
+    case 'IELTS_SPEAKING':
+      return { label: 'IELTS Speaking', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+    case 'TESOL_SPEAKING':
+      return { label: 'TESOL Giao tiếp', color: 'bg-blue-50 text-blue-700 border-blue-200' };
+    case 'VOCAB_GRAMMAR':
+      return { label: 'Từ vựng & Ngữ pháp', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+    default:
+      return { label: 'Khởi động & Game', color: 'bg-rose-50 text-rose-700 border-rose-200' };
+  }
 };
 
 export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity = null }) {
@@ -119,7 +158,7 @@ export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold uppercase tracking-wider text-blue-400 bg-blue-900/50 px-2 py-0.5 rounded border border-blue-700/50">
-                Sư phạm & TESOL
+                Sư phạm, IELTS & TESOL
               </span>
               <span className="text-xs text-slate-400">({activities.length} hoạt động mẫu)</span>
             </div>
@@ -288,14 +327,7 @@ export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 {filteredActivities.map((act) => {
                   const cat = categorizeActivity(act.name, act.description);
-                  const catLabel =
-                    cat === 'TESOL_SPEAKING'
-                      ? 'TESOL Giao tiếp'
-                      : cat === 'VOCAB_GRAMMAR'
-                      ? 'Từ vựng & Ngữ pháp'
-                      : cat === 'READING_WRITING'
-                      ? 'Đọc & Viết'
-                      : 'Khởi động & Vận động';
+                  const meta = getCategoryMeta(cat);
 
                   return (
                     <div
@@ -305,8 +337,8 @@ export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity
                       <div className="space-y-2">
                         {/* Tags & Actions */}
                         <div className="flex items-start justify-between gap-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                            {catLabel}
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${meta.color}`}>
+                            {meta.label}
                           </span>
                           <div className="flex items-center gap-1">
                             <button

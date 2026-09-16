@@ -27,6 +27,7 @@ public class DataRetentionService {
 
     private final SubmissionRepository submissionRepository;
     private final StoredFileRepository storedFileRepository;
+    private final StoredFileChunkRepository storedFileChunkRepository;
     private final SessionRepository sessionRepository;
     private final AttendanceRepository attendanceRepository;
     private final TeachingPlanRepository teachingPlanRepository;
@@ -166,8 +167,8 @@ public class DataRetentionService {
     @Transactional
     public void purgeOrphanedStoredFiles() {
         LocalDateTime cutoff = LocalDateTime.now().minusDays(14);
-        List<StoredFile> oldFiles = storedFileRepository.findByCreatedAtBefore(cutoff);
-        if (oldFiles.isEmpty()) {
+        List<String> oldStoredNames = storedFileRepository.findStoredNamesByCreatedAtBefore(cutoff);
+        if (oldStoredNames.isEmpty()) {
             return;
         }
 
@@ -193,9 +194,9 @@ public class DataRetentionService {
                 .collect(Collectors.toSet()));
 
         int purgedCount = 0;
-        for (StoredFile sf : oldFiles) {
-            if (!activeFileNames.contains(sf.getStoredName())) {
-                deleteStoredFile(sf.getStoredName());
+        for (String sName : oldStoredNames) {
+            if (!activeFileNames.contains(sName)) {
+                deleteStoredFile(sName);
                 purgedCount++;
             }
         }
@@ -221,6 +222,12 @@ public class DataRetentionService {
 
     private void deleteStoredFile(String storedName) {
         if (storedName == null || storedName.isBlank()) return;
+        try {
+            storedFileChunkRepository.deleteByStoredName(storedName);
+        } catch (Exception e) {
+            log.warn("[DataRetention] Could not delete StoredFileChunk for {}: {}", storedName, e.getMessage());
+        }
+
         try {
             storedFileRepository.findByStoredName(storedName).ifPresent(storedFileRepository::delete);
         } catch (Exception e) {

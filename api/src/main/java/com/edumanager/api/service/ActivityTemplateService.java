@@ -252,6 +252,184 @@ public class ActivityTemplateService {
                              "1. Dùng vòng xoay giấy thủ công hoặc thẻ số để gọi tên học sinh ngẫu nhiên.\n" +
                              "2. Học sinh được gọi trả lời câu hỏi ôn tập, nhận thử thách tình huống hoặc nhận quà khuyến khích.\n" +
                              "Thời lượng: 5 - 10 phút. Dụng cụ: Thẻ số bốc thăm hoặc vòng xoay giấy.")
+                .build(),
+
+            // --- NHÓM 5: IELTS LISTENING - NGHE HIỂU HỌC THUẬT & BẪY PHÒNG THI ---
+            ActivityTemplate.builder()
+                .name("IELTS Listening: Signpost Bingo & Distractor Hunt (Thám tử Bắt tín hiệu & Săn bẫy)")
+                .description("Mục đích: Rèn phản xạ nhận diện các từ chuyển ý học thuật (Signposting: Turning now to, On the other hand, Moving on...) và bắt thóp các bẫy đổi hướng thông tin gây nhiễu (Distractors: originally, I meant to, actually...) trong IELTS Listening Section 3 & 4.\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Giáo viên phát bảng Bingo (lưới 3x3 hoặc 4x4) gồm các từ chuyển hướng ý và cụm từ cảnh báo bẫy lật kèo.\n" +
+                             "2. Bật audio Section 3 hoặc 4 một lần. Học sinh tập trung nghe, mỗi khi phát hiện một từ chuyển ý hoặc một pha 'đổi ý phút chót' của speaker, học sinh gạch ô tương ứng và ghi chép lại đáp án thật sự được sửa lại.\n" +
+                             "3. Ai hoàn thành hàng ngang, dọc hoặc chéo đầu tiên hô 'Bingo!' và giải thích bẫy speaker đã giăng ra cho cả lớp nghe.\n" +
+                             "Thời lượng: 15 - 20 phút. Dụng cụ: Bảng Bingo in sẵn, file audio IELTS Listening Section 3/4.")
+                .build(),
+
+            ActivityTemplate.builder()
+                .name("IELTS Listening: Split-Script Prediction & Peer Check (Đoán trước khoảng trống & Tiếp sức điền từ)")
+                .description("Mục đích: Kích hoạt tối đa năng lực phán đoán trước khi nghe (Prediction) về từ loại, ngữ nghĩa, ngữ pháp (số ít/số nhiều) cho dạng Form / Note / Table Completion trong Section 1 và Section 4.\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Chia học sinh theo cặp A và B. Phát bài nghe điền từ IELTS Section 1 hoặc Section 4 nhưng các vị trí đục lỗ của bạn A và B so le nhau.\n" +
+                             "2. Trước khi nghe (2 - 3 phút), hai bạn không nhìn bài nhau, cùng phân tích ngữ pháp của các chỗ trống (cần danh từ đếm được, ngày tháng, tên riêng hay tính từ) và ghi nháp 2 từ phán đoán khả dĩ.\n" +
+                             "3. Bật audio: Mỗi bạn tập trung bắt các chỗ trống của mình. Sau khi nghe xong, hai bạn quay sang hỏi - đáp chéo để kiểm tra chính tả (Spelling), số ít/số nhiều (-s/-es) và cùng hoàn thiện toàn bộ bài nghe.\n" +
+                             "Thời lượng: 15 - 20 phút. Dụng cụ: Phiếu bài tập đục lỗ so le A/B.")
+                .build(),
+
+            ActivityTemplate.builder()
+                .name("IELTS Listening: Academic Lecture Mindmapping & Quiz (Tốc ký sơ đồ tư duy Section 4)")
+                .description("Mục đích: Nâng cao kỹ năng tốc ký (Note-taking), nhận diện ý chính (Gist) và phân cấp luận điểm trong bài giảng học thuật dài không có quãng nghỉ của IELTS Listening Section 4.\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Giáo viên phát cho mỗi nhóm 3 - 4 bạn một tờ giấy A3 và bút màu. Tuyệt đối không phát đề câu hỏi trước khi nghe.\n" +
+                             "2. Bật một bài giảng IELTS Listening Section 4 liên tục. Các thành viên trong nhóm phân công nhau tốc ký theo dạng Mindmap (nhánh chính là các mục lớn, nhánh phụ là số liệu, ví dụ, nguyên nhân - hệ quả).\n" +
+                             "3. Sau khi nghe xong, các nhóm có 3 phút hoàn thiện sơ đồ, sau đó giáo viên mới phát 10 câu hỏi IELTS chuẩn. Nhóm nào dựa vào sơ đồ mindmap trả lời đúng nhiều nhất sẽ chiến thắng.\n" +
+                             "Thời lượng: 20 - 25 phút. Dụng cụ: Giấy A3, bút màu, file audio Section 4.")
+                .build(),
+
+            // --- NHÓM 6: IELTS READING - ĐỌC HIỂU HỌC THUẬT & CHIẾN THUẬT PHÒNG THI ---
+            ActivityTemplate.builder()
+                .name("IELTS Reading: Paraphrase Hunter & Keyword Swap (Săn lùng Paraphrase & Từ đồng nghĩa)")
+                .description("Mục đích: Nâng cao kỹ năng Skimming, Scanning và giải mã bản chất cốt lõi của đề thi IELTS Reading: bẫy hoán đổi từ đồng nghĩa (Paraphrasing).\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Giáo viên dán các đoạn trích từ bài đọc IELTS Reading xung quanh các góc lớp.\n" +
+                             "2. Chia học sinh theo đội 2 - 3 người và phát 'Tập hồ sơ manh mối' chứa các câu hỏi hoặc câu nhận định đã được paraphrase hoàn toàn (dùng từ đồng nghĩa nâng cao hoặc đảo cấu trúc câu).\n" +
+                             "3. Các đội di chuyển quanh phòng, quét nhanh (Scanning) để tìm câu văn gốc tương ứng trong bài đọc dán tường, gạch chân cặp từ đồng nghĩa (VD: 'deterioration' = 'worsening', 'curb' = 'limit').\n" +
+                             "4. Đội tìm đủ và giải thích đúng sự tương đương ngữ nghĩa nhanh nhất sẽ ghi điểm.\n" +
+                             "Thời lượng: 15 - 20 phút. Dụng cụ: Đoạn văn in khổ lớn dán tường, phiếu manh mối Paraphrase.")
+                .build(),
+
+            ActivityTemplate.builder()
+                .name("IELTS Reading: True / False / Not Given Courtroom (Tòa án T/F/NG - Tranh tụng chứng cứ)")
+                .description("Mục đích: Xóa bỏ triệt để sự nhầm lẫn kinh điển giữa 'False' (thông tin đối lập/sai sự thật) và 'Not Given' (thông tin không đề cập hoặc suy diễn ngoài văn bản).\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Lớp chia thành 3 phe đại diện cho 3 quan điểm: Phe True, Phe False, và Phe Not Given. Một học sinh (hoặc giáo viên) đóng vai Thẩm phán.\n" +
+                             "2. Giáo viên đưa ra một đoạn văn ngắn IELTS và một nhận định gây tranh cãi.\n" +
+                             "3. Mỗi phe có 2 phút hội ý để tìm bằng chứng trong văn bản nhằm bảo vệ phán quyết của mình (chỉ được dùng câu chữ thật trong bài, cấm suy diễn logic đời thường).\n" +
+                             "4. Đại diện mỗi phe đứng lên tranh tụng trước Tòa. Thẩm phán gõ búa phân xử xem phe nào đưa ra lập luận chặt chẽ, đúng quy chuẩn chấm thi của Cambridge IELTS.\n" +
+                             "Thời lượng: 15 - 20 phút. Dụng cụ: Đoạn văn ngắn IELTS và bảng nhận định T/F/NG.")
+                .build(),
+
+            ActivityTemplate.builder()
+                .name("IELTS Reading: Heading Matchmaker Speed Race (Đua tốc độ Ghép nối Tiêu đề đoạn văn)")
+                .description("Mục đích: Rèn luyện kỹ năng đọc bao quát (Skimming), tìm câu chủ đề (Topic sentence) và nhận diện 'tiêu đề bẫy' chỉ chứa chi tiết nhỏ (Detail trap) trong Matching Headings.\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Cắt rời các đoạn văn của một bài đọc IELTS (đoạn A, B, C, D...) và danh sách các tiêu đề La Mã (i, ii, iii...). \n" +
+                             "2. Chia học sinh thành các nhóm 3 - 4 người. Phát cho mỗi nhóm một bộ đoạn văn và tiêu đề bị xáo trộn.\n" +
+                             "3. Đặt đồng hồ bấm giờ 7 phút: Nhóm cùng nhau đọc lướt câu đầu và câu cuối của từng đoạn, tìm từ bao hàm ý toàn đoạn để ghép nối với tiêu đề tương ứng.\n" +
+                             "4. Kết thúc thời gian, các nhóm đổi bài chấm chéo. Cả lớp cùng mổ xẻ những tiêu đề gây nhiễu và lý do loại trừ.\n" +
+                             "Thời lượng: 15 - 20 phút. Dụng cụ: Bộ thẻ đoạn văn và tiêu đề in cắt rời.")
+                .build(),
+
+            // --- NHÓM 7: IELTS WRITING TASK 1 - DIỄN ĐẠT SỐ LIỆU & QUY TRÌNH HỌC THUẬT ---
+            ActivityTemplate.builder()
+                .name("IELTS Writing Task 1: The Human Graph & Trend Drama (Biểu đồ người sống & Diễn giải xu hướng)")
+                .description("Mục đích: Khắc sâu từ vựng mô tả xu hướng (fluctuate, plunge, rocket, plateau, level off) và cấu trúc so sánh dữ liệu trực quan sinh động trong Writing Task 1.\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Kẻ một trục tọa độ lớn trên sàn lớp (trục hoành là mốc thời gian 1990 - 2020, trục tung là mức độ/phần trăm).\n" +
+                             "2. Cử 3 nhóm học sinh, mỗi nhóm đại diện cho một đường trên biểu đồ đường (Line graph) hoặc một quốc gia trong bảng số liệu.\n" +
+                             "3. Giáo viên hoặc một bạn học sinh đọc một câu miêu tả học thuật (VD: 'From 2000 to 2010, the figure saw a precipitous drop, followed by a slight recovery'). Nhóm tương ứng phải di chuyển người, đứng lên ngồi xuống để cơ thể tạo thành đúng hình dáng xu hướng đó.\n" +
+                             "4. Cả lớp quan sát, nhận xét tính chính xác và cùng nhau viết câu hoàn chỉnh lên bảng với cấu trúc danh từ + động từ và cấu trúc 'There was a...'.\n" +
+                             "Thời lượng: 15 - 20 phút. Dụng cụ: Phấn kẻ sàn hoặc băng dính màu tạo trục tọa độ.")
+                .build(),
+
+            ActivityTemplate.builder()
+                .name("IELTS Writing Task 1: The Helicopter Overview Master (Góc nhìn Trực thăng - Săn tìm Đặc điểm nổi bật)")
+                .description("Mục đích: Huấn luyện học sinh viết đoạn Tổng quan (Overview) chuẩn band 7.0+ (không đưa số liệu chi tiết, chọn lọc đúng 2 - 3 đặc điểm bao quát nhất của biểu đồ).\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Chiếu hoặc phát 3 biểu đồ Task 1 khác nhau (Biểu đồ cột, biểu đồ tròn, bảng số liệu).\n" +
+                             "2. Học sinh đóng vai 'Phi công trực thăng' bay trên cao nhìn xuống tổng thể bức tranh dữ liệu: Tuyệt đối không nhìn vào từng con số cụ thể.\n" +
+                             "3. Trong đúng 90 giây, mỗi học sinh ghi nhanh lên giấy note (Sticky note) 2 đặc điểm nổi bật nhất: Xu hướng lớn nhất (Overall trend) và hạng mục cao nhất/thấp nhất (Key extremes).\n" +
+                             "4. Dán sticky notes lên bảng theo từng biểu đồ. Cả lớp bình chọn câu Overview nào gãy gọn, học thuật và dùng từ nối đối lập (while, whereas, in stark contrast) xuất sắc nhất.\n" +
+                             "Thời lượng: 15 phút. Dụng cụ: Máy chiếu hoặc bản in biểu đồ Task 1, giấy note dán.")
+                .build(),
+
+            ActivityTemplate.builder()
+                .name("IELTS Writing Task 1: Process & Map Relay Walkthrough (Thuyết minh Quy trình & Bản đồ tiếp sức)")
+                .description("Mục đích: Thành thạo cách sử dụng thể bị động (Passive voice), các từ nối tuần tự (subsequently, prior to, following this) và từ vựng biến đổi không gian (demolished, transformed into, relocated) trong đề Process & Map.\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Dán đề bài Map (Quy hoạch thành phố qua 2 giai đoạn) hoặc Process (Quy trình sản xuất cà phê/thủy tinh) lên bảng.\n" +
+                             "2. Chia lớp thành các đội 4 bạn xếp hàng tiếp sức.\n" +
+                             "3. Theo hiệu lệnh, bạn thứ 1 chạy lên viết câu mở đầu/overview; bạn thứ 2 viết mô tả giai đoạn/khu vực 1; bạn thứ 3 viết giai đoạn 2; bạn thứ 4 viết phần còn lại. Mỗi bạn chỉ có 60 giây và phải dùng ít nhất 1 cấu trúc bị động và 1 liên từ chỉ thứ tự.\n" +
+                             "4. Hết giờ, các đội chấm chéo bài của nhau, gạch chân các lỗi thì động từ và lỗi giới từ vị trí.\n" +
+                             "Thời lượng: 20 phút. Dụng cụ: Đề bài Map/Process in lớn hoặc máy chiếu, bảng viết.")
+                .build(),
+
+            // --- NHÓM 8: IELTS WRITING TASK 2 - TƯ DUY NGHỊ LUẬN & PHÁT TRIỂN LUẬN ĐIỂM ---
+            ActivityTemplate.builder()
+                .name("IELTS Writing Task 2: The PEEL Idea Tennis (Quần vợt Ý tưởng theo mô hình PEEL)")
+                .description("Mục đích: Rèn luyện phản xạ phát triển luận điểm chặt chẽ, đa chiều theo cấu trúc PEEL (Point - Explain - Example - Link), khắc phục triệt để lỗi liệt kê ý sơ sài trong Task 2.\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Hai bạn học sinh (hoặc 2 đội) đứng đối diện như một trận đấu quần vợt. Giáo viên đưa ra một đề bài Task 2 (VD: 'Should university education be tuition-free for all citizens?').\n" +
+                             "2. Đội Giao bóng đưa ra Luận điểm chính (Point - VD: 'Free university education promotes equal social mobility').\n" +
+                             "3. Đội Đỡ bóng phải phản xạ tiếp bóng bằng phần Giải thích nguyên nhân sâu xa (Explain - VD: 'This allows talented students from disadvantaged backgrounds to access high-paying careers without crippling debt').\n" +
+                             "4. Lượt tiếp theo phải đưa ra Ví dụ thực tế (Example - VD: 'For instance, in countries like Germany...') và Lượt cuối chốt lại câu liên kết chủ đề (Link).\n" +
+                             "5. Nhóm nào ngập ngừng quá 5 giây hoặc đưa ý không liên quan sẽ bị trừ điểm giao bóng.\n" +
+                             "Thời lượng: 15 - 20 phút. Dụng cụ: Thẻ câu hỏi đề bài Writing Task 2.")
+                .build(),
+
+            ActivityTemplate.builder()
+                .name("IELTS Writing Task 2: Speed Outline Jam & 5-Minute Mindmap (Đua tốc độ Lập dàn bài trong 5 phút)")
+                .description("Mục đích: Loại bỏ hội chứng 'cắn bút không biết viết gì' hoặc lạc đề; tối ưu hóa kỹ năng brain-storming và phân bổ luận điểm trong 5 phút đầu giờ thi.\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Giáo viên phát một đề bài Task 2 thuộc dạng câu hỏi phức tạp (Two-part question, Discuss both views or To what extent do you agree/disagree).\n" +
+                             "2. Chia học sinh theo cặp. Mỗi cặp nhận một tờ giấy trắng và bút dạ.\n" +
+                             "3. Bấm giờ đúng 5 phút: Hai bạn phải phối hợp xác định dạng bài, viết nhanh Thesis statement (quan điểm cốt lõi) và vạch ra 2 luận điểm thân bài (mỗi thân bài gồm 1 Idea chính + 2 ý phát triển giải thích).\n" +
+                             "4. Hết 5 phút, học sinh dừng bút ngay lập tức, dán bài lên tường thực hiện Gallery Walk để cả lớp chấm điểm tính thuyết phục và tính khả thi của các luận điểm.\n" +
+                             "Thời lượng: 15 phút. Dụng cụ: Giấy A4/A3, bút lông, đồng hồ bấm giờ.")
+                .build(),
+
+            ActivityTemplate.builder()
+                .name("IELTS Writing Task 2: Band Descriptors Clinic & Diagnostic (Bác sĩ Chẩn đoán & Nâng cấp Band điểm)")
+                .description("Mục đích: Giúp học sinh nắm vững 4 tiêu chí chấm thi chính thức của IELTS (TR, CC, LR, GRA) và tự xây dựng năng lực biên tập, sửa lỗi văn phong cho chính mình.\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Giáo viên chuẩn bị một đoạn văn Task 2 giả định ở mức Band 5.0 - 5.5 (ý còn chung chung, lặp từ, dùng câu đơn nhiều, thiếu từ nối hoặc dùng sai collocations).\n" +
+                             "2. Chia lớp thành 4 nhóm 'Bác sĩ chuyên khoa': Nhóm 1 - Task Response, Nhóm 2 - Coherence & Cohesion, Nhóm 3 - Lexical Resource, Nhóm 4 - Grammatical Range & Accuracy.\n" +
+                             "3. Mỗi nhóm dùng bút màu riêng 'chẩn đoán bệnh', chỉ ra các điểm yếu theo tiêu chí của nhóm mình và viết lại một phiên bản nâng cấp đạt chuẩn Band 7.0+.\n" +
+                             "4. Các nhóm trình bày phương án nâng cấp và ráp nối thành một đoạn văn hoàn thiện trên bảng.\n" +
+                             "Thời lượng: 20 - 25 phút. Dụng cụ: Đoạn văn mẫu Band 5.5 in sẵn cho các nhóm, bút dạ màu.")
+                .build(),
+
+            // --- NHÓM 9: IELTS SPEAKING - PHẢN XẠ PHÒNG THI & TỰ NHIÊN HÓA NÓI ---
+            ActivityTemplate.builder()
+                .name("IELTS Speaking: Examiner & Candidate Speed Carousel (Vòng xoay Giám khảo & Thí sinh Part 1 & 3)")
+                .description("Mục đích: Tăng tốc độ phản xạ trả lời câu hỏi, rèn luyện sự tự tin khi nói trực tiếp với Examiner và duy trì độ trôi chảy (Fluency) dưới áp lực thời gian.\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Kê bàn ghế lớp thành 2 hàng đối diện nhau: Một hàng đóng vai Giám khảo (Examiner), một hàng đóng vai Thí sinh (Candidate).\n" +
+                             "2. Giáo viên phát cho Examiner danh sách câu hỏi Speaking Part 1 hoặc Part 3 kèm một bảng chấm điểm nhanh (đếm số lần ậm ừ filler words, canh giờ mỗi câu trả lời 20 - 30 giây).\n" +
+                             "3. Mỗi lượt đối thoại kéo dài 2.5 phút: Examiner hỏi và lắng nghe, sau đó dành 30 giây nhận xét trực tiếp ưu/nhược điểm cho bạn.\n" +
+                             "4. Giáo viên ra hiệu 'Switch!': Hàng Thí sinh bước sang phải 1 vị trí để gặp Giám khảo mới với chủ đề mới. Sau 3 vòng, hai hàng đổi vai trò cho nhau.\n" +
+                             "Thời lượng: 20 phút. Dụng cụ: Thẻ câu hỏi Speaking Part 1/3 và phiếu chấm nhận xét.")
+                .build(),
+
+            ActivityTemplate.builder()
+                .name("IELTS Speaking: Part 2 Cue Card Challenge & 60s Mindmap (Thử thách Thuyết trình Part 2 & Tốc ký 60 giây)")
+                .description("Mục đích: Làm chủ 1 phút chuẩn bị 'vàng' của Speaking Part 2; phát triển kỹ năng kể chuyện (Storytelling) mạch lạc đủ 2 phút mà không bị tắc ý.\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Giáo viên bốc thăm một đề Cue Card Part 2 (VD: Describe an energetic person you know, Describe a challenge you overcame...). \n" +
+                             "2. Học sinh có đúng 60 giây để ghi chép dàn ý theo công thức 5W1H (Who, When, Where, What happened, Why memorable) kết hợp chi tiết cảm giác (nghe thấy gì, cảm xúc thế nào).\n" +
+                             "3. Ghép cặp: Bạn A nói liên tục trong 2 phút (bạn B dùng điện thoại bấm giờ, tuyệt đối không ngắt lời). Nếu bạn A dừng lại trước 1 phút 45 giây, bạn B giơ thẻ vàng ra hiệu tiếp tục nói thêm chi tiết.\n" +
+                             "4. Hết 2 phút, hai bạn đổi vai với một đề Cue Card mới.\n" +
+                             "Thời lượng: 15 - 20 phút. Dụng cụ: Thẻ đề Cue Card Part 2, đồng hồ bấm giờ trên điện thoại.")
+                .build(),
+
+            ActivityTemplate.builder()
+                .name("IELTS Speaking: The Secret Idiom & Collocation Bluff (Gài bẫy Collocation & Paraphrase bí mật)")
+                .description("Mục đích: Kích thích học sinh ứng dụng Idiomatic expressions và Collocations nâng cao vào Speaking Part 3 một cách tự nhiên, tránh cảm giác 'học vẹt' hay gượng ép.\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Mỗi học sinh được phát một mẩu giấy bí mật chứa 2 collocations hoặc idioms học thuật (VD: 'at the expense of', 'a double-edged sword', 'pave the way for', 'take something for granted').\n" +
+                             "2. Học sinh thảo luận theo nhóm 3 - 4 người về các chủ đề xã hội Speaking Part 3 (Giáo dục, Môi trường, Công nghệ).\n" +
+                             "3. Khi trả lời, người nói phải khéo léo gài 2 cụm từ bí mật vào câu trả lời của mình sao cho câu văn hoàn toàn tự nhiên và hợp ngữ cảnh.\n" +
+                             "4. Các bạn còn lại trong nhóm vừa nghe vừa đoán xem cụm từ bí mật là gì. Nếu gài mượt đến mức bạn cùng nhóm không nhận ra sự gượng ép, người nói được cộng điểm tối đa.\n" +
+                             "Thời lượng: 15 - 20 phút. Dụng cụ: Thẻ từ vựng bí mật in sẵn.")
+                .build(),
+
+            ActivityTemplate.builder()
+                .name("IELTS Speaking: Just A Minute (JAM) Fluency Endurance (Một phút không vấp - Sức bền Trôi chảy)")
+                .description("Mục đích: Xóa bỏ thói quen ngập ngừng, dịch nhẩm từ tiếng Việt sang tiếng Anh trong đầu; tối đa hóa điểm Fluency & Coherence.\n" +
+                             "Cách tổ chức:\n" +
+                             "1. Một học sinh đứng trước nhóm hoặc trước lớp nhận một chủ đề ngẫu nhiên từ giáo viên (VD: Social media, Fast fashion, Public holidays, AI technology).\n" +
+                             "2. Học sinh phải nói liên tục trong đúng 60 giây và tuân thủ 'Luật 3 Không': Không ngập ngừng quá 3 giây (No Hesitation), Không lặp lại cùng một từ vựng quá 2 lần (No Repetition), Không nói lan man lạc đề (No Deviation).\n" +
+                             "3. Các bạn phía dưới đóng vai Trọng tài: nếu phát hiện thí sinh phạm luật thì giơ tay hô 'Challenge!' để giành quyền nói tiếp thời gian còn lại. Bạn nào giữ được lượt nói đến giây thứ 60 sẽ chiến thắng.\n" +
+                             "Thời lượng: 10 - 15 phút. Dụng cụ: Đồng hồ đếm ngược 60 giây hoặc điện thoại.")
                 .build()
         );
 

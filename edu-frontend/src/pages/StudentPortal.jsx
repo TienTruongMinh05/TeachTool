@@ -1145,7 +1145,7 @@ export default function StudentPortal() {
                   <div className="p-4 bg-gradient-to-br from-slate-50 to-blue-50/40 border border-blue-200 rounded-xl space-y-3.5 shadow-2xs">
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 pb-2.5">
                       <div className="flex items-center gap-2">
-                        <span className="text-base">{isGraded ? '🎯' : '⏳'}</span>
+                        {!isGraded && <span className="text-base">⏳</span>}
                         <div>
                           <h5 className="font-bold text-xs sm:text-sm text-slate-800">
                             {isGraded ? 'Kết Quả Đánh Giá & Nhận Xét' : 'Trạng Thái Bài Nộp Của Bạn'}

@@ -32,8 +32,9 @@ public class StoredFile {
     private Long size;
 
     @Lob
+    @Basic(fetch = FetchType.LAZY)
     @JdbcTypeCode(SqlTypes.BINARY)
-    @Column(columnDefinition = "bytea")
+    @Column(columnDefinition = "bytea", nullable = true)
     private byte[] data;
 
     private LocalDateTime createdAt;
