@@ -50,11 +50,12 @@ public class UserService {
 
         // Trường hợp 1: Người dùng tự xóa tài khoản của chính mình
         if (callerId != null && callerId.equals(targetUserId)) {
-            enrollmentRepository.findByStudentId(targetUserId).forEach(enrollmentRepository::delete);
-            submissionRepository.findByStudentId(targetUserId).forEach(submissionRepository::delete);
-            attendanceRepository.findByStudentId(targetUserId).forEach(attendanceRepository::delete);
-            classTeacherRepository.findByTeacherId(targetUserId).forEach(classTeacherRepository::delete);
+            attendanceRepository.deleteByStudentId(targetUserId);
+            submissionRepository.deleteByStudentId(targetUserId);
+            enrollmentRepository.deleteByStudentId(targetUserId);
+            classTeacherRepository.deleteByTeacherId(targetUserId);
             repository.delete(targetUser);
+            repository.flush();
             return;
         }
 
@@ -71,9 +72,11 @@ public class UserService {
             }
 
             // Dọn dẹp dữ liệu và xóa tài khoản
-            submissionRepository.findByStudentId(targetUserId).forEach(submissionRepository::delete);
-            attendanceRepository.findByStudentId(targetUserId).forEach(attendanceRepository::delete);
+            attendanceRepository.deleteByStudentId(targetUserId);
+            submissionRepository.deleteByStudentId(targetUserId);
+            enrollmentRepository.deleteByStudentId(targetUserId);
             repository.delete(targetUser);
+            repository.flush();
             return;
         }
 

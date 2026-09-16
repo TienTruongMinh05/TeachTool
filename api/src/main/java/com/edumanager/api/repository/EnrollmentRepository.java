@@ -1,18 +1,36 @@
-// File: src/main/java/com/edumanager/api/repository/EnrollmentRepository.java
 package com.edumanager.api.repository;
 
 import com.edumanager.api.entity.Enrollment;
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.List;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
-    // Tự động sinh SQL lấy danh sách theo ID lớp
     List<Enrollment> findByClassRoomId(Long classId);
-    List<Enrollment> findByStudentId(Long studentId);
-    Optional<Enrollment> findByClassRoomIdAndStudentId(Long classId, Long studentId);
-    boolean existsByClassRoomIdAndStudentId(Long classId, Long studentId);
-    void deleteByClassRoomIdAndStudentId(Long classId, Long studentId);
+    
+    @Query("SELECT e FROM Enrollment e WHERE e.student.id = :studentId")
+    List<Enrollment> findByStudentId(@Param("studentId") Long studentId);
+
+    @Query("SELECT e FROM Enrollment e WHERE e.classRoom.id = :classId AND e.student.id = :studentId")
+    Optional<Enrollment> findByClassRoomIdAndStudentId(@Param("classId") Long classId, @Param("studentId") Long studentId);
+
+    @Query("SELECT COUNT(e) > 0 FROM Enrollment e WHERE e.classRoom.id = :classId AND e.student.id = :studentId")
+    boolean existsByClassRoomIdAndStudentId(@Param("classId") Long classId, @Param("studentId") Long studentId);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM Enrollment e WHERE e.student.id = :studentId")
+    void deleteByStudentId(@Param("studentId") Long studentId);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM Enrollment e WHERE e.classRoom.id = :classId AND e.student.id = :studentId")
+    void deleteByClassRoomIdAndStudentId(@Param("classId") Long classId, @Param("studentId") Long studentId);
+
     void deleteByClassRoomId(Long classId);
 }

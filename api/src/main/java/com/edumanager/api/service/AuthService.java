@@ -222,18 +222,19 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản có ID: " + userId));
 
         // 1. Xóa các bản ghi điểm danh
-        attendanceRepository.findByStudentId(userId).forEach(attendanceRepository::delete);
+        attendanceRepository.deleteByStudentId(userId);
 
         // 2. Xóa các ghi danh của học sinh
-        enrollmentRepository.findByStudentId(userId).forEach(enrollmentRepository::delete);
+        enrollmentRepository.deleteByStudentId(userId);
 
         // 3. Xóa các bài nộp của học sinh
-        submissionRepository.findByStudentId(userId).forEach(submissionRepository::delete);
+        submissionRepository.deleteByStudentId(userId);
 
         // 4. Xóa phân công giáo viên nếu là giáo viên
-        classTeacherRepository.findByTeacherId(userId).forEach(classTeacherRepository::delete);
+        classTeacherRepository.deleteByTeacherId(userId);
 
         // 5. Xóa tài khoản
         userRepository.delete(user);
+        userRepository.flush();
     }
 }
