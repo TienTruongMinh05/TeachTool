@@ -141,8 +141,16 @@ export default function PdfCanvasViewer({
     setLoading(true);
     setError('');
 
+    // Chuẩn hóa fileUrl: Nếu là relative URL (/api/files/download/...), ghép với API base URL
+    let resolvedUrl = fileUrl;
+    if (!resolvedUrl.startsWith('http://') && !resolvedUrl.startsWith('https://') && !resolvedUrl.startsWith('blob:')) {
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8081/api';
+      const serverOrigin = apiBase.replace(/\/api\/?$/, '');
+      resolvedUrl = `${serverOrigin}${resolvedUrl.startsWith('/') ? '' : '/'}${resolvedUrl}`;
+    }
+
     const loadingTask = pdfjsLib.getDocument({
-      url: fileUrl,
+      url: resolvedUrl,
       cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
       cMapPacked: true
     });
@@ -160,7 +168,12 @@ export default function PdfCanvasViewer({
       .catch(err => {
         if (!isMounted) return;
         console.error('Lỗi tải PDF:', err);
-        setError('Không thể mở tệp PDF trực tiếp: ' + (err.message || 'Lỗi kết nối tệp'));
+        const isMissing = err?.message?.includes('Missing PDF') || err?.name === 'MissingPDFException';
+        if (isMissing) {
+          setError('Tệp PDF không tìm thấy trên máy chủ (HTTP 404). Tệp có thể đã bị mất do máy chủ khởi động lại trước khi kích hoạt cơ sở dữ liệu vĩnh viễn. Vui lòng tải lại tệp tin.');
+        } else {
+          setError('Không thể mở tệp PDF trực tiếp: ' + (err.message || 'Lỗi kết nối tệp'));
+        }
         setLoading(false);
       });
 
