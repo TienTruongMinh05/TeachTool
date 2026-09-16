@@ -310,7 +310,7 @@ export default function AssignmentManager({ classId }) {
           </select>
 
           <button
-            onClick={openCreateModal}
+            onClick={handleOpenCreateModal}
             className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-md text-sm transition cursor-pointer font-medium shadow-xs">
             Giao Bài Mới
           </button>
@@ -351,7 +351,7 @@ export default function AssignmentManager({ classId }) {
                     {isSelected ? 'Đang xem bài nộp' : 'Xem danh sách nộp'}
                   </button>
                   <button
-                    onClick={() => openEditModal(assignment)}
+                    onClick={() => handleOpenEditModal(assignment)}
                     className="px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100 transition cursor-pointer">
                     Sửa
                   </button>
@@ -407,7 +407,7 @@ export default function AssignmentManager({ classId }) {
               Bấm nút "Giao Bài Mới" để tạo bài tập cho học viên trong lớp
             </p>
             <button
-              onClick={openCreateModal}
+              onClick={handleOpenCreateModal}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-xs font-medium cursor-pointer transition shadow-xs">
               Giao Bài Đầu Tiên
             </button>
@@ -574,7 +574,7 @@ export default function AssignmentManager({ classId }) {
                     {selectedSubmissionToGrade.fileUrl ? (
                       <AudioGradingWorkbench
                         studentAudioUrl={selectedSubmissionToGrade.fileUrl}
-                        studentName={selectedStudentForGrading?.name || 'Học sinh'}
+                        studentName={selectedStudentForGrading?.studentName || selectedStudentForGrading?.name || 'Học sinh'}
                         onSplicedAudioReady={(blob) => setSplicedAudioBlob(blob)}
                         onUpdateFeedbackSummary={(summary) => setTimelineFeedbackText(summary)}
                       />
