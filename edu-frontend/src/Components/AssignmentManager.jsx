@@ -434,6 +434,14 @@ export default function AssignmentManager({ classId }) {
             </button>
           </div>
 
+          {/* Thông báo chính sách lưu trữ bài nộp 2 tuần */}
+          <div className="px-4 py-2 bg-amber-50/80 border-b border-amber-200/80 text-amber-900 text-xs flex items-center gap-2">
+            <span>⏱️</span>
+            <span>
+              <b>Chính sách lưu trữ:</b> Bài làm của học sinh được lưu giữ trong <b>2 tuần</b> (tuần trước & tuần này) để tối ưu không gian lưu trữ đám mây.
+            </span>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 text-xs font-semibold uppercase">

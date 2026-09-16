@@ -1201,6 +1201,12 @@ export default function StudentPortal() {
                 );
               })()}
 
+              {/* Thông báo chính sách lưu trữ bài làm 2 tuần */}
+              <div className="p-2 bg-amber-50/90 border border-amber-200/80 rounded-lg text-xs text-amber-900 flex items-center gap-1.5">
+                <span>⏱️</span>
+                <span><b>Lưu ý lưu trữ:</b> Bài làm đã nộp được lưu giữ trong <b>2 tuần</b> (tuần trước & tuần này) để tối ưu lưu trữ hệ thống.</span>
+              </div>
+
               {/* Chọn phương thức nộp bài (chỉ hiện các phương thức được giáo viên cho phép) */}
               <div className="pt-2 border-t border-slate-200">
                 <div className="flex items-center justify-between mb-1.5">

@@ -16,6 +16,24 @@ import ClassMaterialsManager from '../Components/ClassMaterialsManager';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
+const getTodayStr = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getOffsetMonthsStr = (baseDateStr, months) => {
+  const base = baseDateStr ? new Date(baseDateStr) : new Date();
+  const d = new Date(base.getTime());
+  d.setMonth(d.getMonth() + months);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function ClassDashboard({ initialView }) {
   const { id } = useParams(); // Lấy ID lớp nếu có trong URL (/class/:id)
   const navigate = useNavigate();
@@ -755,7 +773,14 @@ export default function ClassDashboard({ initialView }) {
                   <input 
                     type="date" 
                     value={editFormData.startDate}
-                    onChange={(e) => setEditFormData({...editFormData, startDate: e.target.value})}
+                    onChange={(e) => {
+                      const newStart = e.target.value;
+                      setEditFormData(prev => ({
+                        ...prev,
+                        startDate: newStart,
+                        endDate: prev.endDate ? prev.endDate : getOffsetMonthsStr(newStart, 6)
+                      }));
+                    }}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -769,6 +794,41 @@ export default function ClassDashboard({ initialView }) {
                   />
                 </div>
               </div>
+
+              {/* Gợi ý chọn nhanh thời hạn */}
+              <div className="flex flex-wrap items-center gap-1.5 -mt-1">
+                <span className="text-[11px] text-gray-500 font-medium">Thời hạn:</span>
+                <button
+                  type="button"
+                  onClick={() => setEditFormData(prev => ({ ...prev, endDate: getOffsetMonthsStr(prev.startDate || getTodayStr(), 6) }))}
+                  className="px-2 py-0.5 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold rounded border border-blue-200 transition cursor-pointer"
+                >
+                  +6 tháng (Chuẩn học kỳ)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditFormData(prev => ({ ...prev, endDate: getOffsetMonthsStr(prev.startDate || getTodayStr(), 3) }))}
+                  className="px-2 py-0.5 text-xs bg-gray-50 hover:bg-gray-100 text-gray-700 rounded border border-gray-200 transition cursor-pointer"
+                >
+                  +3 tháng
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditFormData(prev => ({ ...prev, endDate: getOffsetMonthsStr(prev.startDate || getTodayStr(), 12) }))}
+                  className="px-2 py-0.5 text-xs bg-gray-50 hover:bg-gray-100 text-gray-700 rounded border border-gray-200 transition cursor-pointer"
+                >
+                  +1 năm
+                </button>
+              </div>
+
+              {/* Thông báo chính sách lưu trữ */}
+              <div className="p-2.5 bg-blue-50/70 border border-blue-200/60 rounded-lg text-xs text-blue-900 flex items-start gap-2">
+                <span className="text-sm">ℹ️</span>
+                <div className="leading-relaxed">
+                  <span className="font-semibold">Chính sách lưu trữ:</span> Dữ liệu giáo viên (lớp, lịch học, sách, buổi học, giáo án) được lưu trữ trong <b>6 tháng</b>. Bài nộp của học viên lưu giữ <b>2 tuần</b> để tối ưu bộ nhớ.
+                </div>
+              </div>
+
               <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
                 <button
                   type="button"

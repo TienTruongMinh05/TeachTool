@@ -383,6 +383,21 @@ export default function UserGuide() {
               </div>
 
               <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                <h5 className="font-bold text-gray-800 text-sm">Chính sách Lưu trữ & Vòng đời Dữ liệu (Data Retention Policy)</h5>
+                <p className="text-gray-700">
+                  Để đảm bảo tốc độ vận hành nhanh chóng và tối ưu chi phí lưu trữ đám mây, hệ thống áp dụng chính sách vòng đời dữ liệu tự động:
+                </p>
+                <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
+                  <li>
+                    <b>Dữ liệu phía Giáo viên (Lưu trữ 6 tháng):</b> Toàn bộ thông tin lớp học, thời khóa biểu, buổi học trong tuần, giáo án/học phần chi tiết và sách giáo khoa/tài liệu đính kèm được lưu trữ an toàn trong vòng <b>6 tháng</b>. Khi tạo lớp học mới, thời gian kết thúc sẽ được hệ thống tự động gợi ý mặc định là +6 tháng (chuẩn học kỳ).
+                  </li>
+                  <li>
+                    <b>Bài nộp của Học sinh (Lưu trữ 2 tuần):</b> Các bài làm học sinh đã nộp (văn bản, tệp Word/PDF, file âm thanh ghi âm giọng nói, ảnh chụp bài tập) được lưu giữ nguyên vẹn trong vòng <b>2 tuần (tuần trước & tuần này)</b>. Khoảng thời gian này hoàn toàn đáp ứng chu trình giao bài - làm bài - giáo viên chấm và nhận xét. Sau 2 tuần, các bài nộp và tệp đính kèm nhị phân sẽ được tác vụ tự động dọn dẹp để giải phóng dung lượng bộ nhớ PostgreSQL.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
                 <h5 className="font-bold text-gray-800 text-sm">Bảo mật phân quyền kép (Dual RBAC Protection)</h5>
                 <p>
                   Mọi thao tác quản lý lớp học, sửa kế hoạch, tạo bài tập và chấm điểm đều được kiểm tra phân quyền nghiêm ngặt ở cả giao diện lẫn API máy chủ. Học sinh bị chặn hoàn toàn khi cố gắng truy cập dữ liệu của giáo viên hoặc bài nộp của bạn học khác, đảm bảo tính riêng tư tuyệt đối cho môi trường giáo dục.

@@ -8,4 +8,5 @@ import java.util.List;
 public interface SessionRepository extends JpaRepository<Session, Long> {
     List<Session> findByClassRoomId(Long classId);
     void deleteByClassRoomId(Long classId);
+    List<Session> findByStartTimeBefore(java.time.LocalDateTime cutoff);
 }

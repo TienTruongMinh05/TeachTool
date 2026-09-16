@@ -21,4 +21,6 @@ public interface SubmissionRepository extends JpaRepository<Submission, Long> {
     @Transactional
     @Query("DELETE FROM Submission s WHERE s.student.id = :studentId")
     void deleteByStudentId(@Param("studentId") Long studentId);
+
+    List<Submission> findBySubmittedAtBefore(java.time.LocalDateTime cutoff);
 }

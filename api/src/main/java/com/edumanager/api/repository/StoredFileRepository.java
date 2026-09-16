@@ -10,4 +10,5 @@ import java.util.Optional;
 public interface StoredFileRepository extends JpaRepository<StoredFile, Long> {
     Optional<StoredFile> findByStoredName(String storedName);
     boolean existsByStoredName(String storedName);
+    java.util.List<StoredFile> findByCreatedAtBefore(java.time.LocalDateTime cutoff);
 }
