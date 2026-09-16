@@ -5,7 +5,8 @@ import { activityApi } from '../api/activityApi';
 import { fileApi } from '../api/fileApi';
 import ActivityLibraryModal from './ActivityLibraryModal';
 import BookPagePickerModal from './BookPagePickerModal';
-import { getStoredClassMaterials } from './ClassMaterialsManager';
+import { getStoredClassMaterials, saveStoredClassMaterials } from './ClassMaterialsManager';
+import { materialApi } from '../api/materialApi';
 import { useToast } from '../context/ToastContext';
 
 export default function SessionList({ classId, classInfo, onSelectSessionForAttendance, targetSessionId = null }) {
@@ -100,10 +101,11 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
   const loadData = async () => {
     try {
       setLoading(true);
-      const [sessionsRes, plansRes, activitiesRes] = await Promise.allSettled([
+      const [sessionsRes, plansRes, activitiesRes, materialsRes] = await Promise.allSettled([
         sessionApi.getByClass(classId),
         teachingPlanApi.getByClass(classId),
-        activityApi.getAll()
+        activityApi.getAll(),
+        materialApi.getByClass(classId)
       ]);
 
       let sessionList = [];
@@ -124,6 +126,11 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
         setActivities(activitiesRes.value);
       } else {
         setActivities([]);
+      }
+
+      if (materialsRes.status === 'fulfilled' && Array.isArray(materialsRes.value)) {
+        setClassMaterials(materialsRes.value);
+        saveStoredClassMaterials(classId, materialsRes.value);
       }
     } catch (error) {
       console.error('Lỗi khi tải dữ liệu buổi học:', error);
@@ -1030,7 +1037,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                           <button
                             type="button"
                             onClick={() => {
-                              const mat = classMaterials.find(m => m.id === sec.bookId);
+                              const mat = classMaterials.find(m => String(m.id) === String(sec.bookId));
                               if (mat) setPickingMaterial(mat);
                             }}
                             className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer"
@@ -1628,7 +1635,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                     <button
                       type="button"
                       onClick={() => {
-                        const mat = classMaterials.find(m => m.id === sectionFormData.bookId);
+                        const mat = classMaterials.find(m => String(m.id) === String(sectionFormData.bookId));
                         if (mat) setPickingMaterial(mat);
                       }}
                       className="text-[11px] font-bold text-blue-700 bg-white border border-blue-300 hover:bg-blue-100 px-2.5 py-1 rounded cursor-pointer transition shadow-2xs"
@@ -1644,7 +1651,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                       value={sectionFormData.bookId || ''}
                       onChange={(e) => {
                         const bId = e.target.value;
-                        const selectedMat = classMaterials.find(m => m.id === bId);
+                        const selectedMat = classMaterials.find(m => String(m.id) === String(bId));
                         setSectionFormData(prev => ({
                           ...prev,
                           bookId: bId,

@@ -24,6 +24,7 @@ public class ClassRoomService {
     private final TeachingPlanRepository teachingPlanRepository;
     private final ClassTeacherRepository classTeacherRepository;
     private final UserRepository userRepository;
+    private final ClassMaterialRepository classMaterialRepository;
 
     private String generateUniqueClassCode() {
         String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -154,6 +155,9 @@ public class ClassRoomService {
 
         // 3. Xóa kế hoạch giảng dạy
         teachingPlanRepository.deleteByClassRoomId(id);
+
+        // 3.5. Xóa danh sách sách / tài liệu lớp học
+        classMaterialRepository.deleteByClassRoomId(id);
 
         // 4. Xóa danh sách học sinh ghi danh
         enrollmentRepository.deleteByClassRoomId(id);

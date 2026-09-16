@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { fileApi } from '../api/fileApi';
+import { materialApi } from '../api/materialApi';
 import { useToast } from '../context/ToastContext';
 import PdfCanvasViewer from './PdfCanvasViewer';
 
@@ -13,18 +14,7 @@ export const getStoredClassMaterials = (classId) => {
     const saved = localStorage.getItem('class_materials_' + classId);
     if (saved) return JSON.parse(saved);
   } catch {}
-  return [
-    {
-      id: 'default-book-1',
-      title: 'Giáo trình Tiếng Anh Chuẩn (Student Book)',
-      category: 'Sách giáo khoa',
-      fileUrl: 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/examples/learning/helloworld.pdf',
-      fileName: 'English_Student_Book.pdf',
-      totalPages: 120,
-      description: 'Giáo trình giảng dạy chính khóa trên lớp',
-      createdAt: new Date().toISOString()
-    }
-  ];
+  return [];
 };
 
 export const saveStoredClassMaterials = (classId, materials) => {
@@ -37,6 +27,7 @@ export const saveStoredClassMaterials = (classId, materials) => {
 export default function ClassMaterialsManager({ classId, classInfo }) {
   const { toast, confirm } = useToast();
   const [materials, setMaterials] = useState(() => getStoredClassMaterials(classId));
+  const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -53,14 +44,55 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
   const [viewingMaterial, setViewingMaterial] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  useEffect(() => {
-    setMaterials(getStoredClassMaterials(classId));
-  }, [classId]);
-
-  const handleSaveMaterials = (newMaterials) => {
-    setMaterials(newMaterials);
-    saveStoredClassMaterials(classId, newMaterials);
+  const fetchMaterials = async () => {
+    if (!classId) return;
+    try {
+      setLoading(true);
+      const data = await materialApi.getByClass(classId);
+      if (Array.isArray(data) && data.length > 0) {
+        setMaterials(data);
+        saveStoredClassMaterials(classId, data);
+      } else if (Array.isArray(data) && data.length === 0) {
+        // Tự động di chuyển tài liệu cũ từ localStorage lên database máy chủ
+        const local = getStoredClassMaterials(classId);
+        const nonDefaultLocal = (local || []).filter(
+          m => m.id !== 'default-book-1' && !String(m.id).startsWith('default-') && m.fileUrl
+        );
+        if (nonDefaultLocal.length > 0) {
+          for (const item of nonDefaultLocal) {
+            try {
+              await materialApi.create(classId, {
+                title: item.title,
+                category: item.category,
+                fileUrl: item.fileUrl,
+                fileName: item.fileName,
+                totalPages: item.totalPages,
+                description: item.description
+              });
+            } catch (migErr) {
+              console.warn('Lỗi di chuyển tài liệu cũ:', migErr);
+            }
+          }
+          const reloaded = await materialApi.getByClass(classId);
+          setMaterials(reloaded || []);
+          saveStoredClassMaterials(classId, reloaded || []);
+        } else {
+          setMaterials([]);
+          saveStoredClassMaterials(classId, []);
+        }
+      }
+    } catch (error) {
+      console.error('Lỗi khi tải danh sách tài liệu từ máy chủ:', error);
+      // Giữ dữ liệu đệm từ localStorage nếu mạng chậm
+      setMaterials(getStoredClassMaterials(classId));
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchMaterials();
+  }, [classId]);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -115,36 +147,47 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
     }
   };
 
-  const handleAddSubmit = (e) => {
+  const handleAddSubmit = async (e) => {
     e.preventDefault();
     if (!formData.title.trim()) {
       toast.warning('Vui lòng nhập tên tài liệu/sách.');
       return;
     }
+    if (!formData.fileUrl) {
+      toast.warning('Vui lòng tải lên tệp PDF của cuốn sách trước khi lưu.');
+      return;
+    }
 
-    const newMat = {
-      id: 'mat-' + Date.now(),
-      title: formData.title.trim(),
-      category: formData.category,
-      fileUrl: formData.fileUrl || '',
-      fileName: formData.fileName || '',
-      totalPages: Number(formData.totalPages) || 1,
-      description: formData.description.trim(),
-      createdAt: new Date().toISOString()
-    };
+    try {
+      setUploading(true);
+      const newMat = {
+        title: formData.title.trim(),
+        category: formData.category,
+        fileUrl: formData.fileUrl || '',
+        fileName: formData.fileName || '',
+        totalPages: Number(formData.totalPages) || 1,
+        description: formData.description ? formData.description.trim() : ''
+      };
 
-    const updated = [newMat, ...materials];
-    handleSaveMaterials(updated);
-    toast.success('Đã thêm tài liệu "' + newMat.title + '" vào lớp!');
-    setIsAddModalOpen(false);
-    setFormData({
-      title: '',
-      category: 'Sách giáo khoa',
-      fileUrl: '',
-      fileName: '',
-      totalPages: 1,
-      description: ''
-    });
+      const created = await materialApi.create(classId, newMat);
+      const updated = [created, ...materials.filter(m => m.id !== created.id)];
+      setMaterials(updated);
+      saveStoredClassMaterials(classId, updated);
+      toast.success('Đã lưu sách "' + created.title + '" vào cơ sở dữ liệu lớp!');
+      setIsAddModalOpen(false);
+      setFormData({
+        title: '',
+        category: 'Sách giáo khoa',
+        fileUrl: '',
+        fileName: '',
+        totalPages: 1,
+        description: ''
+      });
+    } catch (err) {
+      toast.error('Lỗi khi lưu sách: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleDelete = async (mat) => {
@@ -152,13 +195,22 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
       title: 'Xóa tài liệu',
       message: 'Bạn có chắc chắn muốn xóa tài liệu "' + mat.title + '" khỏi lớp không?',
       confirmText: 'Xác nhận xóa',
-      cancelText: 'Hủy'
+      cancelText: 'Hủy',
+      type: 'danger'
     });
     if (!ok) return;
 
-    const updated = materials.filter(m => m.id !== mat.id);
-    handleSaveMaterials(updated);
-    toast.success('Đã xóa tài liệu!');
+    try {
+      if (typeof mat.id === 'number' || (typeof mat.id === 'string' && !mat.id.startsWith('default-') && !mat.id.startsWith('mat-'))) {
+        await materialApi.delete(classId, mat.id);
+      }
+      const updated = materials.filter(m => m.id !== mat.id);
+      setMaterials(updated);
+      saveStoredClassMaterials(classId, updated);
+      toast.success('Đã xóa tài liệu!');
+    } catch (err) {
+      toast.error('Lỗi khi xóa tài liệu: ' + (err.response?.data?.message || err.message));
+    }
   };
 
   const openPdfViewer = (mat, initialPage = 1) => {
@@ -186,7 +238,11 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
       </div>
 
       {/* Grid danh sách sách / tài liệu */}
-      {materials.length === 0 ? (
+      {loading ? (
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-xs text-slate-500">
+          Đang tải danh sách sách và tài liệu của lớp từ máy chủ...
+        </div>
+      ) : materials.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
           <h3 className="font-bold text-slate-700 text-base">Chưa có tài liệu hoặc sách nào</h3>
           <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
