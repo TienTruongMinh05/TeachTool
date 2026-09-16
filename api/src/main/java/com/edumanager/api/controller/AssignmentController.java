@@ -13,6 +13,7 @@ import java.util.List;
 public class AssignmentController {
     private final AssignmentService service;
     private final com.edumanager.api.service.ClassRoomService classRoomService;
+    private final com.edumanager.api.repository.SessionRepository sessionRepo;
 
     @PostMapping("/api/classes/{classId}/assignments")
     public AssignmentResponseDTO createAssignment(
@@ -39,7 +40,17 @@ public class AssignmentController {
     }
 
     @GetMapping("/api/sessions/{sessionId}/assignments")
-    public List<AssignmentResponseDTO> getAssignmentsBySession(@PathVariable Long sessionId) {
+    public List<AssignmentResponseDTO> getAssignmentsBySession(
+            @PathVariable Long sessionId,
+            jakarta.servlet.http.HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        String callerRole = (String) request.getAttribute("userRole");
+        com.edumanager.api.entity.Session session = sessionRepo.findById(sessionId).orElse(null);
+        if (session != null && session.getClassRoom() != null && callerId != null) {
+            if (!classRoomService.canAccessClass(session.getClassRoom().getId(), callerId, callerRole)) {
+                throw new SecurityException("Bạn không có quyền truy cập bài tập của buổi học này.");
+            }
+        }
         return service.getAssignmentsBySession(sessionId).stream()
                 .map(AssignmentResponseDTO::fromEntity)
                 .toList();

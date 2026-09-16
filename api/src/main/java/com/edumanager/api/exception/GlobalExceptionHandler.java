@@ -44,6 +44,26 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFound(org.springframework.web.servlet.resource.NoResourceFoundException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.NOT_FOUND.value(),
+                "Tài nguyên yêu cầu không tồn tại trên hệ thống.",
+                System.currentTimeMillis()
+        );
+        return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(org.springframework.web.HttpRequestMethodNotSupportedException ex) {
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.METHOD_NOT_ALLOWED.value(),
+                "Phương thức HTTP (" + ex.getMethod() + ") không được hỗ trợ cho đường dẫn này.",
+                System.currentTimeMillis()
+        );
+        return new ResponseEntity<>(error, HttpStatus.METHOD_NOT_ALLOWED);
+    }
+
     // Bắt mọi lỗi hệ thống chưa lường trước - Ẩn chi tiết kỹ thuật/SQL để chống rò rỉ thông tin
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {

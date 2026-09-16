@@ -30,8 +30,16 @@ public class TeachingPlanController {
     }
 
     @GetMapping("/api/plans/{id}")
-    public TeachingPlanResponseDTO getPlanById(@PathVariable Long id) {
-        return TeachingPlanResponseDTO.fromEntity(service.getPlanById(id));
+    public TeachingPlanResponseDTO getPlanById(
+            @PathVariable Long id,
+            jakarta.servlet.http.HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        String callerRole = (String) request.getAttribute("userRole");
+        TeachingPlan plan = service.getPlanById(id);
+        if (callerId != null && plan.getClassRoom() != null && !classRoomService.canAccessClass(plan.getClassRoom().getId(), callerId, callerRole)) {
+            throw new SecurityException("Bạn không có quyền xem kế hoạch giảng dạy này.");
+        }
+        return TeachingPlanResponseDTO.fromEntity(plan);
     }
 
     @PostMapping("/api/classes/{classId}/plans")
