@@ -398,7 +398,7 @@ export default function AssignmentManager({ classId }) {
                         ? 'bg-slate-800 hover:bg-slate-900 text-white ring-2 ring-blue-400'
                         : 'bg-blue-600 hover:bg-blue-700 text-white'
                     }`}>
-                    {isSelected ? 'Đang xem bài nộp (Đóng ✕)' : 'Xem danh sách nộp ▾'}
+                    {isSelected ? 'Đang xem bài nộp' : 'Xem danh sách nộp'}
                   </button>
                   <button
                     onClick={() => handleOpenEditModal(assignment)}
@@ -438,7 +438,6 @@ export default function AssignmentManager({ classId }) {
                             rel="noreferrer"
                             className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-md transition"
                           >
-                            <span>📎</span>
                             <span className="truncate max-w-[200px]">{att.fileName || `Tệp ${attIdx + 1}`}</span>
                           </a>
                         ))}
@@ -463,10 +462,10 @@ export default function AssignmentManager({ classId }) {
               {/* BẢNG BÀI NỘP CỦA HỌC VIÊN HIỂN THỊ NGAY DƯỚI BÀI TẬP ĐƯỢC CHỌN */}
               {isSelected && (
                 <div className="border-t-2 border-blue-500 bg-slate-50/60 animate-in fade-in duration-200">
-                  <div className="p-3.5 bg-slate-900 text-white flex justify-between items-center">
+                  <div className="p-3.5 bg-[#0f172b] text-white flex justify-between items-center">
                     <div>
                       <h4 className="font-bold text-sm sm:text-base flex items-center gap-2">
-                        <span>📊 Danh Sách Bài Nộp:</span>
+                        <span>Danh Sách Bài Nộp:</span>
                         <span className="text-blue-300 font-semibold">{assignment.title}</span>
                       </h4>
                       <p className="text-xs text-slate-400 mt-0.5">
@@ -475,17 +474,15 @@ export default function AssignmentManager({ classId }) {
                     </div>
                     <button
                       onClick={() => setActiveAssignmentForSubmissions(null)}
-                      className="text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1 rounded-md transition cursor-pointer font-medium">
-                      Đóng danh sách ✕
+                      className="text-slate-400 hover:text-white p-1 text-base font-bold leading-none rounded hover:bg-white/10 transition cursor-pointer"
+                      title="Đóng">
+                      ✕
                     </button>
                   </div>
 
                   {/* Thông báo chính sách lưu trữ bài nộp 2 tuần */}
-                  <div className="px-4 py-2 bg-amber-50/80 border-b border-amber-200/80 text-amber-900 text-xs flex items-center gap-2">
-                    <span>⏱️</span>
-                    <span>
-                      <b>Chính sách lưu trữ:</b> Bài làm của học sinh được lưu giữ trong <b>2 tuần</b> (tuần trước & tuần này) để tối ưu không gian lưu trữ đám mây.
-                    </span>
+                  <div className="px-4 py-2 bg-amber-50/80 border-b border-amber-200/80 text-amber-900 text-xs">
+                    <b>Chính sách lưu trữ:</b> Bài làm của học sinh được lưu giữ trong <b>2 tuần</b> (tuần trước & tuần này) để tối ưu không gian lưu trữ đám mây.
                   </div>
 
                   {loadingSubmissions ? (
@@ -530,11 +527,11 @@ export default function AssignmentManager({ classId }) {
                                 <td className="px-5 py-3.5 text-xs text-gray-700">
                                   {sub?.submissionType ? (
                                     <span className="font-medium">
-                                      {sub.submissionType === 'TEXT' && '📝 Văn bản'}
-                                      {sub.submissionType === 'DOCX' && '📄 File Word'}
-                                      {sub.submissionType === 'AUDIO' && '🎵 File Audio'}
-                                      {sub.submissionType === 'DIRECT_RECORD' && '🎙️ Ghi âm trực tiếp'}
-                                      {sub.submissionType === 'IMAGE' && '🖼️ Hình ảnh'}
+                                      {sub.submissionType === 'TEXT' && 'Văn bản'}
+                                      {sub.submissionType === 'DOCX' && 'File Word'}
+                                      {sub.submissionType === 'AUDIO' && 'File Audio'}
+                                      {sub.submissionType === 'DIRECT_RECORD' && 'Ghi âm trực tiếp'}
+                                      {sub.submissionType === 'IMAGE' && 'Hình ảnh'}
                                     </span>
                                   ) : '—'}
                                 </td>

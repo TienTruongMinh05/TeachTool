@@ -44,9 +44,10 @@ export default function BookPagePickerModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 text-xs font-semibold text-slate-300 bg-slate-700 hover:bg-slate-600 hover:text-white rounded-lg transition cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-white text-base font-bold rounded-lg transition cursor-pointer"
+              title="Đóng"
             >
-              Đóng
+              ✕
             </button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 
 /**
  * Component hiển thị nội dung đề bài/mô tả có tính năng thu gọn tự động khi nội dung quá dài.
@@ -46,9 +46,9 @@ export default function CollapsibleDescription({
           e.stopPropagation();
           setIsExpanded(!isExpanded);
         }}
-        className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer select-none pt-0.5"
+        className="inline-flex items-center text-[11px] font-semibold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer select-none pt-0.5"
       >
-        <span>{isExpanded ? 'Thu gọn ▲' : 'Xem thêm ▼'}</span>
+        <span>{isExpanded ? 'Thu gọn' : 'Xem thêm'}</span>
       </button>
     </div>
   );

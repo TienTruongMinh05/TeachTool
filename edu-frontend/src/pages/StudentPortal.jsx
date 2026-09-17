@@ -1319,7 +1319,7 @@ export default function StudentPortal() {
       {activeAssignmentToSubmit && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg my-6 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="p-4 sm:p-5 bg-slate-900 text-white flex justify-between items-start">
+            <div className="p-4 sm:p-5 bg-[#0f172b] text-white flex justify-between items-start">
               <div>
                 <h4 className="text-base font-bold truncate max-w-sm">
                   {activeAssignmentToSubmit.title}
@@ -1370,9 +1370,8 @@ export default function StudentPortal() {
                             href={att.fileUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-white hover:bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg transition shadow-2xs"
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 bg-white hover:bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg transition shadow-2xs"
                           >
-                            <span>📎</span>
                             <span className="truncate max-w-[240px]">{att.fileName || `Tệp ${idx + 1}`}</span>
                             <span className="text-[10px] text-blue-400">↗</span>
                           </a>
@@ -1394,7 +1393,6 @@ export default function StudentPortal() {
                   <div className="p-4 bg-gradient-to-br from-slate-50 to-blue-50/40 border border-blue-200 rounded-xl space-y-3.5 shadow-2xs">
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-blue-100 pb-2.5">
                       <div className="flex items-center gap-2">
-                        {!isGraded && <span className="text-base">⏳</span>}
                         <div>
                           <h5 className="font-bold text-xs sm:text-sm text-slate-800">
                             {isGraded ? 'Kết Quả Đánh Giá & Nhận Xét' : 'Trạng Thái Bài Nộp Của Bạn'}
@@ -1457,8 +1455,7 @@ export default function StudentPortal() {
                           type="button"
                           onClick={() => handleDeleteSubmission(existingSubmission.id)}
                           disabled={isDeletingSubmission}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition cursor-pointer disabled:opacity-50 shadow-2xs shrink-0">
-                          <span>🗑️</span>
+                          className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition cursor-pointer disabled:opacity-50 shadow-2xs shrink-0">
                           <span>{isDeletingSubmission ? 'Đang xóa...' : 'Xóa bài đã nộp'}</span>
                         </button>
                       </div>
@@ -1468,9 +1465,8 @@ export default function StudentPortal() {
               })()}
 
               {/* Thông báo chính sách lưu trữ bài làm 2 tuần */}
-              <div className="p-2 bg-amber-50/90 border border-amber-200/80 rounded-lg text-xs text-amber-900 flex items-center gap-1.5">
-                <span>⏱️</span>
-                <span><b>Lưu ý lưu trữ:</b> Bài làm đã nộp được lưu giữ trong <b>2 tuần</b> (tuần trước & tuần này) để tối ưu lưu trữ hệ thống.</span>
+              <div className="p-2 bg-amber-50/90 border border-amber-200/80 rounded-lg text-xs text-amber-900">
+                <b>Lưu ý lưu trữ:</b> Bài làm đã nộp được lưu giữ trong <b>2 tuần</b> (tuần trước & tuần này) để tối ưu lưu trữ hệ thống.
               </div>
 
               {/* Chọn phương thức nộp bài (chỉ hiện các phương thức được giáo viên cho phép) */}
@@ -1623,8 +1619,8 @@ export default function StudentPortal() {
                   </label>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <label className="px-3 py-2 bg-white border border-gray-300 hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-700 cursor-pointer shadow-2xs flex items-center gap-1.5 transition">
-                      <span>📁</span> Tải ảnh từ máy (.jpg, .png)
+                    <label className="px-3 py-2 bg-white border border-gray-300 hover:bg-gray-100 rounded-lg text-xs font-semibold text-gray-700 cursor-pointer shadow-2xs flex items-center transition">
+                      Tải ảnh từ máy (.jpg, .png)
                       <input
                         type="file"
                         accept="image/*,.jpg,.jpeg,.png,.webp"
@@ -1642,8 +1638,8 @@ export default function StudentPortal() {
                           startCamera();
                         }
                       }}
-                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-2xs flex items-center gap-1.5 transition">
-                      <span>📷</span> Chụp ảnh nộp bài
+                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-2xs flex items-center transition">
+                      Chụp ảnh nộp bài
                     </button>
 
                     <input
@@ -1658,7 +1654,7 @@ export default function StudentPortal() {
 
                   {/* Khung chụp ảnh Webcam nếu mở trực tiếp trên máy tính */}
                   {isCameraActive && (
-                    <div className="p-3 bg-slate-900 rounded-xl space-y-2 text-center animate-fade-in">
+                    <div className="p-3 bg-[#0f172b] rounded-xl space-y-2 text-center animate-fade-in">
                       <div className="relative rounded-lg overflow-hidden max-w-md mx-auto bg-black">
                         <video
                           ref={videoRef}
@@ -1672,8 +1668,8 @@ export default function StudentPortal() {
                         <button
                           type="button"
                           onClick={capturePhoto}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer flex items-center gap-1.5">
-                          <span>📸</span> Bấm chụp ảnh này
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer flex items-center">
+                          Bấm chụp ảnh này
                         </button>
                         <button
                           type="button"
