@@ -14,7 +14,7 @@ public interface ClassRoomRepository extends JpaRepository<ClassRoom, Long> {
     List<ClassRoom> findByTeacherId(Long teacherId);
     List<ClassRoom> findByTeacherIdOrTeacherIdIsNull(Long teacherId);
 
-    @Query("SELECT DISTINCT c FROM ClassRoom c LEFT JOIN ClassTeacher ct ON ct.classRoom.id = c.id WHERE c.teacherId = :teacherId OR ct.teacher.id = :teacherId")
+    @Query("SELECT DISTINCT c FROM ClassRoom c LEFT JOIN ClassTeacher ct ON ct.classRoom.id = c.id WHERE c.teacherId = :teacherId OR ct.teacher.id = :teacherId OR c.teacherId IS NULL")
     List<ClassRoom> findAllForTeacher(@Param("teacherId") Long teacherId);
 
     List<ClassRoom> findByEndDateBefore(java.time.LocalDate cutoff);

@@ -57,7 +57,10 @@ public class ClassRoomService {
     // Kiểm tra xem giáo viên có phụ trách lớp học không (Chủ nhiệm hoặc Đồng phụ trách)
     public boolean isTeacherOfClass(ClassRoom classRoom, Long teacherId) {
         if (teacherId == null || classRoom == null) return false;
-        if (classRoom.getTeacherId() != null && classRoom.getTeacherId().equals(teacherId)) {
+        if (classRoom.getTeacherId() == null) {
+            return true; // Cho phép truy cập lớp legacy chưa gán chủ nhiệm
+        }
+        if (classRoom.getTeacherId().equals(teacherId)) {
             return true;
         }
         return classTeacherRepository.existsByClassRoomIdAndTeacherId(classRoom.getId(), teacherId);
@@ -94,13 +97,32 @@ public class ClassRoomService {
         return getClassesByTeacher(null);
     }
 
+    @Transactional
     public List<ClassRoom> getClassesByTeacher(Long teacherId) {
         List<ClassRoom> list = (teacherId != null)
                 ? repository.findAllForTeacher(teacherId)
                 : repository.findAll();
         for (ClassRoom c : list) {
+            boolean modified = false;
             if (c.getClassCode() == null || c.getClassCode().trim().isEmpty()) {
                 c.setClassCode(generateUniqueClassCode());
+                modified = true;
+            }
+            if (c.getTeacherId() == null && teacherId != null) {
+                c.setTeacherId(teacherId);
+                modified = true;
+                if (!classTeacherRepository.existsByClassRoomIdAndTeacherId(c.getId(), teacherId)) {
+                    userRepository.findById(teacherId).ifPresent(user -> {
+                        classTeacherRepository.save(com.edumanager.api.entity.ClassTeacher.builder()
+                                .classRoom(c)
+                                .teacher(user)
+                                .roleInClass("PRIMARY")
+                                .joinedAt(java.time.LocalDateTime.now())
+                                .build());
+                    });
+                }
+            }
+            if (modified) {
                 repository.save(c);
             }
         }
