@@ -30,7 +30,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         String method = request.getMethod().toUpperCase();
 
         // 2. Danh sách trắng (Public Endpoints - Không yêu cầu đăng nhập)
-        if (isPublicEndpoint(path)) {
+        if (isPublicEndpoint(path, method)) {
             return true;
         }
 
@@ -79,13 +79,22 @@ public class AuthInterceptor implements HandlerInterceptor {
         return true;
     }
 
-    private boolean isPublicEndpoint(String path) {
+    private boolean isPublicEndpoint(String path, String method) {
+        // Cho phép HEAD hoặc GET trên kho hoạt động mẫu /api/activities (UptimeRobot ping giữ ấm server)
+        if ("HEAD".equalsIgnoreCase(method) || "GET".equalsIgnoreCase(method)) {
+            if (path.equals("/api/activities") || path.startsWith("/api/activities/")) {
+                return true;
+            }
+        }
+
         return path.startsWith("/api/auth/login") ||
                path.startsWith("/api/auth/register") ||
                path.startsWith("/api/auth/google-login") ||
                path.startsWith("/api/files/download/") ||
                path.startsWith("/api/files/view/") ||
                path.equals("/api/files/system-diag") ||
+               path.equals("/api/health") ||
+               path.equals("/health") ||
                path.startsWith("/swagger-ui") ||
                path.startsWith("/v3/api-docs") ||
                path.equals("/actuator/health") ||
