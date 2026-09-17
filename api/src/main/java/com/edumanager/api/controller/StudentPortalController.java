@@ -189,4 +189,45 @@ public class StudentPortalController {
                 "note", attendance.getNote()
         ));
     }
+
+    @PostMapping("/{studentId}/cancel-absence/{sessionId}")
+    public ResponseEntity<?> cancelAbsence(
+            @PathVariable Long studentId,
+            @PathVariable Long sessionId,
+            HttpServletRequest servletRequest) {
+
+        // Chống IDOR: Học sinh chỉ được hủy báo vắng cho chính mình
+        Long callerId = (Long) servletRequest.getAttribute("userId");
+        String callerRole = (String) servletRequest.getAttribute("userRole");
+        if ("STUDENT".equalsIgnoreCase(callerRole) && callerId != null && !callerId.equals(studentId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Bạn không có quyền hủy báo vắng thay cho tài khoản học sinh khác."));
+        }
+
+        Session session = sessionRepository.findById(sessionId).orElse(null);
+        if (session == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Không tìm thấy buổi học!"));
+        }
+
+        if (session.getStartTime() == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Buổi học chưa có thời gian bắt đầu!"));
+        }
+
+        java.time.LocalDateTime now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDateTime();
+        java.time.LocalDateTime sessionEndTime = session.getEndTime() != null
+                ? session.getEndTime()
+                : session.getStartTime().plusMinutes(session.getDurationMinutes() != null ? session.getDurationMinutes() : 90);
+
+        if (now.isAfter(sessionEndTime)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Buổi học này đã kết thúc, không thể hủy báo vắng!"));
+        }
+
+        // Xóa trạng thái điểm danh báo vắng để học sinh trở về trạng thái bình thường
+        attendanceRepository.findBySessionIdAndStudentId(sessionId, studentId)
+                .ifPresent(attendanceRepository::delete);
+
+        return ResponseEntity.ok(Map.of(
+                "message", "Đã hủy báo vắng thành công! Bạn có thể tham gia buổi học bình thường."
+        ));
+    }
 }

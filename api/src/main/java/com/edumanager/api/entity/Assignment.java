@@ -39,6 +39,9 @@ public class Assignment {
     private String attachmentFileName;
     private String attachmentFileUrl;
 
+    @Column(columnDefinition = "TEXT")
+    private String attachmentsJson;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 

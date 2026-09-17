@@ -14,6 +14,7 @@ public record AssignmentResponseDTO(
     String allowedSubmissionTypes,
     String attachmentFileName,
     String attachmentFileUrl,
+    String attachmentsJson,
     LocalDateTime createdAt
 ) {
     public static AssignmentResponseDTO fromEntity(Assignment a) {
@@ -28,6 +29,7 @@ public record AssignmentResponseDTO(
             a.getAllowedSubmissionTypes(),
             a.getAttachmentFileName(),
             a.getAttachmentFileUrl(),
+            a.getAttachmentsJson(),
             a.getCreatedAt()
         );
     }

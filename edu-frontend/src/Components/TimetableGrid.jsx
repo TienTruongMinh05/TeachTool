@@ -191,6 +191,14 @@ export default function TimetableGrid({
     return diffMinutes >= 120;
   };
 
+  const isSessionEnded = (session) => {
+    if (!session || !session.startTime) return false;
+    const start = new Date(session.startTime);
+    const duration = session.durationMinutes || 90;
+    const end = session.endTime ? new Date(session.endTime) : new Date(start.getTime() + duration * 60000);
+    return new Date() > end;
+  };
+
   const getAbsenceTimeRemaining = (session) => {
     if (!session || !session.startTime) return '';
     const start = new Date(session.startTime);
@@ -209,6 +217,33 @@ export default function TimetableGrid({
     setAbsenceReason('');
     setAbsenceError('');
     setShowAbsenceModal(true);
+  };
+
+  const [isCancellingAbsence, setIsCancellingAbsence] = useState(false);
+
+  const handleCancelAbsence = async (e, session) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (!studentId || !session) return;
+    const ok = window.confirm('Bạn có chắc chắn muốn hủy báo vắng để đi học lại buổi học này không?');
+    if (!ok) return;
+
+    try {
+      setIsCancellingAbsence(true);
+      await studentPortalApi.cancelAbsence(
+        studentId,
+        session.sessionId || session.id
+      );
+
+      toast.success('Đã hủy báo vắng thành công! Bạn có thể tham gia buổi học.');
+      setSelectedSession(null);
+      if (onReportAbsenceSuccess) {
+        onReportAbsenceSuccess();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Có lỗi xảy ra khi hủy báo vắng.');
+    } finally {
+      setIsCancellingAbsence(false);
+    }
   };
 
   const handleSubmitAbsence = async (e) => {
@@ -500,6 +535,17 @@ export default function TimetableGrid({
                                 Báo vắng
                               </button>
                             )}
+
+                            {isStudent && hasAbsentReport && !isSessionEnded(session) && (
+                              <button
+                                type="button"
+                                onClick={(e) => handleCancelAbsence(e, session)}
+                                disabled={isCancellingAbsence}
+                                className="px-1.5 py-0.5 text-[9px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded border border-emerald-300 transition cursor-pointer"
+                              >
+                                {isCancellingAbsence ? '...' : 'Hủy vắng'}
+                              </button>
+                            )}
                           </div>
 
                           {/* Nhóm badge trạng thái: Bài tập & Dặn dò chuẩn bị */}
@@ -567,63 +613,109 @@ export default function TimetableGrid({
 
             {/* PHẦN 1: BÀI TẬP VỀ NHÀ CỦA BUỔI HỌC */}
             {selectedSession.assignments && selectedSession.assignments.length > 0 && (
-              <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2">
+              <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-xl space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wider">
-                    Bài tập về nhà buổi này
+                    Bài tập về nhà buổi này ({selectedSession.assignments.length})
                   </h4>
-                  {selectedSession.homeworkStatus === 'GRADED' && (
-                    <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
-                      Đã chấm: {selectedSession.homeworkScore} đ
-                    </span>
-                  )}
-                  {selectedSession.homeworkStatus === 'SUBMITTED' && (
-                    <span className="text-xs font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded border border-blue-300">
-                      Đã nộp bài
-                    </span>
-                  )}
-                  {selectedSession.homeworkStatus === 'DRAFT' && (
-                    <span className="text-xs font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
-                      Bản nháp đang làm dở
-                    </span>
-                  )}
-                  {selectedSession.homeworkStatus === 'NOT_SUBMITTED' && (
-                    <span className="text-xs font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded border border-red-300">
-                      Chưa nộp bài
-                    </span>
-                  )}
                 </div>
 
-                {selectedSession.assignments.map(asgn => (
-                  <div key={asgn.id} className="bg-white p-3 rounded-lg border border-blue-100 space-y-1.5">
-                    <div className="font-bold text-xs text-gray-800">{asgn.title}</div>
-                    {asgn.description && (
-                      <p className="text-xs text-gray-600 leading-relaxed">{asgn.description}</p>
-                    )}
-                    <div className="text-[11px] text-gray-500 flex flex-wrap items-center gap-2 pt-1">
-                      <span>Điểm tối đa: <b>{asgn.maxScore || 10}đ</b></span>
-                      {asgn.dueDate && (
-                        <span>Hạn nộp: <b>{new Date(asgn.dueDate).toLocaleDateString('vi-VN')}</b></span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                <div className="space-y-2.5">
+                  {selectedSession.assignments.map((asgn, aIdx) => {
+                    let atts = [];
+                    if (asgn.attachmentsJson) {
+                      try { atts = JSON.parse(asgn.attachmentsJson); } catch {}
+                    }
+                    if ((!atts || atts.length === 0) && asgn.attachmentFileUrl) {
+                      atts = [{ fileName: asgn.attachmentFileName || 'Tải file đề bài', fileUrl: asgn.attachmentFileUrl }];
+                    }
 
-                {isStudent && onGoToAssignment && (
-                  <div className="pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const s = selectedSession;
-                        setSelectedSession(null);
-                        onGoToAssignment(s);
-                      }}
-                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition shadow-xs cursor-pointer text-center"
-                    >
-                      {selectedSession.homeworkStatus === 'DRAFT' ? 'Tiếp tục làm bài tập (Mở bản nháp)' : selectedSession.homeworkStatus === 'SUBMITTED' || selectedSession.homeworkStatus === 'GRADED' ? 'Xem lại bài nộp' : 'Làm bài tập ngay'}
-                    </button>
-                  </div>
-                )}
+                    return (
+                      <div key={asgn.id || aIdx} className="bg-white p-3 rounded-lg border border-blue-100 shadow-2xs space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="font-bold text-xs text-gray-800">
+                            {aIdx + 1}. {asgn.title}
+                          </div>
+                          {asgn.submissionStatus === 'GRADED' && (
+                            <span className="shrink-0 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                              Đã chấm: {asgn.submissionScore != null ? asgn.submissionScore : '—'} đ
+                            </span>
+                          )}
+                          {asgn.submissionStatus === 'SUBMITTED' && (
+                            <span className="shrink-0 text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded border border-blue-300">
+                              Đã nộp bài
+                            </span>
+                          )}
+                          {asgn.submissionStatus === 'DRAFT' && (
+                            <span className="shrink-0 text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                              Bản nháp
+                            </span>
+                          )}
+                          {(!asgn.submissionStatus || asgn.submissionStatus === 'NOT_SUBMITTED') && (
+                            <span className="shrink-0 text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded border border-red-300">
+                              Chưa nộp
+                            </span>
+                          )}
+                        </div>
+
+                        {asgn.description && (
+                          <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{asgn.description}</p>
+                        )}
+
+                        {atts && atts.length > 0 && (
+                          <div className="pt-1 space-y-1">
+                            <span className="text-[11px] text-slate-500 font-medium">Tệp đính kèm ({atts.length}):</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {atts.map((att, attIdx) => (
+                                <a
+                                  key={attIdx}
+                                  href={att.fileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded transition"
+                                >
+                                  <span>📎</span>
+                                  <span className="truncate max-w-[180px]">{att.fileName || `Tệp ${attIdx + 1}`}</span>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="text-[11px] text-gray-500 flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                          <div>
+                            {asgn.dueDate && (
+                              <span>Hạn nộp: <b>{new Date(asgn.dueDate).toLocaleDateString('vi-VN')}</b></span>
+                            )}
+                          </div>
+                          {isStudent && onGoToAssignment && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const s = selectedSession;
+                                setSelectedSession(null);
+                                onGoToAssignment(s, asgn);
+                              }}
+                              className={`px-3 py-1 text-xs font-semibold rounded-md transition shadow-2xs cursor-pointer ${
+                                asgn.submissionStatus === 'DRAFT'
+                                  ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                                  : (asgn.submissionStatus === 'SUBMITTED' || asgn.submissionStatus === 'GRADED')
+                                  ? 'bg-slate-700 hover:bg-slate-800 text-white'
+                                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                              }`}
+                            >
+                              {asgn.submissionStatus === 'DRAFT'
+                                ? 'Tiếp tục làm bài (Nháp)'
+                                : (asgn.submissionStatus === 'SUBMITTED' || asgn.submissionStatus === 'GRADED')
+                                ? 'Xem lại bài nộp'
+                                : 'Làm bài tập này'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -669,6 +761,16 @@ export default function TimetableGrid({
                   className="px-3.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-lg transition cursor-pointer"
                 >
                   Báo vắng buổi này
+                </button>
+              )}
+              {isStudent && selectedSession.attendanceStatus === 'ABSENT' && !isSessionEnded(selectedSession) && (
+                <button
+                  type="button"
+                  onClick={(e) => handleCancelAbsence(e, selectedSession)}
+                  disabled={isCancellingAbsence}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition cursor-pointer flex items-center gap-1.5"
+                >
+                  {isCancellingAbsence ? 'Đang hủy...' : 'Hủy báo vắng (Đi học lại)'}
                 </button>
               )}
               <button

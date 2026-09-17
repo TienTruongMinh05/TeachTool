@@ -30,8 +30,7 @@ export default function AssignmentManager({ classId }) {
     allowAudio: false,
     allowRecording: false,
     allowImage: false,
-    attachmentFileName: '',
-    attachmentFileUrl: ''
+    attachments: []
   });
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
 
@@ -83,8 +82,7 @@ export default function AssignmentManager({ classId }) {
       allowAudio: false,
       allowRecording: false,
       allowImage: false,
-      attachmentFileName: '',
-      attachmentFileUrl: ''
+      attachments: []
     });
     setIsModalOpen(true);
   };
@@ -99,6 +97,20 @@ export default function AssignmentManager({ classId }) {
       localDueDate = new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
     }
 
+    let initialAttachments = [];
+    if (assignment.attachmentsJson) {
+      try {
+        const parsed = JSON.parse(assignment.attachmentsJson);
+        if (Array.isArray(parsed) && parsed.length > 0) initialAttachments = parsed;
+      } catch {}
+    }
+    if (initialAttachments.length === 0 && assignment.attachmentFileUrl) {
+      initialAttachments = [{
+        fileName: assignment.attachmentFileName || 'Tệp đính kèm',
+        fileUrl: assignment.attachmentFileUrl
+      }];
+    }
+
     setFormData({
       sessionId: assignment.sessionId ? String(assignment.sessionId) : '',
       title: assignment.title || '',
@@ -109,29 +121,54 @@ export default function AssignmentManager({ classId }) {
       allowAudio: allowed.includes('AUDIO'),
       allowRecording: allowed.includes('DIRECT_RECORD'),
       allowImage: allowed.includes('IMAGE'),
-      attachmentFileName: assignment.attachmentFileName || '',
-      attachmentFileUrl: assignment.attachmentFileUrl || ''
+      attachments: initialAttachments
     });
     setIsModalOpen(true);
   };
 
   const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const currentCount = formData.attachments?.length || 0;
+    if (currentCount >= 5) {
+      toast.warning('Bạn chỉ được đính kèm tối đa 5 tệp cho một bài tập.');
+      e.target.value = '';
+      return;
+    }
+
+    const availableSlots = 5 - currentCount;
+    const filesToUpload = files.slice(0, availableSlots);
+    if (files.length > availableSlots) {
+      toast.info(`Chỉ tải lên ${availableSlots} tệp đầu tiên (tối đa 5 tệp).`);
+    }
+
     try {
       setUploadingAttachment(true);
-      const res = await fileApi.upload(file);
+      const uploadPromises = filesToUpload.map(f => fileApi.upload(f));
+      const results = await Promise.all(uploadPromises);
+      const newAttachments = results.map(res => ({
+        fileName: res.fileName,
+        fileUrl: res.fileUrl
+      }));
       setFormData(prev => ({
         ...prev,
-        attachmentFileName: res.fileName,
-        attachmentFileUrl: res.fileUrl
+        attachments: [...(prev.attachments || []), ...newAttachments]
       }));
-      toast.success(`Đã tải lên tệp đính kèm "${res.fileName}"`);
+      toast.success(`Đã tải lên ${results.length} tệp đính kèm.`);
     } catch (err) {
       toast.error('Lỗi tải tệp: ' + (err.response?.data?.message || err.message));
     } finally {
       setUploadingAttachment(false);
+      e.target.value = '';
     }
+  };
+
+  const handleRemoveAttachment = (indexToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      attachments: (prev.attachments || []).filter((_, idx) => idx !== indexToRemove)
+    }));
   };
 
   const handleSaveAssignment = async (e) => {
@@ -144,13 +181,17 @@ export default function AssignmentManager({ classId }) {
       if (formData.allowRecording) allowedTypes.push('DIRECT_RECORD');
       if (formData.allowImage) allowedTypes.push('IMAGE');
 
+      const attachments = formData.attachments || [];
+      const firstAttachment = attachments[0] || {};
+
       const payload = {
         title: formData.title,
         description: formData.description,
         dueDate: formData.dueDate ? formData.dueDate + ':00' : null,
         allowedSubmissionTypes: allowedTypes.join(','),
-        attachmentFileName: formData.attachmentFileName,
-        attachmentFileUrl: formData.attachmentFileUrl
+        attachmentFileName: firstAttachment.fileName || null,
+        attachmentFileUrl: firstAttachment.fileUrl || null,
+        attachmentsJson: attachments.length > 0 ? JSON.stringify(attachments) : null
       };
 
       const sid = formData.sessionId ? Number(formData.sessionId) : null;
@@ -371,18 +412,35 @@ export default function AssignmentManager({ classId }) {
                   </p>
                 )}
 
-                {assignment.attachmentFileUrl && (
-                  <div className="flex items-center gap-2 pt-1">
-                    <span className="text-xs text-gray-500">Tệp đề bài đính kèm:</span>
-                    <a
-                      href={assignment.attachmentFileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs font-semibold text-blue-600 hover:underline">
-                      {assignment.attachmentFileName || 'Tải file đề bài'}
-                    </a>
-                  </div>
-                )}
+                {(() => {
+                  let atts = [];
+                  if (assignment.attachmentsJson) {
+                    try { atts = JSON.parse(assignment.attachmentsJson); } catch {}
+                  }
+                  if ((!atts || atts.length === 0) && assignment.attachmentFileUrl) {
+                    atts = [{ fileName: assignment.attachmentFileName || 'Tải file đề bài', fileUrl: assignment.attachmentFileUrl }];
+                  }
+                  if (!atts || atts.length === 0) return null;
+                  return (
+                    <div className="pt-1 space-y-1">
+                      <span className="text-xs text-gray-500 font-medium">Tệp đề bài đính kèm ({atts.length}):</span>
+                      <div className="flex flex-wrap gap-2">
+                        {atts.map((att, attIdx) => (
+                          <a
+                            key={attIdx}
+                            href={att.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-md transition"
+                          >
+                            <span>📎</span>
+                            <span className="truncate max-w-[200px]">{att.fileName || `Tệp ${attIdx + 1}`}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="pt-2 border-t border-gray-100 flex flex-wrap items-center gap-2">
                   <span className="text-xs text-gray-400 font-medium">Hình thức nộp cho phép:</span>
@@ -739,22 +797,53 @@ export default function AssignmentManager({ classId }) {
                 />
               </div>
 
-              {/* Tệp đề bài đính kèm */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Đính kèm tệp đề bài (Tùy chọn)
-                </label>
-                <input
-                  type="file"
-                  onChange={handleFileUpload}
-                  className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
-                />
-                {uploadingAttachment && <p className="text-xs text-blue-600 mt-1">Đang tải tệp lên...</p>}
-                {formData.attachmentFileName && (
-                  <p className="text-xs text-emerald-700 font-medium mt-1">
-                    Đã đính kèm: {formData.attachmentFileName}
-                  </p>
+              {/* Tệp đề bài đính kèm (Tối đa 5 tệp) */}
+              <div className="space-y-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-gray-700">
+                    Đính kèm tệp đề bài (Tối đa 5 tệp)
+                  </label>
+                  <span className="text-[11px] font-medium text-slate-500">
+                    Đã chọn: {formData.attachments?.length || 0}/5
+                  </span>
+                </div>
+
+                {/* Danh sách tệp đã đính kèm */}
+                {formData.attachments && formData.attachments.length > 0 && (
+                  <div className="space-y-1.5">
+                    {formData.attachments.map((att, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-white border border-gray-200 px-2.5 py-1.5 rounded-md text-xs">
+                        <div className="flex items-center gap-1.5 truncate max-w-[85%]">
+                          <span className="text-slate-400">📎</span>
+                          <a href={att.fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 font-medium hover:underline truncate">
+                            {att.fileName || `Tệp ${idx + 1}`}
+                          </a>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAttachment(idx)}
+                          className="text-red-500 hover:text-red-700 p-1 font-bold cursor-pointer transition"
+                          title="Xóa tệp này"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
+
+                {(!formData.attachments || formData.attachments.length < 5) && (
+                  <div>
+                    <input
+                      type="file"
+                      multiple
+                      onChange={handleFileUpload}
+                      className="block w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                    />
+                  </div>
+                )}
+
+                {uploadingAttachment && <p className="text-xs text-blue-600 font-medium">Đang tải tệp lên...</p>}
               </div>
 
               {/* Chọn hình thức nộp cho phép */}

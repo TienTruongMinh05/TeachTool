@@ -154,44 +154,59 @@ export default function StudentPortal() {
       let homeworkStatus = null;
       let homeworkScore = null;
 
-      if (combinedAssignments.length > 0) {
-        let hasGraded = false;
-        let hasSubmitted = false;
-        let hasDraft = false;
-
-        combinedAssignments.forEach(asgn => {
-          const sub = submissions.find(s => s.assignmentId === asgn.id);
-          if (sub) {
-            if (sub.status === 'GRADED' || (sub.score !== null && sub.score !== undefined)) {
-              hasGraded = true;
-              homeworkScore = sub.score;
-            } else {
-              hasSubmitted = true;
-            }
+      const enrichedAssignments = combinedAssignments.map(asgn => {
+        const fullAss = assignments.find(a => a.id === asgn.id) || asgn;
+        const sub = submissions.find(s => s.assignmentId === asgn.id);
+        let asgnStatus = 'NOT_SUBMITTED';
+        let asgnScore = null;
+        if (sub) {
+          if (sub.status === 'GRADED' || (sub.score !== null && sub.score !== undefined)) {
+            asgnStatus = 'GRADED';
+            asgnScore = sub.score;
           } else {
-            // Kiểm tra xem học sinh có bản nháp chưa nộp trong localStorage không
-            try {
-              const draftKey = `draft_asgn_${user?.id}_${asgn.id}`;
-              const draft = localStorage.getItem(draftKey);
-              if (draft) {
-                const parsed = JSON.parse(draft);
-                if (parsed && (parsed.submissionText || parsed.uploadedFileData?.fileUrl)) {
-                  hasDraft = true;
-                }
-              }
-            } catch {}
+            asgnStatus = 'SUBMITTED';
           }
-        });
+        } else {
+          try {
+            const draftKey = `draft_asgn_${user?.id}_${asgn.id}`;
+            const draft = localStorage.getItem(draftKey);
+            if (draft) {
+              const parsed = JSON.parse(draft);
+              if (parsed && (parsed.submissionText || parsed.uploadedFileData?.fileUrl)) {
+                asgnStatus = 'DRAFT';
+              }
+            }
+          } catch {}
+        }
+        return {
+          ...fullAss,
+          submission: sub || null,
+          submissionStatus: asgnStatus,
+          submissionScore: asgnScore
+        };
+      });
 
-        if (hasGraded) homeworkStatus = 'GRADED';
-        else if (hasSubmitted) homeworkStatus = 'SUBMITTED';
-        else if (hasDraft) homeworkStatus = 'DRAFT';
-        else homeworkStatus = 'NOT_SUBMITTED';
+      if (enrichedAssignments.length > 0) {
+        const hasGraded = enrichedAssignments.some(a => a.submissionStatus === 'GRADED');
+        const hasSubmitted = enrichedAssignments.some(a => a.submissionStatus === 'SUBMITTED');
+        const hasDraft = enrichedAssignments.some(a => a.submissionStatus === 'DRAFT');
+
+        if (hasGraded) {
+          homeworkStatus = 'GRADED';
+          const gradedAss = enrichedAssignments.find(a => a.submissionScore != null);
+          homeworkScore = gradedAss?.submissionScore;
+        } else if (hasSubmitted) {
+          homeworkStatus = 'SUBMITTED';
+        } else if (hasDraft) {
+          homeworkStatus = 'DRAFT';
+        } else {
+          homeworkStatus = 'NOT_SUBMITTED';
+        }
       }
 
       return {
         ...session,
-        assignments: combinedAssignments,
+        assignments: enrichedAssignments,
         homeworkStatus,
         homeworkScore
       };
@@ -482,10 +497,44 @@ export default function StudentPortal() {
     }
   };
 
-  const handleGoToAssignment = (session) => {
+  const isSessionEnded = (session) => {
+    if (!session || !session.startTime) return false;
+    const start = new Date(session.startTime);
+    const duration = session.durationMinutes || 90;
+    const end = session.endTime ? new Date(session.endTime) : new Date(start.getTime() + duration * 60000);
+    return new Date() > end;
+  };
+
+  const [cancellingAbsenceId, setCancellingAbsenceId] = useState(null);
+
+  const handleCancelAbsence = async (session) => {
+    if (!user?.id || !session) return;
+    const ok = window.confirm('Bạn có chắc chắn muốn hủy báo vắng để đi học lại buổi học này không?');
+    if (!ok) return;
+
+    const sId = session.sessionId || session.id;
+    try {
+      setCancellingAbsenceId(sId);
+      await studentPortalApi.cancelAbsence(user.id, sId);
+      toast.success('Đã hủy báo vắng thành công! Bạn có thể tham gia buổi học.');
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Lỗi khi hủy báo vắng.');
+    } finally {
+      setCancellingAbsenceId(null);
+    }
+  };
+
+  const handleGoToAssignment = (session, specificAssignment = null) => {
+    if (specificAssignment) {
+      const fullAss = assignments.find(a => a.id === specificAssignment.id) || specificAssignment;
+      openSubmitModal(fullAss);
+      return;
+    }
     if (session?.assignments && session.assignments.length > 0) {
-      const assId = session.assignments[0].id;
-      const fullAss = assignments.find(a => a.id === assId) || session.assignments[0];
+      // Ưu tiên mở bài tập chưa nộp hoặc bản nháp trước
+      const pendingAss = session.assignments.find(a => a.submissionStatus !== 'SUBMITTED' && a.submissionStatus !== 'GRADED') || session.assignments[0];
+      const fullAss = assignments.find(a => a.id === pendingAss.id) || pendingAss;
       openSubmitModal(fullAss);
     }
   };
@@ -684,9 +733,19 @@ export default function StudentPortal() {
                                 )}
 
                                 {isAbsent ? (
-                                  <span className="px-3 py-1.5 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg border border-slate-200">
-                                    Đã vắng
-                                  </span>
+                                  !isSessionEnded(item) ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCancelAbsence(item)}
+                                      disabled={cancellingAbsenceId === (item.sessionId || item.id)}
+                                      className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition cursor-pointer shadow-xs">
+                                      {cancellingAbsenceId === (item.sessionId || item.id) ? 'Đang hủy...' : 'Hủy báo vắng (Đi học lại)'}
+                                    </button>
+                                  ) : (
+                                    <span className="px-3 py-1.5 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg border border-slate-200">
+                                      Đã vắng
+                                    </span>
+                                  )
                                 ) : (
                                   <button
                                     type="button"
@@ -776,35 +835,97 @@ export default function StudentPortal() {
                               {item.assignments && item.assignments.length > 0 && (
                                 <div className="pt-3 border-t border-gray-100 space-y-2">
                                   <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                                    Bài tập liên kết với buổi học này
+                                    Bài tập liên kết với buổi học này ({item.assignments.length})
                                   </h4>
-                                  <div className="space-y-2">
+                                  <div className="space-y-2.5">
                                     {item.assignments.map((ass) => {
-                                      const sub = submissions.find(s => s.assignmentId === ass.id);
+                                      const sub = ass.submission || submissions.find(s => s.assignmentId === ass.id);
+                                      const status = ass.submissionStatus || (sub ? (sub.status === 'GRADED' ? 'GRADED' : 'SUBMITTED') : 'NOT_SUBMITTED');
+                                      let atts = [];
+                                      if (ass.attachmentsJson) {
+                                        try { atts = JSON.parse(ass.attachmentsJson); } catch {}
+                                      }
+                                      if ((!atts || atts.length === 0) && ass.attachmentFileUrl) {
+                                        atts = [{ fileName: ass.attachmentFileName || 'Tệp đính kèm', fileUrl: ass.attachmentFileUrl }];
+                                      }
+
                                       return (
-                                        <div key={ass.id} className="p-3 bg-blue-50/50 border border-blue-200 rounded-lg flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-                                          <div>
-                                            <div className="font-bold text-sm text-gray-800">{ass.title}</div>
-                                            <div className="text-xs text-gray-500 mt-0.5">
-                                              Hạn nộp: <b>{formatDateTime(ass.dueDate)}</b>
-                                            </div>
-                                            {sub?.score !== null && sub?.score !== undefined && (
-                                              <div className="text-xs font-bold text-emerald-700 mt-1">
-                                                Điểm của bạn: {sub.score} / 10
+                                        <div key={ass.id} className="p-3.5 bg-blue-50/50 border border-blue-200 rounded-lg space-y-2">
+                                          <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-2">
+                                            <div className="space-y-1">
+                                              <div className="flex items-center gap-2">
+                                                <span className="font-bold text-sm text-gray-800">{ass.title}</span>
+                                                {status === 'GRADED' && (
+                                                  <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded border border-emerald-300">
+                                                    Đã chấm: {ass.submissionScore != null ? ass.submissionScore : sub?.score} đ
+                                                  </span>
+                                                )}
+                                                {status === 'SUBMITTED' && (
+                                                  <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-800 rounded border border-blue-300">
+                                                    Đã nộp bài
+                                                  </span>
+                                                )}
+                                                {status === 'DRAFT' && (
+                                                  <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded border border-amber-300">
+                                                    Bản nháp
+                                                  </span>
+                                                )}
+                                                {status === 'NOT_SUBMITTED' && (
+                                                  <span className="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-800 rounded border border-red-300">
+                                                    Chưa nộp
+                                                  </span>
+                                                )}
                                               </div>
-                                            )}
+                                              <div className="text-xs text-gray-500">
+                                                Hạn nộp: <b>{formatDateTime(ass.dueDate)}</b>
+                                              </div>
+                                            </div>
+
+                                            <button
+                                              onClick={() => openSubmitModal(ass)}
+                                              className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer shadow-xs self-start sm:self-auto ${
+                                                status === 'DRAFT'
+                                                  ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                                                  : (status === 'SUBMITTED' || status === 'GRADED')
+                                                  ? 'bg-slate-700 hover:bg-slate-800 text-white'
+                                                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                              }`}>
+                                              {status === 'DRAFT'
+                                                ? 'Tiếp tục làm bài (Nháp)'
+                                                : (status === 'SUBMITTED' || status === 'GRADED')
+                                                ? 'Xem lại bài đã nộp'
+                                                : 'Làm bài tập này'}
+                                            </button>
                                           </div>
-                                          <button
-                                            onClick={() => openSubmitModal(ass)}
-                                            className="px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition cursor-pointer shadow-xs self-start sm:self-auto">
-                                            {sub ? 'Xem lại bài đã nộp' : 'Làm & Nộp Bài'}
-                                          </button>
+
+                                          {ass.description && (
+                                            <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{ass.description}</p>
+                                          )}
+
+                                          {atts && atts.length > 0 && (
+                                            <div className="pt-1 flex flex-wrap items-center gap-1.5">
+                                              <span className="text-[11px] text-slate-500 font-medium">Tệp đính kèm ({atts.length}):</span>
+                                              {atts.map((att, aIdx) => (
+                                                <a
+                                                  key={aIdx}
+                                                  href={att.fileUrl}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-white hover:bg-blue-50 border border-blue-200 px-2 py-0.5 rounded transition"
+                                                >
+                                                  <span>📎</span>
+                                                  <span className="truncate max-w-[180px]">{att.fileName || `Tệp ${aIdx + 1}`}</span>
+                                                </a>
+                                              ))}
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })}
                                   </div>
                                 </div>
                               )}
+
                             </div>
                           </div>
                         );
@@ -948,29 +1069,90 @@ export default function StudentPortal() {
                               {item.assignments && item.assignments.length > 0 && (
                                 <div className="pt-3 border-t border-gray-100 space-y-2">
                                   <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                                    Bài tập liên kết với buổi học này
+                                    Bài tập liên kết với buổi học này ({item.assignments.length})
                                   </h4>
-                                  <div className="space-y-2">
+                                  <div className="space-y-2.5">
                                     {item.assignments.map((ass) => {
-                                      const sub = submissions.find(s => s.assignmentId === ass.id);
+                                      const sub = ass.submission || submissions.find(s => s.assignmentId === ass.id);
+                                      const status = ass.submissionStatus || (sub ? (sub.status === 'GRADED' ? 'GRADED' : 'SUBMITTED') : 'NOT_SUBMITTED');
+                                      let atts = [];
+                                      if (ass.attachmentsJson) {
+                                        try { atts = JSON.parse(ass.attachmentsJson); } catch {}
+                                      }
+                                      if ((!atts || atts.length === 0) && ass.attachmentFileUrl) {
+                                        atts = [{ fileName: ass.attachmentFileName || 'Tệp đính kèm', fileUrl: ass.attachmentFileUrl }];
+                                      }
+
                                       return (
-                                        <div key={ass.id} className="p-3 bg-blue-50/50 border border-blue-200 rounded-lg flex flex-col sm:flex-row justify-between sm:items-center gap-3">
-                                          <div>
-                                            <div className="font-bold text-sm text-gray-800">{ass.title}</div>
-                                            <div className="text-xs text-gray-500 mt-0.5">
-                                              Hạn nộp: <b>{formatDateTime(ass.dueDate)}</b>
-                                            </div>
-                                            {sub?.score !== null && sub?.score !== undefined && (
-                                              <div className="text-xs font-bold text-emerald-700 mt-1">
-                                                Điểm của bạn: {sub.score} / 10
+                                        <div key={ass.id} className="p-3.5 bg-blue-50/50 border border-blue-200 rounded-lg space-y-2">
+                                          <div className="flex flex-col sm:flex-row justify-between sm:items-start gap-2">
+                                            <div className="space-y-1">
+                                              <div className="flex items-center gap-2">
+                                                <span className="font-bold text-sm text-gray-800">{ass.title}</span>
+                                                {status === 'GRADED' && (
+                                                  <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 text-emerald-800 rounded border border-emerald-300">
+                                                    Đã chấm: {ass.submissionScore != null ? ass.submissionScore : sub?.score} đ
+                                                  </span>
+                                                )}
+                                                {status === 'SUBMITTED' && (
+                                                  <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-100 text-blue-800 rounded border border-blue-300">
+                                                    Đã nộp bài
+                                                  </span>
+                                                )}
+                                                {status === 'DRAFT' && (
+                                                  <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded border border-amber-300">
+                                                    Bản nháp
+                                                  </span>
+                                                )}
+                                                {status === 'NOT_SUBMITTED' && (
+                                                  <span className="px-2 py-0.5 text-[10px] font-bold bg-red-100 text-red-800 rounded border border-red-300">
+                                                    Chưa nộp
+                                                  </span>
+                                                )}
                                               </div>
-                                            )}
+                                              <div className="text-xs text-gray-500">
+                                                Hạn nộp: <b>{formatDateTime(ass.dueDate)}</b>
+                                              </div>
+                                            </div>
+
+                                            <button
+                                              onClick={() => openSubmitModal(ass)}
+                                              className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer shadow-xs self-start sm:self-auto ${
+                                                status === 'DRAFT'
+                                                  ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                                                  : (status === 'SUBMITTED' || status === 'GRADED')
+                                                  ? 'bg-slate-700 hover:bg-slate-800 text-white'
+                                                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                                              }`}>
+                                              {status === 'DRAFT'
+                                                ? 'Tiếp tục làm bài (Nháp)'
+                                                : (status === 'SUBMITTED' || status === 'GRADED')
+                                                ? 'Xem lại bài đã nộp'
+                                                : 'Làm bài tập này'}
+                                            </button>
                                           </div>
-                                          <button
-                                            onClick={() => openSubmitModal(ass)}
-                                            className="px-3.5 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition cursor-pointer shadow-xs self-start sm:self-auto">
-                                            {sub ? 'Xem lại bài đã nộp' : 'Làm & Nộp Bài'}
-                                          </button>
+
+                                          {ass.description && (
+                                            <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{ass.description}</p>
+                                          )}
+
+                                          {atts && atts.length > 0 && (
+                                            <div className="pt-1 flex flex-wrap items-center gap-1.5">
+                                              <span className="text-[11px] text-slate-500 font-medium">Tệp đính kèm ({atts.length}):</span>
+                                              {atts.map((att, aIdx) => (
+                                                <a
+                                                  key={aIdx}
+                                                  href={att.fileUrl}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-white hover:bg-blue-50 border border-blue-200 px-2 py-0.5 rounded transition"
+                                                >
+                                                  <span>📎</span>
+                                                  <span className="truncate max-w-[180px]">{att.fileName || `Tệp ${aIdx + 1}`}</span>
+                                                </a>
+                                              ))}
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })}
@@ -1121,17 +1303,41 @@ export default function StudentPortal() {
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1.5">
                 <span className="font-bold text-slate-700 block">Yêu cầu bài tập:</span>
                 <p className="text-slate-600 whitespace-pre-wrap">{activeAssignmentToSubmit.description || 'Không có mô tả chi tiết'}</p>
-                {activeAssignmentToSubmit.attachmentFileUrl && (
-                  <div className="pt-1.5">
-                    <a
-                      href={activeAssignmentToSubmit.attachmentFileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center text-xs font-semibold text-blue-600 hover:underline">
-                      Tải tệp đính kèm của giáo viên: {activeAssignmentToSubmit.attachmentFileName || 'Tệp bài giảng'}
-                    </a>
-                  </div>
-                )}
+                {(() => {
+                  let atts = [];
+                  if (activeAssignmentToSubmit.attachmentsJson) {
+                    try { atts = JSON.parse(activeAssignmentToSubmit.attachmentsJson); } catch {}
+                  }
+                  if ((!atts || atts.length === 0) && activeAssignmentToSubmit.attachmentFileUrl) {
+                    atts = [{
+                      fileName: activeAssignmentToSubmit.attachmentFileName || 'Tệp bài giảng',
+                      fileUrl: activeAssignmentToSubmit.attachmentFileUrl
+                    }];
+                  }
+                  if (!atts || atts.length === 0) return null;
+                  return (
+                    <div className="pt-2 border-t border-slate-200 space-y-1.5">
+                      <span className="font-bold text-slate-700 block">
+                        Tệp đính kèm của giáo viên ({atts.length}):
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {atts.map((att, idx) => (
+                          <a
+                            key={idx}
+                            href={att.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-white hover:bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg transition shadow-2xs"
+                          >
+                            <span>📎</span>
+                            <span className="truncate max-w-[240px]">{att.fileName || `Tệp ${idx + 1}`}</span>
+                            <span className="text-[10px] text-blue-400">↗</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* KẾT QUẢ CHẤM BÀI & NHẬN XÉT CỦA GIÁO VIÊN (NẾU ĐÃ NỘP HOẶC ĐÃ ĐƯỢC CHẤM) */}

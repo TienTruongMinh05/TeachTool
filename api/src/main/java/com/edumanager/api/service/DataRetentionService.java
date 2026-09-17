@@ -179,10 +179,17 @@ public class DataRetentionService {
                 .filter(java.util.Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        activeFileNames.addAll(assignmentRepository.findAll().stream()
-                .map(a -> extractStoredName(a.getAttachmentFileUrl()))
-                .filter(java.util.Objects::nonNull)
-                .collect(Collectors.toSet()));
+        for (Assignment a : assignmentRepository.findAll()) {
+            String single = extractStoredName(a.getAttachmentFileUrl());
+            if (single != null) activeFileNames.add(single);
+            if (a.getAttachmentsJson() != null && !a.getAttachmentsJson().isBlank()) {
+                java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\"fileUrl\"\\s*:\\s*\"([^\"]+)\"").matcher(a.getAttachmentsJson());
+                while (matcher.find()) {
+                    String extracted = extractStoredName(matcher.group(1));
+                    if (extracted != null) activeFileNames.add(extracted);
+                }
+            }
+        }
 
         activeFileNames.addAll(submissionRepository.findAll().stream()
                 .map(s -> extractStoredName(s.getFileUrl()))

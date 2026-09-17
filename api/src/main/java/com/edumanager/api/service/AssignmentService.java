@@ -59,6 +59,7 @@ public class AssignmentService {
         existing.setAllowedSubmissionTypes(updated.getAllowedSubmissionTypes());
         existing.setAttachmentFileName(updated.getAttachmentFileName());
         existing.setAttachmentFileUrl(updated.getAttachmentFileUrl());
+        existing.setAttachmentsJson(updated.getAttachmentsJson());
 
         if (updated.getSession() != null && updated.getSession().getId() != null) {
             Session session = sessionRepo.findById(updated.getSession().getId())
