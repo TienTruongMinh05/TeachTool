@@ -116,22 +116,19 @@ public class DataRetentionService {
     public void purgeExpiredTeacherData() {
         LocalDate classCutoff = LocalDate.now().minusMonths(6);
         LocalDateTime sessionCutoff = LocalDateTime.now().minusMonths(6);
+        LocalDate validMinDate = LocalDate.of(2020, 1, 1);
+        LocalDateTime validMinDateTime = LocalDateTime.of(2020, 1, 1, 0, 0);
 
-        // A. Dọn dẹp các lớp học đã kết thúc hơn 6 tháng
-        List<ClassRoom> expiredClasses = classRoomRepository.findByEndDateBefore(classCutoff);
+        // A. Dọn dẹp các lớp học đã kết thúc thực sự hơn 6 tháng (Bỏ qua các lớp có ngày kết thúc mặc định 0001-01-01 hoặc trước 2020)
+        List<ClassRoom> expiredClasses = classRoomRepository.findByEndDateBefore(classCutoff).stream()
+                .filter(c -> c.getEndDate() != null && c.getEndDate().isAfter(validMinDate))
+                .toList();
+
         if (!expiredClasses.isEmpty()) {
             log.info("[DataRetention] Found {} classes ended more than 6 months ago (cutoff: {}). Purging...", 
                     expiredClasses.size(), classCutoff);
             for (ClassRoom cls : expiredClasses) {
                 try {
-                    // Xóa file tài liệu/sách của lớp trong stored_files
-                    List<ClassMaterial> materials = classMaterialRepository.findByClassRoomIdOrderByCreatedAtDesc(cls.getId());
-                    for (ClassMaterial mat : materials) {
-                        String storedName = extractStoredName(mat.getFileUrl());
-                        if (storedName != null) {
-                            deleteStoredFile(storedName);
-                        }
-                    }
                     classRoomService.deleteClass(cls.getId(), null);
                     log.info("[DataRetention] Successfully deleted expired class id={} name={}", cls.getId(), cls.getName());
                 } catch (Exception ex) {
@@ -140,8 +137,11 @@ public class DataRetentionService {
             }
         }
 
-        // B. Dọn dẹp các buổi học cũ hơn 6 tháng (dành cho lớp đang mở nhưng buổi học đã quá 6 tháng)
-        List<Session> expiredSessions = sessionRepository.findByStartTimeBefore(sessionCutoff);
+        // B. Dọn dẹp các buổi học cũ hơn 6 tháng (chỉ các buổi học thực tế diễn ra sau năm 2020)
+        List<Session> expiredSessions = sessionRepository.findByStartTimeBefore(sessionCutoff).stream()
+                .filter(s -> s.getStartTime() != null && s.getStartTime().isAfter(validMinDateTime))
+                .toList();
+
         if (!expiredSessions.isEmpty()) {
             log.info("[DataRetention] Found {} sessions older than 6 months (cutoff: {}). Purging...", 
                     expiredSessions.size(), sessionCutoff);

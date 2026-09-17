@@ -723,13 +723,20 @@ export default function StudentPortal() {
 
                               {/* Nút thao tác nhanh của buổi học: Làm bài tập & Báo vắng */}
                               <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
-                                {item.assignments && item.assignments.length > 0 && (
+                                {item.assignments && item.assignments.length === 1 && (
                                   <button
                                     type="button"
-                                    onClick={() => handleGoToAssignment(item)}
+                                    onClick={() => handleGoToAssignment(item, item.assignments[0])}
                                     className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition cursor-pointer shadow-xs">
-                                    {item.homeworkStatus === 'DRAFT' ? 'Tiếp tục làm bài (Bản nháp)' : item.homeworkStatus === 'SUBMITTED' || item.homeworkStatus === 'GRADED' ? 'Xem lại bài đã nộp' : 'Làm bài tập'}
+                                    {isSessionEnded(item)
+                                      ? (item.homeworkStatus === 'SUBMITTED' || item.homeworkStatus === 'GRADED' ? 'Xem lại bài đã nộp' : 'Xem bài tập')
+                                      : (item.homeworkStatus === 'DRAFT' ? 'Tiếp tục làm bài (Bản nháp)' : item.homeworkStatus === 'SUBMITTED' || item.homeworkStatus === 'GRADED' ? 'Xem lại bài đã nộp' : 'Làm bài tập')}
                                   </button>
+                                )}
+                                {item.assignments && item.assignments.length > 1 && (
+                                  <span className="px-2.5 py-1 text-xs font-semibold text-blue-800 bg-blue-50 rounded-lg border border-blue-200">
+                                    Có {item.assignments.length} bài tập (chọn bên dưới)
+                                  </span>
                                 )}
 
                                 {isAbsent ? (

@@ -77,8 +77,7 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
           setMaterials(reloaded || []);
           saveStoredClassMaterials(classId, reloaded || []);
         } else {
-          setMaterials([]);
-          saveStoredClassMaterials(classId, []);
+          setMaterials(local || []);
         }
       }
     } catch (error) {
