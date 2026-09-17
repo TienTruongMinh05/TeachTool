@@ -25,6 +25,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
 
   // Dropdown menu state per session card
   const [openMenuSessionId, setOpenMenuSessionId] = useState(null);
+  const [menuPlacement, setMenuPlacement] = useState('down'); // 'down' | 'up'
 
   // Thư viện hoạt động modal
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
@@ -875,7 +876,20 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setOpenMenuSessionId(isMenuOpen ? null : session.id);
+                  if (isMenuOpen) {
+                    setOpenMenuSessionId(null);
+                  } else {
+                    const btnRect = e.currentTarget.getBoundingClientRect();
+                    const spaceBelow = window.innerHeight - btnRect.bottom;
+                    const scrollContainer = e.currentTarget.closest('.overflow-y-auto');
+                    let effectiveSpaceBelow = spaceBelow;
+                    if (scrollContainer) {
+                      const contRect = scrollContainer.getBoundingClientRect();
+                      effectiveSpaceBelow = Math.min(spaceBelow, contRect.bottom - btnRect.bottom);
+                    }
+                    setMenuPlacement(effectiveSpaceBelow < 220 ? 'up' : 'down');
+                    setOpenMenuSessionId(session.id);
+                  }
                 }}
                 className="p-1.5 px-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition cursor-pointer flex items-center gap-1"
                 title="Tùy chọn khác">
@@ -893,11 +907,13 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                 />
               )}
 
-              {/* Menu dropdown */}
+              {/* Menu dropdown - Tự động mở lên trên nếu ở sát đáy màn hình */}
               {isMenuOpen && (
                 <div
                   onClick={(e) => e.stopPropagation()}
-                  className="absolute left-0 sm:left-auto sm:right-0 mt-1.5 w-56 max-w-[85vw] bg-white border border-slate-200 rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in zoom-in-95 duration-100 text-xs font-medium">
+                  className={`absolute right-0 ${
+                    menuPlacement === 'up' ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+                  } w-56 max-w-[85vw] bg-white border border-slate-200 rounded-xl shadow-2xl z-50 py-1.5 animate-in fade-in zoom-in-95 duration-100 text-xs font-medium`}>
                   <button
                     type="button"
                     onClick={() => {
@@ -1086,7 +1102,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-28">
       {/* HEADER & THANH CÔNG CỤ */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
