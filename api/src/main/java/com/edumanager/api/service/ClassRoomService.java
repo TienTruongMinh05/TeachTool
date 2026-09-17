@@ -168,15 +168,15 @@ public class ClassRoomService {
         }
         assignmentRepository.deleteAll(assignments);
 
-        // 2. Xóa điểm danh và các buổi học
+        // 2. Xóa kế hoạch giảng dạy (phải xóa trước buổi học vì TeachingPlan phụ thuộc bắt buộc vào Session)
+        teachingPlanRepository.deleteByClassRoomId(id);
+
+        // 3. Xóa điểm danh và các buổi học
         List<Session> sessions = sessionRepository.findByClassRoomId(id);
         for (Session session : sessions) {
             attendanceRepository.deleteBySessionId(session.getId());
         }
         sessionRepository.deleteAll(sessions);
-
-        // 3. Xóa kế hoạch giảng dạy
-        teachingPlanRepository.deleteByClassRoomId(id);
 
         // 3.5. Xóa danh sách sách / tài liệu lớp học
         classMaterialRepository.deleteByClassRoomId(id);
