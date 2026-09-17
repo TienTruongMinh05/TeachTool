@@ -10,5 +10,8 @@ export const submissionApi = {
   getByStudent: (studentId) => 
     axiosClient.get(`/submissions/student/${studentId}`),
   getSubmission: (assignmentId, studentId) => 
-    axiosClient.get(`/submissions/assignment/${assignmentId}/student/${studentId}`)
+    axiosClient.get(`/submissions/assignment/${assignmentId}/student/${studentId}`),
+  delete: (submissionId) => 
+    axiosClient.delete(`/submissions/${submissionId}`)
 };
+

@@ -19,6 +19,7 @@ public class SubmissionService {
     private final UserRepository userRepo;
     private final com.edumanager.api.repository.EnrollmentRepository enrollmentRepo;
     private final ClassRoomService classRoomService;
+    private final com.edumanager.api.repository.StoredFileRepository storedFileRepository;
 
     // Học viên nộp bài
     public Submission submitAssignment(Long assignmentId, Long studentId, String submissionType, String textContent, String fileUrl, String fileName) {
@@ -113,5 +114,42 @@ public class SubmissionService {
 
     public java.util.Optional<Submission> getSubmission(Long assignmentId, Long studentId) {
         return submissionRepo.findByAssignmentIdAndStudentId(assignmentId, studentId);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void deleteSubmission(Long submissionId, Long callerId, String callerRole) {
+        Submission submission = submissionRepo.findById(submissionId)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy bài nộp có ID: " + submissionId));
+
+        if ("STUDENT".equalsIgnoreCase(callerRole)) {
+            if (callerId == null || !callerId.equals(submission.getStudent().getId())) {
+                throw new SecurityException("Bạn chỉ có quyền xóa bài nộp của chính mình.");
+            }
+            if (submission.getScore() != null && !submission.getScore().trim().isEmpty()) {
+                throw new IllegalStateException("Bài làm đã được giáo viên chấm điểm, không thể xóa.");
+            }
+        } else if ("TEACHER".equalsIgnoreCase(callerRole)) {
+            if (callerId != null && submission.getAssignment() != null && submission.getAssignment().getClassRoom() != null) {
+                if (!classRoomService.isTeacherOfClass(submission.getAssignment().getClassRoom(), callerId)) {
+                    throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học của bài tập này.");
+                }
+            }
+        }
+
+        // Dọn dẹp tệp đính kèm trên đĩa và DB nếu có
+        String fileUrl = submission.getFileUrl();
+        if (fileUrl != null && !fileUrl.trim().isEmpty()) {
+            try {
+                String storedName = fileUrl.contains("/") ? fileUrl.substring(fileUrl.lastIndexOf("/") + 1) : fileUrl;
+                if (storedName.contains("?")) {
+                    storedName = storedName.substring(0, storedName.indexOf("?"));
+                }
+                storedFileRepository.findByStoredName(storedName).ifPresent(storedFileRepository::delete);
+                java.nio.file.Path localPath = java.nio.file.Paths.get("uploads", storedName);
+                java.nio.file.Files.deleteIfExists(localPath);
+            } catch (Exception ignored) {}
+        }
+
+        submissionRepo.delete(submission);
     }
 }

@@ -9,10 +9,11 @@ import AudioRecorder from '../Components/AudioRecorder';
 import StudentFeedbackAudioPlayer from '../Components/StudentFeedbackAudioPlayer';
 import TimetableGrid from '../Components/TimetableGrid';
 import AccountSettingsModal from '../Components/AccountSettingsModal';
+import CollapsibleDescription from '../Components/CollapsibleDescription';
 
 export default function StudentPortal() {
   const { user, logout, updateUser } = useAuth();
-  const { toast } = useToast();
+  const { toast, confirm } = useToast();
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   // Camera capture states
@@ -506,10 +507,17 @@ export default function StudentPortal() {
   };
 
   const [cancellingAbsenceId, setCancellingAbsenceId] = useState(null);
+  const [isDeletingSubmission, setIsDeletingSubmission] = useState(false);
 
   const handleCancelAbsence = async (session) => {
     if (!user?.id || !session) return;
-    const ok = window.confirm('Bạn có chắc chắn muốn hủy báo vắng để đi học lại buổi học này không?');
+    const ok = await confirm({
+      title: 'Hủy báo vắng',
+      message: 'Bạn có chắc chắn muốn hủy báo vắng để đi học lại buổi học này không?',
+      confirmText: 'Xác nhận đi học',
+      cancelText: 'Giữ báo vắng',
+      type: 'info'
+    });
     if (!ok) return;
 
     const sId = session.sessionId || session.id;
@@ -522,6 +530,38 @@ export default function StudentPortal() {
       toast.error(err.response?.data?.message || err.message || 'Lỗi khi hủy báo vắng.');
     } finally {
       setCancellingAbsenceId(null);
+    }
+  };
+
+  const handleDeleteSubmission = async (submissionId) => {
+    if (!submissionId) return;
+    const ok = await confirm({
+      title: 'Xác nhận xóa bài nộp',
+      message: 'Bạn có chắc chắn muốn xóa bài đã nộp này không?\n\nSau khi xóa, bạn có thể nộp lại bài mới bất cứ lúc nào trước hạn chót.',
+      confirmText: 'Xác nhận xóa bài',
+      cancelText: 'Giữ lại',
+      type: 'danger'
+    });
+    if (!ok) return;
+
+    try {
+      setIsDeletingSubmission(true);
+      await submissionApi.delete(submissionId);
+      toast.success('Đã xóa bài nộp thành công! Bạn có thể làm lại và nộp bài mới.');
+      setSubmissionPayload({
+        submissionType: 'TEXT',
+        textContent: '',
+        fileUrl: '',
+        fileName: ''
+      });
+      setAudioBlob(null);
+      setAudioPreviewUrl(null);
+      setSubmissionSuccessMsg('');
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Lỗi khi xóa bài nộp.');
+    } finally {
+      setIsDeletingSubmission(false);
     }
   };
 
@@ -905,9 +945,7 @@ export default function StudentPortal() {
                                             </button>
                                           </div>
 
-                                          {ass.description && (
-                                            <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{ass.description}</p>
-                                          )}
+                                          <CollapsibleDescription text={ass.description} textClassName="text-xs text-gray-600" />
 
                                           {atts && atts.length > 0 && (
                                             <div className="pt-1 flex flex-wrap items-center gap-1.5">
@@ -1139,9 +1177,7 @@ export default function StudentPortal() {
                                             </button>
                                           </div>
 
-                                          {ass.description && (
-                                            <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{ass.description}</p>
-                                          )}
+                                          <CollapsibleDescription text={ass.description} textClassName="text-xs text-gray-600" />
 
                                           {atts && atts.length > 0 && (
                                             <div className="pt-1 flex flex-wrap items-center gap-1.5">
@@ -1309,7 +1345,7 @@ export default function StudentPortal() {
               {/* Mô tả đề bài */}
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1.5">
                 <span className="font-bold text-slate-700 block">Yêu cầu bài tập:</span>
-                <p className="text-slate-600 whitespace-pre-wrap">{activeAssignmentToSubmit.description || 'Không có mô tả chi tiết'}</p>
+                <CollapsibleDescription text={activeAssignmentToSubmit.description || 'Không có mô tả chi tiết'} textClassName="text-slate-600 text-xs" />
                 {(() => {
                   let atts = [];
                   if (activeAssignmentToSubmit.attachmentsJson) {
@@ -1410,6 +1446,23 @@ export default function StudentPortal() {
                         </div>
                       )}
                     </div>
+
+                    {/* Nút hủy / xóa bài đã nộp dành cho học sinh nếu chưa chấm điểm */}
+                    {!isGraded && (
+                      <div className="pt-2.5 border-t border-blue-100 flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-slate-500 italic">
+                          Bạn có thể xóa bài này để nộp lại bài khác nếu cần chỉnh sửa.
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSubmission(existingSubmission.id)}
+                          disabled={isDeletingSubmission}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition cursor-pointer disabled:opacity-50 shadow-2xs shrink-0">
+                          <span>🗑️</span>
+                          <span>{isDeletingSubmission ? 'Đang xóa...' : 'Xóa bài đã nộp'}</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })()}

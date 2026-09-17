@@ -147,4 +147,12 @@ public class SubmissionController {
                 .map(s -> ResponseEntity.ok((Object) SubmissionResponseDTO.fromEntity(s)))
                 .orElse(ResponseEntity.noContent().build());
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteSubmission(@PathVariable Long id, HttpServletRequest servletRequest) {
+        Long callerId = (Long) servletRequest.getAttribute("userId");
+        String callerRole = (String) servletRequest.getAttribute("userRole");
+        service.deleteSubmission(id, callerId, callerRole);
+        return ResponseEntity.ok(Map.of("message", "Đã xóa bài nộp thành công."));
+    }
 }

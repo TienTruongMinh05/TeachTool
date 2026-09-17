@@ -5,6 +5,7 @@ import { sessionApi } from '../api/sessionApi';
 import { studentApi } from '../api/studentApi';
 import { fileApi } from '../api/fileApi';
 import AudioGradingWorkbench from './AudioGradingWorkbench';
+import CollapsibleDescription from './CollapsibleDescription';
 import { useToast } from '../context/ToastContext';
 
 export default function AssignmentManager({ classId }) {
@@ -235,8 +236,12 @@ export default function AssignmentManager({ classId }) {
     }
   };
 
-  // Mở danh sách bài nộp của 1 bài tập
+  // Mở danh sách bài nộp của 1 bài tập (bấm lại thì đóng)
   const openSubmissionsView = async (assignment) => {
+    if (activeAssignmentForSubmissions?.id === assignment.id) {
+      setActiveAssignmentForSubmissions(null);
+      return;
+    }
     setActiveAssignmentForSubmissions(assignment);
     try {
       setLoadingSubmissions(true);
@@ -388,8 +393,12 @@ export default function AssignmentManager({ classId }) {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => openSubmissionsView(assignment)}
-                    className="px-3 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition cursor-pointer shadow-xs">
-                    {isSelected ? 'Đang xem bài nộp' : 'Xem danh sách nộp'}
+                    className={`px-3 py-1 text-xs font-semibold rounded transition cursor-pointer shadow-xs ${
+                      isSelected
+                        ? 'bg-slate-800 hover:bg-slate-900 text-white ring-2 ring-blue-400'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}>
+                    {isSelected ? 'Đang xem bài nộp (Đóng ✕)' : 'Xem danh sách nộp ▾'}
                   </button>
                   <button
                     onClick={() => handleOpenEditModal(assignment)}
@@ -406,11 +415,7 @@ export default function AssignmentManager({ classId }) {
 
               {/* Nội dung đề bài & Hình thức nộp */}
               <div className="p-4 space-y-3">
-                {assignment.description && (
-                  <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
-                    {assignment.description}
-                  </p>
-                )}
+                <CollapsibleDescription text={assignment.description} />
 
                 {(() => {
                   let atts = [];
@@ -454,6 +459,117 @@ export default function AssignmentManager({ classId }) {
                   ))}
                 </div>
               </div>
+
+              {/* BẢNG BÀI NỘP CỦA HỌC VIÊN HIỂN THỊ NGAY DƯỚI BÀI TẬP ĐƯỢC CHỌN */}
+              {isSelected && (
+                <div className="border-t-2 border-blue-500 bg-slate-50/60 animate-in fade-in duration-200">
+                  <div className="p-3.5 bg-slate-900 text-white flex justify-between items-center">
+                    <div>
+                      <h4 className="font-bold text-sm sm:text-base flex items-center gap-2">
+                        <span>📊 Danh Sách Bài Nộp:</span>
+                        <span className="text-blue-300 font-semibold">{assignment.title}</span>
+                      </h4>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Tổng số học viên trong lớp: <b>{students.length}</b> | Đã nộp: <b>{submissions.length}</b>
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setActiveAssignmentForSubmissions(null)}
+                      className="text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1 rounded-md transition cursor-pointer font-medium">
+                      Đóng danh sách ✕
+                    </button>
+                  </div>
+
+                  {/* Thông báo chính sách lưu trữ bài nộp 2 tuần */}
+                  <div className="px-4 py-2 bg-amber-50/80 border-b border-amber-200/80 text-amber-900 text-xs flex items-center gap-2">
+                    <span>⏱️</span>
+                    <span>
+                      <b>Chính sách lưu trữ:</b> Bài làm của học sinh được lưu giữ trong <b>2 tuần</b> (tuần trước & tuần này) để tối ưu không gian lưu trữ đám mây.
+                    </span>
+                  </div>
+
+                  {loadingSubmissions ? (
+                    <div className="py-8 text-center text-xs text-gray-500 font-medium">
+                      Đang tải danh sách bài nộp của học sinh...
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-left text-sm">
+                        <thead className="bg-gray-100 border-b border-gray-200 text-gray-600 text-xs font-semibold uppercase">
+                          <tr>
+                            <th className="px-5 py-3">Học viên</th>
+                            <th className="px-5 py-3">Trạng thái</th>
+                            <th className="px-5 py-3">Hình thức nộp</th>
+                            <th className="px-5 py-3">Thời gian nộp</th>
+                            <th className="px-5 py-3">Điểm số</th>
+                            <th className="px-5 py-3 text-right">Thao tác</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200 bg-white">
+                          {students.map((st) => {
+                            const sub = submissions.find(s => s.studentId === st.studentId);
+                            const isSubmitted = !!sub;
+
+                            return (
+                              <tr key={st.studentId} className="hover:bg-blue-50/40 transition">
+                                <td className="px-5 py-3.5">
+                                  <div className="font-semibold text-gray-800">{st.studentName}</div>
+                                  <div className="text-xs text-gray-500">{st.studentEmail}</div>
+                                </td>
+                                <td className="px-5 py-3.5">
+                                  {isSubmitted ? (
+                                    <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                      Đã nộp bài
+                                    </span>
+                                  ) : (
+                                    <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                                      Chưa nộp
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-5 py-3.5 text-xs text-gray-700">
+                                  {sub?.submissionType ? (
+                                    <span className="font-medium">
+                                      {sub.submissionType === 'TEXT' && '📝 Văn bản'}
+                                      {sub.submissionType === 'DOCX' && '📄 File Word'}
+                                      {sub.submissionType === 'AUDIO' && '🎵 File Audio'}
+                                      {sub.submissionType === 'DIRECT_RECORD' && '🎙️ Ghi âm trực tiếp'}
+                                      {sub.submissionType === 'IMAGE' && '🖼️ Hình ảnh'}
+                                    </span>
+                                  ) : '—'}
+                                </td>
+                                <td className="px-5 py-3.5 text-xs text-gray-500">
+                                  {sub ? formatDateTime(sub.submittedAt) : '—'}
+                                </td>
+                                <td className="px-5 py-3.5">
+                                  {sub?.score ? (
+                                    <span className="px-2 py-0.5 text-xs font-bold bg-purple-100 text-purple-700 rounded border border-purple-200">
+                                      {sub.score}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-gray-400 italic">Chưa chấm</span>
+                                  )}
+                                </td>
+                                <td className="px-5 py-3.5 text-right">
+                                  {isSubmitted ? (
+                                    <button
+                                      onClick={() => openGradingModal(st, sub)}
+                                      className="px-3 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition cursor-pointer shadow-xs">
+                                      Xem bài & Chấm điểm
+                                    </button>
+                                  ) : (
+                                    <span className="text-xs text-gray-400 italic">Không có bài</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -472,109 +588,6 @@ export default function AssignmentManager({ classId }) {
           </div>
         )}
       </div>
-
-      {/* DANH SÁCH BÀI NỘP VÀ CHẤM ĐIỂM (Khi bấm xem bài nộp của 1 bài tập) */}
-      {activeAssignmentForSubmissions && (
-        <div className="mt-8 bg-white border border-gray-200 rounded-xl shadow-xs overflow-hidden">
-          <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
-            <div>
-              <h4 className="font-bold text-base">
-                Danh Sách Bài Nộp: {activeAssignmentForSubmissions.title}
-              </h4>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Tổng số học viên trong lớp: {students.length} | Đã nộp: {submissions.length}
-              </p>
-            </div>
-            <button
-              onClick={() => setActiveAssignmentForSubmissions(null)}
-              className="text-slate-400 hover:text-white text-sm font-semibold cursor-pointer">
-              Đóng danh sách
-            </button>
-          </div>
-
-          {/* Thông báo chính sách lưu trữ bài nộp 2 tuần */}
-          <div className="px-4 py-2 bg-amber-50/80 border-b border-amber-200/80 text-amber-900 text-xs flex items-center gap-2">
-            <span>⏱️</span>
-            <span>
-              <b>Chính sách lưu trữ:</b> Bài làm của học sinh được lưu giữ trong <b>2 tuần</b> (tuần trước & tuần này) để tối ưu không gian lưu trữ đám mây.
-            </span>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 text-xs font-semibold uppercase">
-                <tr>
-                  <th className="px-5 py-3.5">Học viên</th>
-                  <th className="px-5 py-3.5">Trạng thái</th>
-                  <th className="px-5 py-3.5">Hình thức nộp</th>
-                  <th className="px-5 py-3.5">Thời gian nộp</th>
-                  <th className="px-5 py-3.5">Điểm số</th>
-                  <th className="px-5 py-3.5 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {students.map((st) => {
-                  const sub = submissions.find(s => s.studentId === st.studentId);
-                  const isSubmitted = !!sub;
-
-                  return (
-                    <tr key={st.studentId} className="hover:bg-gray-50/70 transition">
-                      <td className="px-5 py-3.5">
-                        <div className="font-semibold text-gray-800">{st.studentName}</div>
-                        <div className="text-xs text-gray-500">{st.studentEmail}</div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        {isSubmitted ? (
-                          <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-800">
-                            Đã nộp bài
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
-                            Chưa nộp
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-gray-700">
-                        {sub?.submissionType ? (
-                          <span className="font-medium">
-                            {sub.submissionType === 'TEXT' && 'Văn bản trực tiếp'}
-                            {sub.submissionType === 'DOCX' && 'File Word'}
-                            {sub.submissionType === 'AUDIO' && 'File Audio'}
-                            {sub.submissionType === 'DIRECT_RECORD' && 'Ghi âm trực tiếp'}
-                          </span>
-                        ) : '—'}
-                      </td>
-                      <td className="px-5 py-3.5 text-xs text-gray-500">
-                        {sub ? formatDateTime(sub.submittedAt) : '—'}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        {sub?.score ? (
-                          <span className="px-2 py-0.5 text-xs font-bold bg-purple-100 text-purple-700 rounded">
-                            {sub.score}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">Chưa chấm</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5 text-right">
-                        {isSubmitted ? (
-                          <button
-                            onClick={() => openGradingModal(st, sub)}
-                            className="px-3 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition cursor-pointer shadow-xs">
-                            Xem bài & Chấm điểm
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic">Không có bài</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* MODAL CHẤM ĐIỂM & XEM BÀI CỦA HỌC SINH */}
       {selectedSubmissionToGrade && selectedStudentForGrading && (

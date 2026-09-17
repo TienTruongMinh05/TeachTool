@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { studentPortalApi } from '../api/studentPortalApi';
 import { useToast } from '../context/ToastContext';
+import CollapsibleDescription from './CollapsibleDescription';
 
 // Color palette for classes (accessible, modern pastel tones)
 const CLASS_COLORS = [
@@ -64,7 +65,7 @@ export default function TimetableGrid({
   classes = [],
   onNavigateToSession = null,
 }) {
-  const { toast } = useToast();
+  const { toast, confirm } = useToast();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getMonday(new Date()));
   const [selectedSession, setSelectedSession] = useState(null);
   const [showAbsenceModal, setShowAbsenceModal] = useState(false);
@@ -224,7 +225,13 @@ export default function TimetableGrid({
   const handleCancelAbsence = async (e, session) => {
     if (e && e.stopPropagation) e.stopPropagation();
     if (!studentId || !session) return;
-    const ok = window.confirm('Bạn có chắc chắn muốn hủy báo vắng để đi học lại buổi học này không?');
+    const ok = await confirm({
+      title: 'Hủy báo vắng',
+      message: 'Bạn có chắc chắn muốn hủy báo vắng để đi học lại buổi học này không?',
+      confirmText: 'Xác nhận đi học',
+      cancelText: 'Giữ báo vắng',
+      type: 'info'
+    });
     if (!ok) return;
 
     try {
@@ -658,9 +665,7 @@ export default function TimetableGrid({
                           )}
                         </div>
 
-                        {asgn.description && (
-                          <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">{asgn.description}</p>
-                        )}
+                        <CollapsibleDescription text={asgn.description} textClassName="text-xs text-gray-600" />
 
                         {atts && atts.length > 0 && (
                           <div className="pt-1 space-y-1">

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { spliceAndMergeAudio } from '../utils/audioSplicer';
+import { useToast } from '../context/ToastContext';
 
 const formatSeconds = (sec) => {
   if (isNaN(sec) || sec == null) return '00:00';
@@ -14,6 +15,7 @@ export default function AudioGradingWorkbench({
   onSplicedAudioReady = null,
   onUpdateFeedbackSummary = null
 }) {
+  const { toast } = useToast();
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -156,7 +158,7 @@ export default function AudioGradingWorkbench({
         setTeacherRecordingTime(prev => prev + 1);
       }, 1000);
     } catch (err) {
-      alert('Không thể truy cập Microphone để thu âm nhận xét: ' + err.message);
+      toast.error('Không thể truy cập Microphone để thu âm nhận xét: ' + err.message);
     }
   };
 
@@ -225,7 +227,7 @@ export default function AudioGradingWorkbench({
     if (!studentAudioUrl) return;
     const audioItems = corrections.filter(c => c.type === 'AUDIO');
     if (audioItems.length === 0) {
-      alert('Chưa có đoạn sửa bằng giọng nói nào để ghép!');
+      toast.warning('Chưa có đoạn sửa bằng giọng nói nào để ghép!');
       return;
     }
 
@@ -238,7 +240,7 @@ export default function AudioGradingWorkbench({
         onSplicedAudioReady(mergedBlob);
       }
     } catch (err) {
-      alert('Lỗi ghép audio: ' + err.message);
+      toast.error('Lỗi ghép audio: ' + err.message);
     } finally {
       setIsProcessingMerge(false);
     }
