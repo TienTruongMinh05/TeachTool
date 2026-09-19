@@ -241,6 +241,7 @@ export default function StudentGuide() {
                 <ul className="list-disc pl-5 space-y-1 text-gray-600">
                   <li>Trạng thái bài tập chuyển thành nhãn màu xanh <b>"Đã chấm điểm"</b> kèm điểm số cụ thể (thang điểm 10).</li>
                   <li>Bấm vào bài tập để mở modal xem lại toàn bộ nội dung bạn đã nộp và lời nhận xét chi tiết của thầy cô.</li>
+                  <li><b>Thời hạn lưu trữ:</b> Bài làm và lời phê của bạn được lưu trữ an toàn trong vòng <b>14 ngày (2 tuần)</b> kể từ lúc nộp. Các bạn hãy chủ động xem điểm và nghe lời sửa bài của thầy cô trong khoảng thời gian này nhé!</li>
                 </ul>
               </div>
 

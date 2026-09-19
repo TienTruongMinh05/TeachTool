@@ -12,6 +12,9 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Phạm vi thời gian: '2_WEEKS' (Mặc định - Chu kỳ lưu trữ 14 ngày) | 'ALL'
+  const [scopeMode, setScopeMode] = useState('2_WEEKS');
+
   // Bộ lọc & Tìm kiếm
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL' | 'INCOMPLETE' | 'LOW_SCORE' | 'PERFECT'
@@ -33,7 +36,18 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
         submissionApi.getByClass(classId).catch(() => [])
       ]);
 
-      setStudents(Array.isArray(studRes) ? studRes : []);
+      const rawStudents = Array.isArray(studRes) ? studRes : [];
+      // Chuẩn hóa dữ liệu học sinh từ EnrollmentResponseDTO
+      const normalizedStudents = rawStudents.map(st => ({
+        ...st,
+        id: st.studentId || st.id, // Đảm bảo .id là student user ID để map đúng với submissions
+        studentId: st.studentId || st.id,
+        enrollmentId: st.id,
+        fullName: st.fullName || st.studentName || 'Học sinh',
+        email: st.email || st.studentEmail || ''
+      }));
+
+      setStudents(normalizedStudents);
       setAssignments(Array.isArray(asgnRes) ? asgnRes : []);
       setSubmissions(Array.isArray(subRes) ? subRes : []);
     } catch (err) {
@@ -48,8 +62,8 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
   const submissionMap = useMemo(() => {
     const map = new Map();
     submissions.forEach(sub => {
-      const studentId = sub.student?.id || sub.studentId;
-      const assignmentId = sub.assignment?.id || sub.assignmentId;
+      const studentId = sub.studentId || sub.student?.id;
+      const assignmentId = sub.assignmentId || sub.assignment?.id;
       if (studentId && assignmentId) {
         map.set(`${studentId}_${assignmentId}`, sub);
       }
@@ -57,10 +71,26 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
     return map;
   }, [submissions]);
 
-  // Tính toán số liệu thống kê cho từng học sinh
+  // Phân định bài tập theo phạm vi 2 tuần (14 ngày gần nhất)
+  const activeAssignments = useMemo(() => {
+    if (scopeMode === 'ALL') {
+      return assignments;
+    }
+    const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const recent = assignments.filter(asgn => {
+      const d = asgn.dueDate
+        ? new Date(asgn.dueDate)
+        : (asgn.scheduledPublishAt ? new Date(asgn.scheduledPublishAt) : (asgn.createdAt ? new Date(asgn.createdAt) : null));
+      if (!d) return true;
+      return d >= cutoff;
+    });
+    return recent.length > 0 ? recent : assignments;
+  }, [assignments, scopeMode]);
+
+  // Tính toán số liệu thống kê cho từng học sinh dựa trên các bài tập trong phạm vi được chọn
   const studentStats = useMemo(() => {
     const now = new Date();
-    const publishedAssignments = assignments.filter(a => !(a.scheduledPublishAt && new Date(a.scheduledPublishAt) > now));
+    const publishedAssignments = activeAssignments.filter(a => !(a.scheduledPublishAt && new Date(a.scheduledPublishAt) > now));
     const publishedCount = publishedAssignments.length;
 
     return students.map(student => {
@@ -69,8 +99,8 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
       let totalScore = 0;
       const studentSubmissions = [];
 
-      assignments.forEach(asgn => {
-        const sub = submissionMap.get(`${student.id}_${asgn.id}`);
+      activeAssignments.forEach(asgn => {
+        const sub = submissionMap.get(`${student.studentId || student.id}_${asgn.id}`);
         if (sub) {
           submittedCount++;
           studentSubmissions.push(sub);
@@ -83,7 +113,7 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
       });
 
       const avgScore = gradedCount > 0 ? (totalScore / gradedCount).toFixed(1) : null;
-      const completionRate = publishedCount > 0 ? Math.round((submittedCount / publishedCount) * 100) : (assignments.length === 0 ? 0 : 100);
+      const completionRate = publishedCount > 0 ? Math.round((submittedCount / publishedCount) * 100) : (activeAssignments.length === 0 ? 0 : 100);
 
       return {
         ...student,
@@ -93,15 +123,16 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
         completionRate
       };
     });
-  }, [students, assignments, submissionMap]);
+  }, [students, activeAssignments, submissionMap]);
 
   // Lọc và sắp xếp danh sách học sinh
   const filteredStudents = useMemo(() => {
     let result = studentStats.filter(st => {
-      const matchSearch =
-        st.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        st.email?.toLowerCase().includes(searchTerm.toLowerCase());
+      const name = (st.fullName || st.studentName || '').toLowerCase();
+      const mail = (st.email || st.studentEmail || '').toLowerCase();
+      const search = searchTerm.toLowerCase();
 
+      const matchSearch = name.includes(search) || mail.includes(search);
       if (!matchSearch) return false;
 
       if (filterStatus === 'INCOMPLETE') {
@@ -137,7 +168,7 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
 
   // Thống kê tổng quan cả lớp
   const classSummary = useMemo(() => {
-    if (studentStats.length === 0) return { avg: null, completion: 0, totalStudents: 0 };
+    if (studentStats.length === 0) return { avg: null, completion: 0, totalStudents: 0, totalAssignments: 0 };
     const scores = studentStats.map(s => s.avgScore).filter(s => s !== null);
     const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : null;
     const totalComp = studentStats.reduce((sum, s) => sum + s.completionRate, 0);
@@ -147,57 +178,66 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
       avg,
       completion,
       totalStudents: studentStats.length,
-      totalAssignments: assignments.length
+      totalAssignments: activeAssignments.length
     };
-  }, [studentStats, assignments]);
+  }, [studentStats, activeAssignments]);
 
   // Xuất file CSV (Tương thích tốt với Excel tiếng Việt nhờ UTF-8 BOM)
   const handleExportCSV = () => {
-    if (students.length === 0 || assignments.length === 0) {
+    if (students.length === 0 || activeAssignments.length === 0) {
       toast.warning('Chưa có đủ dữ liệu học sinh hoặc bài tập để xuất bảng điểm.');
       return;
     }
 
+    const scopeTitle = scopeMode === '2_WEEKS' ? '2 tuần gần nhất (Chu kỳ 14 ngày)' : 'Tất cả bài tập';
     const headers = [
       'STT',
       'Họ và tên',
       'Email',
-      ...assignments.map(a => `"${a.title.replace(/"/g, '""')}"`),
+      ...activeAssignments.map(a => `"${a.title.replace(/"/g, '""')}"`),
       'Số bài đã nộp',
       'Tỷ lệ hoàn thành (%)',
       'Điểm trung bình'
     ];
 
     const rows = filteredStudents.map((st, idx) => {
-      const assignmentScores = assignments.map(a => {
-        const sub = submissionMap.get(`${st.id}_${a.id}`);
-        if (!sub) return 'Chưa nộp';
-        if (sub.score !== null && sub.score !== undefined) return sub.score;
-        return 'Đã nộp (Chưa chấm)';
+      const assignmentScores = activeAssignments.map(a => {
+        const sub = submissionMap.get(`${st.studentId || st.id}_${a.id}`);
+        if (!sub) return '"Chưa nộp"';
+        if (sub.score !== null && sub.score !== undefined && sub.score !== '') return `"${sub.score}"`;
+        return '"Đã nộp (Chưa chấm)"';
       });
 
       return [
         idx + 1,
-        `"${st.fullName || ''}"`,
-        `"${st.email || ''}"`,
+        `"${st.fullName || st.studentName || ''}"`,
+        `"${st.email || st.studentEmail || ''}"`,
         ...assignmentScores,
-        `${st.submittedCount}/${assignments.length}`,
-        `${st.completionRate}%`,
-        st.avgScore !== null ? st.avgScore : 'N/A'
+        `"${st.submittedCount}/${activeAssignments.length}"`,
+        `"${st.completionRate}%"`,
+        st.avgScore !== null ? `"${st.avgScore}"` : '"N/A"'
       ];
     });
 
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csvContent = '\uFEFF' + [
+      `"BẢNG ĐIỂM BÀI TẬP LỚP: ${classInfo?.name || 'LỚP HỌC'}"`,
+      `"Phạm vi: ${scopeTitle} (Quy tắc lưu trữ: Dữ liệu bài nộp học sinh lưu giữ trong 14 ngày)"`,
+      `"Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} ${new Date().toLocaleTimeString('vi-VN')}"`,
+      '',
+      headers.join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n');
+
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `Bang_Diem_${classInfo?.name || 'Lop'}_${Date.now()}.csv`);
+    link.setAttribute('download', `Bang_Diem_${(classInfo?.name || 'Lop').replace(/\s+/g, '_')}_${scopeMode === '2_WEEKS' ? '2Tuan' : 'TatCa'}_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    toast.success('Đã xuất bảng điểm ma trận thành công file CSV!');
+    toast.success(`Đã xuất bảng điểm của ${rows.length} học sinh thành công ra tệp Excel/CSV!`);
   };
 
   const getScoreBadgeColor = (scoreStr) => {
@@ -233,7 +273,33 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
           </h2>
         </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {/* Nút chọn phạm vi 2 tuần / tất cả */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+            <button
+              type="button"
+              onClick={() => setScopeMode('2_WEEKS')}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                scopeMode === '2_WEEKS'
+                  ? 'bg-white text-blue-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              2 tuần gần nhất (14 ngày)
+            </button>
+            <button
+              type="button"
+              onClick={() => setScopeMode('ALL')}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                scopeMode === 'ALL'
+                  ? 'bg-white text-blue-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Tất cả ({assignments.length})
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={handleExportCSV}
@@ -250,6 +316,19 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
             ↻
           </button>
         </div>
+      </div>
+
+      {/* THÔNG BÁO QUY TẮC LƯU TRỮ 14 NGÀY */}
+      <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3 text-xs text-blue-900 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-base">💡</span>
+          <div>
+            <b>Quy tắc lưu trữ hệ thống:</b> Dữ liệu bài làm và file nộp của học sinh được lưu giữ an toàn trong vòng <b>14 ngày (2 tuần)</b>. Ma trận bảng điểm tự động hiển thị trong phạm vi 2 tuần gần nhất để đảm bảo dữ liệu luôn chính xác và đồng bộ.
+          </div>
+        </div>
+        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 shrink-0">
+          {scopeMode === '2_WEEKS' ? 'Phạm vi: 2 tuần' : 'Phạm vi: Toàn bộ'}
+        </span>
       </div>
 
       {/* 4 THẺ CHỈ SỐ KPI */}
@@ -334,7 +413,7 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
                 </th>
 
                 {/* CÁC CỘT BÀI TẬP */}
-                {assignments.map((asgn, idx) => {
+                {activeAssignments.map((asgn, idx) => {
                   const isScheduled = asgn.scheduledPublishAt && new Date(asgn.scheduledPublishAt) > new Date();
                   return (
                     <th key={asgn.id} className="py-2.5 px-3 min-w-[140px] max-w-[170px] border-r border-slate-200 text-center">
@@ -360,13 +439,13 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
             <tbody className="divide-y divide-slate-100">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={4 + assignments.length} className="py-12 text-center text-slate-400">
+                  <td colSpan={4 + activeAssignments.length} className="py-12 text-center text-slate-400">
                     Không tìm thấy học sinh nào phù hợp với bộ lọc.
                   </td>
                 </tr>
               ) : (
                 filteredStudents.map((st, idx) => (
-                  <tr key={st.id} className="hover:bg-slate-50/80 transition group">
+                  <tr key={st.studentId || st.id} className="hover:bg-slate-50/80 transition group">
                     {/* Cột STT cố định */}
                     <td className="py-3 px-3 text-center text-slate-400 font-mono border-r border-slate-100 bg-white group-hover:bg-slate-50/80 sticky left-0 z-10">
                       {idx + 1}
@@ -398,7 +477,7 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
                           ? 'bg-blue-50 text-blue-700 border border-blue-200'
                           : 'bg-rose-50 text-rose-700 border border-rose-200'
                       }`}>
-                        {st.submittedCount}/{assignments.length} ({st.completionRate}%)
+                        {st.submittedCount}/{activeAssignments.length} ({st.completionRate}%)
                       </span>
                     </td>
 
@@ -414,8 +493,8 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
                     </td>
 
                     {/* CÁC Ô ĐIỂM BÀI TẬP */}
-                    {assignments.map(asgn => {
-                      const sub = submissionMap.get(`${st.id}_${asgn.id}`);
+                    {activeAssignments.map(asgn => {
+                      const sub = submissionMap.get(`${st.studentId || st.id}_${asgn.id}`);
                       const isScheduled = asgn.scheduledPublishAt && new Date(asgn.scheduledPublishAt) > new Date();
                       const overdue = !isScheduled && isPastDue(asgn.dueDate);
 
@@ -426,7 +505,7 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
                           className="py-2.5 px-2 text-center border-r border-slate-100 cursor-pointer hover:bg-blue-50/50 transition"
                         >
                           {sub ? (
-                            sub.score !== null && sub.score !== undefined ? (
+                            sub.score !== null && sub.score !== undefined && sub.score !== '' ? (
                               <span className={`inline-block px-2 py-1 rounded-md text-xs border ${getScoreBadgeColor(sub.score)} shadow-2xs`}>
                                 {sub.score}
                               </span>
@@ -457,7 +536,7 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
             </tbody>
 
             {/* TFOOT DÒNG TỔNG KẾT ĐIỂM TRUNG BÌNH THEO BÀI TẬP */}
-            {assignments.length > 0 && (
+            {activeAssignments.length > 0 && (
               <tfoot className="bg-slate-100/90 font-semibold text-slate-700 border-t-2 border-slate-300 sticky bottom-0 z-20">
                 <tr>
                   <td colSpan={2} className="py-3 px-3 text-right pr-4 uppercase text-[11px] tracking-wider text-slate-500 sticky left-0 z-20 bg-slate-100">
@@ -470,11 +549,11 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
                     {classSummary.avg !== null ? classSummary.avg : '-'}
                   </td>
 
-                  {assignments.map(asgn => {
+                  {activeAssignments.map(asgn => {
                     const subsForAsgn = submissions.filter(
                       s => (s.assignment?.id || s.assignmentId) === asgn.id
                     );
-                    const scoredSubs = subsForAsgn.filter(s => !isNaN(parseFloat(s.score)));
+                    const scoredSubs = subsForAsgn.filter(s => s.score !== null && s.score !== undefined && !isNaN(parseFloat(s.score)));
                     const avgAsgnScore = scoredSubs.length > 0
                       ? (scoredSubs.reduce((acc, cur) => acc + parseFloat(cur.score), 0) / scoredSubs.length).toFixed(1)
                       : null;

@@ -335,35 +335,48 @@ export default function UserGuide() {
             </h4>
             <div className="space-y-3 text-xs">
               <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                <h5 className="font-bold text-gray-800 text-sm">Quy tắc lưu trữ 14 ngày & Chế độ xem 2 tuần gần nhất</h5>
+                <p>
+                  Theo chính sách vòng đời dữ liệu và tối ưu hóa hệ thống:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-gray-600">
+                  <li><b>Bài nộp học sinh:</b> Bài làm (văn bản, tệp Word/PDF, bản thu âm, ảnh chụp) và điểm số chi tiết được lưu trữ trong vòng <b>14 ngày (2 tuần)</b>. Sau 14 ngày, dữ liệu bài nộp sẽ được dọn dẹp tự động để giải phóng bộ nhớ.</li>
+                  <li><b>Đồng bộ phạm vi 2 tuần (Mặc định):</b> Cả Ma trận điểm số và Biểu đồ Heatmap được thiết kế mặc định hiển thị <b>2 tuần gần nhất (14 ngày)</b>. Quy tắc này giúp ngăn ngừa triệt để lỗi số liệu sai lệch (như học sinh bị báo nợ bài hoặc 0% do bài nộp cũ đã hết hạn lưu trữ).</li>
+                  <li><b>Chuyển đổi linh hoạt:</b> Giáo viên có thể bấm nút chuyển đổi giữa <i>"2 tuần gần nhất (14 ngày)"</i> và <i>"Tất cả bài tập/tuần"</i> bất kỳ lúc nào.</li>
+                </ul>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
                 <h5 className="font-bold text-gray-800 text-sm">Ma trận theo dõi điểm số bài tập (Gradebook Matrix)</h5>
                 <p>
                   Tại mục <b>"3. Đánh giá & Phân tích" → "Ma trận điểm số"</b>, hệ thống cung cấp bảng tổng hợp dạng Excel trực quan:
                 </p>
                 <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
-                  <li><b>Các dòng học sinh cố định:</b> Hiển thị tên, avatar, email, tỷ lệ hoàn thành bài tập (%) và điểm trung bình tích lũy.</li>
-                  <li><b>Các cột bài tập:</b> Mỗi cột ứng với 1 bài tập trong lớp, hiển thị trực quan trạng thái điểm bằng mã màu thông minh: Xanh lá ($\ge 8.5$ điểm), Xanh dương (7.0 - 8.4 điểm), Vàng cam (5.0 - 6.9 điểm), Đỏ (&lt; 5.0 điểm), hoặc huy hiệu <i>Đã nộp</i> / <i>Quá hạn</i>.</li>
+                  <li><b>Các dòng học sinh cố định:</b> Hiển thị đầy đủ Họ và tên, Avatar nhận diện, Email, số bài đã nộp, tỷ lệ hoàn thành (%) và điểm trung bình tích lũy theo phạm vi được chọn.</li>
+                  <li><b>Các cột bài tập:</b> Mỗi cột ứng với 1 bài tập trong lớp, hiển thị trực quan trạng thái điểm bằng mã màu thông minh: Xanh lá ($\ge 8.5$ điểm), Xanh dương (7.0 - 8.4 điểm), Vàng cam (5.0 - 6.9 điểm), Đỏ (&lt; 5.0 điểm), hoặc huy hiệu <i>Đã nộp</i> / <i>Quá hạn</i> / <i>Chưa mở</i> (đối với bài hẹn giờ).</li>
                   <li><b>Xem nhanh chi tiết:</b> Bấm vào bất kỳ ô điểm nào để mở xem nội dung bài làm, file đính kèm, điểm số và nhận xét của giáo viên.</li>
-                  <li><b>Xuất bảng điểm Excel/CSV:</b> Bấm <b>"Xuất Bảng Điểm (Excel/CSV)"</b> để tải về file bảng điểm hoàn chỉnh chuẩn tiếng Việt có dấu (UTF-8 BOM), sẵn sàng nộp báo cáo hoặc in ấn.</li>
+                  <li><b>Xuất bảng điểm Excel/CSV chuẩn:</b> Bấm <b>"Xuất Bảng Điểm (Excel/CSV)"</b> để tải về file bảng điểm chứa đầy đủ danh sách học sinh, email, điểm từng bài tập, số bài đã nộp, tỷ lệ hoàn thành và điểm trung bình chuẩn tiếng Việt có dấu (UTF-8 BOM), sẵn sàng nộp báo cáo hoặc in ấn.</li>
                 </ul>
               </div>
 
               <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
                 <h5 className="font-bold text-gray-800 text-sm">Biểu đồ nhiệt (Heatmap) & Hệ thống Cảnh báo Sớm Tự Động</h5>
                 <p>
-                  Tại mục <b>"Heatmap & Cảnh báo"</b>, hệ thống phân tích xu hướng học tập kết hợp giữa <b>Chuyên cần (50%)</b> và <b>Điểm số bài tập (50%)</b> qua từng tuần học:
+                  Tại mục <b>"Heatmap & Cảnh báo"</b>, hệ thống phân tích xu hướng học tập kết hợp giữa <b>Chuyên cần (50%)</b> và <b>Điểm số bài tập (50%)</b> trong phạm vi 2 tuần gần nhất:
                 </p>
                 <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
+                  <li><b>Chuyên cần công bằng:</b> Chỉ đánh giá các buổi học đã qua và đã được giáo viên ghi nhận điểm danh. Buổi học sắp tới hoặc buổi học chưa điểm danh sẽ không bị tính vắng ảo.</li>
                   <li>
-                    <b>🔴 Cảnh báo Đỏ (Nguy cơ cao):</b> Tự động phát hiện học sinh vắng $\ge 2$ buổi liên tiếp, nợ $\ge 2$ bài tập hoặc điểm số sụt giảm nghiêm trọng.
+                    <b>🔴 Cảnh báo Đỏ (Nguy cơ cao):</b> Tự động phát hiện học sinh vắng $\ge 2$ buổi liên tiếp, nợ $\ge 2$ bài tập trong 2 tuần gần nhất.
                   </li>
                   <li>
-                    <b>🟡 Cảnh báo Vàng (Cần lưu ý & Động viên):</b> Học sinh có 1 buổi vắng hoặc điểm bài tập gần nhất có dấu hiệu tụt dốc.
+                    <b>🟡 Cảnh báo Vàng (Cần lưu ý & Động viên):</b> Học sinh có 1 buổi vắng, còn thiếu 1 bài tập hoặc điểm bài tập gần nhất có dấu hiệu tụt dốc.
                   </li>
                   <li>
-                    <b>⭐ Tuyên dương học viên tiêu biểu:</b> Học sinh có chuyên cần 100% và điểm trung bình $\ge 8.5$.
+                    <b>⭐ Tuyên dương học viên tiêu biểu:</b> Học sinh có chuyên cần tốt và điểm trung bình $\ge 8.0$.
                   </li>
                   <li>
-                    <b>Nút "Sao chép tin nhắn gửi học sinh":</b> Chỉ với 1 click, hệ thống tự động soạn sẵn tin nhắn cá nhân hóa lịch sự, nêu rõ lý do nhắc nhở để thầy/cô dán gửi ngay cho học sinh hoặc phụ huynh qua Zalo/Facebook.
+                    <b>Nút "Sao chép tin nhắn gửi học sinh":</b> Chỉ với 1 click, hệ thống tự động soạn sẵn tin nhắn cá nhân hóa với tên riêng của học sinh, nêu rõ lý do nhắc nhở để thầy/cô dán gửi ngay qua Zalo/Facebook.
                   </li>
                 </ul>
               </div>

@@ -42,9 +42,9 @@
   - Thu âm nhận xét và sửa phát âm mẫu tại từng mốc thời gian (timestamp).
   - Ghép nối âm thanh tự động (Audio Splicer): Tự động kết hợp bài nói của học sinh với các đoạn nhận xét của thầy cô thành 1 file âm thanh hoàn chỉnh liền mạch.
 * **Điểm Danh Tự Động & Ma Trận Chuyên Cần:** Điểm danh theo buổi học, tự động đồng bộ lý do khi học sinh báo vắng trước giờ học. Bảng ma trận đối chiếu toàn khóa tính toán tỷ lệ chuyên cần (%).
-* **Ma Trận Theo Dõi Điểm Số Bài Tập (Gradebook Matrix):** Bảng tổng hợp điểm số dạng Excel/Sheet, trực quan hóa toàn bộ học sinh và bài tập. Mã màu điểm số trực quan, tự động tính tỷ lệ nộp bài, điểm trung bình và hỗ trợ xuất bảng điểm CSV/Excel tiếng Việt chuẩn UTF-8 BOM chỉ với 1 click.
+* **Ma Trận Theo Dõi Điểm Số Bài Tập (Gradebook Matrix):** Bảng tổng hợp điểm số dạng Excel/Sheet, trực quan hóa toàn bộ học sinh và bài tập. Mã màu điểm số trực quan, tự động tính tỷ lệ nộp bài, điểm trung bình theo phạm vi 2 tuần gần nhất (14 ngày) đồng bộ với chu kỳ lưu trữ bài nộp. Hỗ trợ chuyển đổi xem toàn bộ và xuất bảng điểm CSV/Excel tiếng Việt chuẩn UTF-8 BOM chỉ với 1 click.
 * **Phân Tích Xu Hướng Học Tập & Heatmap Cảnh Báo Sớm (Learning Analytics):**
-  - Biểu đồ nhiệt (Heatmap) thể hiện mức độ tích cực kết hợp giữa **Chuyên cần (50%)** và **Điểm bài tập (50%)** qua từng tuần học.
+  - Biểu đồ nhiệt (Heatmap) thể hiện mức độ tích cực kết hợp giữa **Chuyên cần (50%)** và **Điểm bài tập (50%)** trong phạm vi 2 tuần gần nhất (14 ngày), loại trừ buổi học tương lai hoặc chưa điểm danh để đảm bảo đánh giá chuẩn xác.
   - Hệ thống Cảnh báo Sớm thông minh phân cấp 3 mức: **Cảnh báo Đỏ** (nguy cơ bỏ học/vắng liên tiếp $\ge 2$ buổi/nợ bài tập), **Cảnh báo Vàng** (có dấu hiệu giảm sút phong độ), và **Tuyên dương** (học viên xuất sắc).
   - Tích hợp tính năng **"Sao chép tin nhắn nhắc nhở"** tự động tạo nội dung tin nhắn thân thiện gửi phụ huynh/học sinh qua Zalo chỉ bằng 1 thao tác.
 * **Bộ 4 Giải Pháp Tối Ưu Hóa Toàn Diện (System Optimizations):**

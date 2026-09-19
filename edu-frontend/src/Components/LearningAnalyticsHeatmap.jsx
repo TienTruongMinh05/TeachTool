@@ -16,7 +16,8 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Bộ lọc
+  // Bộ lọc & Phạm vi thời gian
+  const [scopeMode, setScopeMode] = useState('2_WEEKS'); // '2_WEEKS' (Mặc định) | 'ALL'
   const [activeFilterTab, setActiveFilterTab] = useState('ALL'); // 'ALL' | 'CRITICAL' | 'WARNING' | 'EXCELLENT'
   const [selectedCellInfo, setSelectedCellInfo] = useState(null);
 
@@ -35,7 +36,18 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
         submissionApi.getByClass(classId).catch(() => [])
       ]);
 
-      setStudents(Array.isArray(studRes) ? studRes : []);
+      const rawStudents = Array.isArray(studRes) ? studRes : [];
+      // Chuẩn hóa dữ liệu học sinh từ EnrollmentResponseDTO
+      const normalizedStudents = rawStudents.map(st => ({
+        ...st,
+        id: st.studentId || st.id, // Đảm bảo .id là student user ID
+        studentId: st.studentId || st.id,
+        enrollmentId: st.id,
+        fullName: st.fullName || st.studentName || 'Học sinh',
+        email: st.email || st.studentEmail || ''
+      }));
+
+      setStudents(normalizedStudents);
       // Sắp xếp buổi học theo thời gian tăng dần
       const sortedSessions = (Array.isArray(sessRes) ? sessRes : []).sort(
         (a, b) => new Date(a.startTime) - new Date(b.startTime)
@@ -52,8 +64,8 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
     }
   };
 
-  // Chia buổi học và bài tập thành các Tuần học (Weeks)
-  const weeks = useMemo(() => {
+  // Chia toàn bộ buổi học và bài tập thành các Tuần học (Weeks)
+  const allWeeks = useMemo(() => {
     if (sessions.length === 0) {
       return [{ weekNum: 1, title: 'Tuần 1', sessions: [], assignments: [] }];
     }
@@ -111,13 +123,22 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
     return result.length > 0 ? result : [{ weekNum: 1, title: 'Tuần 1', sessions: [], assignments: [] }];
   }, [sessions, assignments]);
 
+  // Lọc các tuần hiển thị theo phạm vi 2 tuần gần nhất (14 ngày)
+  const weeks = useMemo(() => {
+    if (scopeMode === 'ALL' || allWeeks.length <= 2) {
+      return allWeeks;
+    }
+    // Lấy 2 tuần gần nhất đồng bộ chu kỳ lưu trữ bài làm 14 ngày
+    return allWeeks.slice(-2);
+  }, [allWeeks, scopeMode]);
+
   // Tính toán chỉ số sức khỏe học tập (Health Index) cho từng học sinh theo từng tuần
   const studentWeeklyAnalytics = useMemo(() => {
     // Map nhanh attendance theo `${studentId}_${sessionId}`
     const attMap = new Map();
     attendances.forEach(att => {
-      const sId = att.student?.id || att.studentId;
-      const sessId = att.session?.id || att.sessionId;
+      const sId = att.studentId || att.student?.id;
+      const sessId = att.sessionId || att.session?.id;
       if (sId && sessId) {
         attMap.set(`${sId}_${sessId}`, att);
       }
@@ -126,8 +147,8 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
     // Map nhanh submission theo `${studentId}_${assignmentId}`
     const subMap = new Map();
     submissions.forEach(sub => {
-      const sId = sub.student?.id || sub.studentId;
-      const asgnId = sub.assignment?.id || sub.assignmentId;
+      const sId = sub.studentId || sub.student?.id;
+      const asgnId = sub.assignmentId || sub.assignment?.id;
       if (sId && asgnId) {
         subMap.set(`${sId}_${asgnId}`, sub);
       }
@@ -144,21 +165,38 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
 
       weeks.forEach(week => {
         // 1. Điểm chuyên cần trong tuần
-        let weekAttScore = 100;
         let presentCount = 0;
         let absentCount = 0;
         let lateCount = 0;
+        let evaluatedSessionsCount = 0;
 
         week.sessions.forEach(sess => {
-          const rec = attMap.get(`${st.id}_${sess.id}`);
-          const status = rec?.status || 'ABSENT'; // Nếu giáo viên chưa điểm danh hoặc vắng
-          if (status === 'PRESENT') {
-            presentCount++;
-            totalPresents++;
-            consecutiveAbsents = 0;
-          } else if (status === 'LATE') {
-            lateCount++;
-            consecutiveAbsents = 0;
+          const isPast = sess.startTime && new Date(sess.startTime) <= new Date();
+          const hasAttendanceRecords = attendances.some(a => (a.sessionId || a.session?.id) === sess.id);
+
+          // Nếu buổi học trong tương lai hoặc chưa từng được giáo viên điểm danh -> không tính vắng
+          if (!isPast || !hasAttendanceRecords) {
+            return;
+          }
+
+          evaluatedSessionsCount++;
+          const rec = attMap.get(`${st.studentId || st.id}_${sess.id}`);
+          if (rec) {
+            if (rec.status === 'PRESENT') {
+              presentCount++;
+              totalPresents++;
+              consecutiveAbsents = 0;
+            } else if (rec.status === 'LATE') {
+              lateCount++;
+              consecutiveAbsents = 0;
+            } else if (rec.status === 'ABSENT') {
+              absentCount++;
+              totalAbsents++;
+              consecutiveAbsents++;
+              if (consecutiveAbsents > maxConsecutiveAbsents) {
+                maxConsecutiveAbsents = consecutiveAbsents;
+              }
+            }
           } else {
             absentCount++;
             totalAbsents++;
@@ -169,11 +207,9 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
           }
         });
 
-        if (week.sessions.length > 0) {
-          weekAttScore = Math.round(((presentCount * 1.0 + lateCount * 0.6) / week.sessions.length) * 100);
-        } else {
-          weekAttScore = null;
-        }
+        const weekAttScore = evaluatedSessionsCount > 0
+          ? Math.round(((presentCount * 1.0 + lateCount * 0.6) / evaluatedSessionsCount) * 100)
+          : null;
 
         // 2. Điểm bài tập trong tuần (chỉ tính các bài đã mở/phát hành)
         const now = new Date();
@@ -184,7 +220,7 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
         const weekScores = [];
 
         activeAsgns.forEach(asgn => {
-          const sub = subMap.get(`${st.id}_${asgn.id}`);
+          const sub = subMap.get(`${st.studentId || st.id}_${asgn.id}`);
           if (sub) {
             asgnSubmitted++;
             const numScore = parseFloat(sub.score);
@@ -250,6 +286,10 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
           alertLevel = 'WARNING';
           alertReasons.push(`Có ${totalAbsents} buổi vắng cần bù bài`);
         }
+        if (missingAssignmentsCount === 1) {
+          alertLevel = 'WARNING';
+          alertReasons.push(`Còn thiếu 1 bài tập chưa nộp`);
+        }
         if (recentScores.length >= 2) {
           const lastScore = recentScores[recentScores.length - 1];
           const prevScore = recentScores[recentScores.length - 2];
@@ -261,14 +301,14 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
       }
 
       // Điều kiện Tuyên dương (Excellent)
-      if (alertLevel === 'NORMAL' && totalAbsents === 0 && missingAssignmentsCount === 0) {
+      if (alertLevel === 'NORMAL' && (totalPresents > 0 || recentScores.length > 0)) {
         const avgScore =
           recentScores.length > 0
             ? recentScores.reduce((a, b) => a + b, 0) / recentScores.length
             : null;
-        if (avgScore !== null && avgScore >= 8.5) {
+        if (totalAbsents === 0 && missingAssignmentsCount === 0 && (avgScore === null || avgScore >= 8.0)) {
           alertLevel = 'EXCELLENT';
-          alertReasons.push(`Chuyên cần 100% & Điểm bài tập xuất sắc (${avgScore.toFixed(1)}/10)`);
+          alertReasons.push(`Chuyên cần tốt & Điểm bài tập xuất sắc (${avgScore ? avgScore.toFixed(1) : '10'}/10)`);
         }
       }
 
@@ -311,10 +351,11 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
   const handleCopyReminderMessage = (student) => {
     const className = classInfo?.name || 'Lớp học TeachTool';
     const reasonsText = student.alertReasons.join(' và ');
-    const msg = `Chào em ${student.fullName}, thầy/cô phụ trách ${className} nhắn em: Thầy/cô ghi nhận gần đây em ${reasonsText.toLowerCase()}. Em có đang gặp khó khăn hay bận việc gì không? Hãy nhắn lại thầy/cô sớm để được hỗ trợ nhé! Chúc em luôn học tốt!`;
+    const studentName = student.fullName || student.studentName || 'em';
+    const msg = `Chào em ${studentName}, thầy/cô phụ trách ${className} nhắn em: Thầy/cô ghi nhận gần đây em ${reasonsText.toLowerCase()}. Em có đang gặp khó khăn hay bận việc gì không? Hãy nhắn lại thầy/cô sớm để được hỗ trợ nhé! Chúc em luôn học tốt!`;
 
     navigator.clipboard.writeText(msg);
-    toast.success(`Đã sao chép tin nhắn nhắc nhở dành riêng cho học sinh "${student.fullName}"! Thầy/cô có thể dán gửi Zalo ngay.`);
+    toast.success(`Đã sao chép tin nhắn nhắc nhở dành riêng cho học sinh "${studentName}"! Thầy/cô có thể dán gửi Zalo ngay.`);
   };
 
   if (loading) {
@@ -336,14 +377,55 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
           </h2>
         </div>
 
-        <button
-          type="button"
-          onClick={loadAnalyticsData}
-          className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl border border-slate-200 transition cursor-pointer"
-          title="Tải lại dữ liệu"
-        >
-          ↻
-        </button>
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          {/* Nút chọn phạm vi 2 tuần / tất cả */}
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+            <button
+              type="button"
+              onClick={() => setScopeMode('2_WEEKS')}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                scopeMode === '2_WEEKS'
+                  ? 'bg-white text-indigo-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              2 tuần gần nhất (14 ngày)
+            </button>
+            <button
+              type="button"
+              onClick={() => setScopeMode('ALL')}
+              className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                scopeMode === 'ALL'
+                  ? 'bg-white text-indigo-700 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Tất cả các tuần ({allWeeks.length})
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={loadAnalyticsData}
+            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl border border-slate-200 transition cursor-pointer"
+            title="Tải lại dữ liệu"
+          >
+            ↻
+          </button>
+        </div>
+      </div>
+
+      {/* THÔNG BÁO QUY TẮC LƯU TRỮ 14 NGÀY */}
+      <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-3 text-xs text-indigo-900 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-base">💡</span>
+          <div>
+            <b>Quy tắc phân tích học tập:</b> Dữ liệu bài làm học sinh được lưu giữ trong vòng <b>14 ngày (2 tuần)</b>. Heatmap và hệ thống cảnh báo sớm tập trung phân tích 2 tuần gần nhất để đảm bảo kết quả chính xác, tránh cảnh báo nhầm từ các bài tập cũ đã hết hạn lưu trữ.
+          </div>
+        </div>
+        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 shrink-0">
+          {scopeMode === '2_WEEKS' ? 'Phạm vi: 2 tuần' : 'Phạm vi: Toàn bộ'}
+        </span>
       </div>
 
       {/* 4 THẺ CẢNH BÁO TỔNG QUAN */}
@@ -426,7 +508,7 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {[...criticalStudents, ...warningStudents].map(st => (
               <div
-                key={st.id}
+                key={st.studentId || st.id}
                 className={`p-3.5 rounded-xl border bg-white flex flex-col justify-between gap-3 shadow-2xs ${
                   st.alertLevel === 'CRITICAL' ? 'border-rose-300 ring-1 ring-rose-100' : 'border-amber-300'
                 }`}
@@ -531,7 +613,7 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
                 </tr>
               ) : (
                 displayStudents.map((st, idx) => (
-                  <tr key={st.id} className="hover:bg-slate-50/70 transition group">
+                  <tr key={st.studentId || st.id} className="hover:bg-slate-50/70 transition group">
                     <td className="py-3 px-3 text-center text-slate-400 font-mono border-r border-slate-100 bg-white group-hover:bg-slate-50/70 sticky left-0 z-10">
                       {idx + 1}
                     </td>
