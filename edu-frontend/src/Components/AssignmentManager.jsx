@@ -78,6 +78,8 @@ export default function AssignmentManager({ classId }) {
       title: '',
       description: '',
       dueDate: '',
+      isScheduled: false,
+      scheduledPublishAt: '',
       allowText: true,
       allowDocx: false,
       allowAudio: false,
@@ -96,6 +98,15 @@ export default function AssignmentManager({ classId }) {
       const d = new Date(assignment.dueDate);
       const tzOffset = d.getTimezoneOffset() * 60000;
       localDueDate = new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+    }
+
+    let localPublishDate = '';
+    let isSched = false;
+    if (assignment.scheduledPublishAt) {
+      const pDate = new Date(assignment.scheduledPublishAt);
+      const pOffset = pDate.getTimezoneOffset() * 60000;
+      localPublishDate = new Date(pDate.getTime() - pOffset).toISOString().slice(0, 16);
+      isSched = new Date(assignment.scheduledPublishAt) > new Date();
     }
 
     let initialAttachments = [];
@@ -117,6 +128,8 @@ export default function AssignmentManager({ classId }) {
       title: assignment.title || '',
       description: assignment.description || '',
       dueDate: localDueDate,
+      isScheduled: isSched,
+      scheduledPublishAt: localPublishDate,
       allowText: allowed.includes('TEXT'),
       allowDocx: allowed.includes('DOCX'),
       allowAudio: allowed.includes('AUDIO'),
@@ -182,13 +195,22 @@ export default function AssignmentManager({ classId }) {
       if (formData.allowRecording) allowedTypes.push('DIRECT_RECORD');
       if (formData.allowImage) allowedTypes.push('IMAGE');
 
-      const attachments = formData.attachments || [];
-      const firstAttachment = attachments[0] || {};
+      if (formData.isScheduled) {
+        if (!formData.scheduledPublishAt) {
+          toast.warning('Vui lòng chọn thời gian hẹn giờ phát hành bài tập.');
+          return;
+        }
+        if (formData.dueDate && new Date(formData.dueDate) <= new Date(formData.scheduledPublishAt)) {
+          toast.error('Hạn chót nộp bài phải sau thời gian phát hành bài tập.');
+          return;
+        }
+      }
 
       const payload = {
         title: formData.title,
         description: formData.description,
         dueDate: formData.dueDate ? formData.dueDate + ':00' : null,
+        scheduledPublishAt: formData.isScheduled && formData.scheduledPublishAt ? formData.scheduledPublishAt + ':00' : null,
         allowedSubmissionTypes: allowedTypes.join(','),
         attachmentFileName: firstAttachment.fileName || null,
         attachmentFileUrl: firstAttachment.fileUrl || null,
@@ -212,6 +234,23 @@ export default function AssignmentManager({ classId }) {
       loadData();
     } catch (err) {
       toast.error('Lỗi lưu bài tập: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  const handlePublishNow = async (assignment) => {
+    const ok = await confirm({
+      title: 'Phát hành bài tập ngay',
+      message: `Bạn có chắc muốn phát hành bài tập "${assignment.title}" ngay bây giờ cho học sinh không?`,
+      confirmText: 'Phát hành ngay'
+    });
+    if (!ok) return;
+
+    try {
+      await assignmentApi.publishNow(assignment.id);
+      toast.success(`Đã phát hành bài tập "${assignment.title}" cho học sinh.`);
+      loadData();
+    } catch (err) {
+      toast.error('Lỗi phát hành bài tập: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -376,13 +415,18 @@ export default function AssignmentManager({ classId }) {
               className={`bg-white border rounded-xl shadow-xs transition overflow-hidden ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/10' : 'border-gray-200'}`}>
               <div className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-gray-50/60 border-b border-gray-200">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {matchedSession && (
                       <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 text-blue-800 rounded">
                         {matchedSession.topic}
                       </span>
                     )}
                     <h4 className="font-bold text-gray-800 text-base">{assignment.title}</h4>
+                    {assignment.scheduledPublishAt && new Date(assignment.scheduledPublishAt) > new Date() && (
+                      <span className="px-2 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-800 rounded border border-amber-200">
+                        Chờ phát hành: {formatDateTime(assignment.scheduledPublishAt)}
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
                     <span>Hạn nộp: <b>{formatDateTime(assignment.dueDate)}</b></span>
@@ -390,7 +434,17 @@ export default function AssignmentManager({ classId }) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {assignment.scheduledPublishAt && new Date(assignment.scheduledPublishAt) > new Date() && (
+                    <button
+                      type="button"
+                      onClick={() => handlePublishNow(assignment)}
+                      className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 transition cursor-pointer"
+                      title="Phát hành ngay lập tức cho học sinh"
+                    >
+                      Phát hành ngay
+                    </button>
+                  )}
                   <button
                     onClick={() => openSubmissionsView(assignment)}
                     className={`px-3 py-1 text-xs font-semibold rounded transition cursor-pointer shadow-xs ${
@@ -793,6 +847,52 @@ export default function AssignmentManager({ classId }) {
                   placeholder="Mô tả cụ thể yêu cầu bài tập cho học sinh..."
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
+              </div>
+
+              {/* Thời điểm phát hành bài tập */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
+                <label className="block text-xs font-semibold text-gray-700">
+                  Thời điểm mở bài tập cho học sinh
+                </label>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, isScheduled: false })}
+                    className={`py-2 px-3 rounded-lg border font-medium text-center transition cursor-pointer ${
+                      !formData.isScheduled
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                    }`}
+                  >
+                    Phát hành ngay
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, isScheduled: true })}
+                    className={`py-2 px-3 rounded-lg border font-medium text-center transition cursor-pointer ${
+                      formData.isScheduled
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                    }`}
+                  >
+                    Hẹn giờ phát hành
+                  </button>
+                </div>
+
+                {formData.isScheduled && (
+                  <div className="pt-2 border-t border-slate-200 animate-fade-in">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Thời gian mở bài tự động (Push) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      required={formData.isScheduled}
+                      value={formData.scheduledPublishAt}
+                      onChange={(e) => setFormData({ ...formData, scheduledPublishAt: e.target.value })}
+                      className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>

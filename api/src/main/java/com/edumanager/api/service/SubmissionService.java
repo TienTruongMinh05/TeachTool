@@ -33,6 +33,11 @@ public class SubmissionService {
             throw new SecurityException("Bạn chưa ghi danh vào lớp học của bài tập này nên không thể nộp bài.");
         }
 
+        // Kiểm tra bài tập đã đến thời gian mở nộp bài chưa (hẹn giờ)
+        if (!assignment.isPublished()) {
+            throw new IllegalStateException("Bài tập này được hẹn giờ phát hành và hiện chưa đến thời gian mở nộp bài.");
+        }
+
         if (submissionType == null || submissionType.trim().isEmpty()) {
             throw new IllegalArgumentException("Vui lòng chọn hình thức nộp bài.");
         }
@@ -106,6 +111,10 @@ public class SubmissionService {
 
     public java.util.List<Submission> getSubmissionsByAssignment(Long assignmentId) {
         return submissionRepo.findByAssignmentId(assignmentId);
+    }
+
+    public java.util.List<Submission> getSubmissionsByClass(Long classId) {
+        return submissionRepo.findByClassRoomId(classId);
     }
 
     public java.util.List<Submission> getSubmissionsByStudent(Long studentId) {

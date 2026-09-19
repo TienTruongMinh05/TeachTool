@@ -11,5 +11,6 @@ export const assignmentApi = {
   },
   update: (id, data) => axiosClient.put(`/assignments/${id}`, data),
   delete: (id) => axiosClient.delete(`/assignments/${id}`),
+  publishNow: (id) => axiosClient.post(`/assignments/${id}/publish-now`),
   getForStudent: (studentId) => axiosClient.get(`/students/${studentId}/assignments`)
 };

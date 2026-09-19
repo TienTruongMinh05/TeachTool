@@ -13,6 +13,8 @@ import ClassList from './ClassList';
 import AccountSettingsModal from '../Components/AccountSettingsModal';
 import TeacherManager from '../Components/TeacherManager';
 import ClassMaterialsManager from '../Components/ClassMaterialsManager';
+import AssignmentGradeMatrix from '../Components/AssignmentGradeMatrix';
+import LearningAnalyticsHeatmap from '../Components/LearningAnalyticsHeatmap';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -260,9 +262,6 @@ export default function ClassDashboard({ initialView }) {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <h2 className="text-xl font-bold text-slate-800">Thời Khóa Biểu Tất Cả Các Lớp</h2>
-              <p className="text-xs text-slate-500">
-                Tổng hợp lịch dạy của mọi lớp học theo khung giờ 07:00 - 22:00 (Bấm vào buổi học để chuyển đến kế hoạch)
-              </p>
             </div>
             <button
               onClick={() => fetchTimetable(null)}
@@ -308,9 +307,6 @@ export default function ClassDashboard({ initialView }) {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
                   <h2 className="text-xl font-bold text-slate-800">Thời Khóa Biểu Lớp {classInfo?.name}</h2>
-                  <p className="text-xs text-slate-500">
-                    Lịch học dạng bảng từ Thứ 2 đến Chủ nhật (07:00 - 22:00) - Bấm vào buổi học để chuyển đến kế hoạch
-                  </p>
                 </div>
                 <button
                   onClick={() => fetchTimetable(selectedClassId)}
@@ -342,6 +338,20 @@ export default function ClassDashboard({ initialView }) {
             <AttendanceManager
               classId={selectedClassId}
               initialSessionId={targetSessionId}
+            />
+          );
+        case 'grade_matrix':
+          return (
+            <AssignmentGradeMatrix
+              classId={selectedClassId}
+              classInfo={classInfo}
+            />
+          );
+        case 'analytics_heatmap':
+          return (
+            <LearningAnalyticsHeatmap
+              classId={selectedClassId}
+              classInfo={classInfo}
             />
           );
         case 'materials':
@@ -659,10 +669,44 @@ export default function ClassDashboard({ initialView }) {
                   </div>
                 </div>
 
-                {/* Nhóm 3: Tài liệu & Sách giáo khoa */}
+                {/* Nhóm 3: Đánh giá & Phân tích */}
                 <div>
                   <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1.5">
-                    3. Tài liệu & Sách giáo khoa
+                    3. Đánh giá & Phân tích
+                  </h4>
+                  <div className="space-y-1">
+                    <button
+                      onClick={() => {
+                        setActiveClassTab('grade_matrix');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
+                        activeClassTab === 'grade_matrix'
+                          ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                          : 'text-slate-300 hover:bg-slate-700/80'
+                      }`}>
+                      Ma trận điểm số
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveClassTab('analytics_heatmap');
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
+                        activeClassTab === 'analytics_heatmap'
+                          ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                          : 'text-slate-300 hover:bg-slate-700/80'
+                      }`}>
+                      Heatmap & Cảnh báo
+                    </button>
+                  </div>
+                </div>
+
+                {/* Nhóm 4: Tài liệu & Sách giáo khoa */}
+                <div>
+                  <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1.5">
+                    4. Tài liệu & Sách giáo khoa
                   </h4>
                   <div className="space-y-1">
                     <button
@@ -670,23 +714,20 @@ export default function ClassDashboard({ initialView }) {
                         setActiveClassTab('materials');
                         setIsMobileMenuOpen(false);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer flex items-center justify-between ${
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
                         activeClassTab === 'materials'
                           ? 'bg-blue-600 text-white shadow-xs font-semibold'
                           : 'text-slate-300 hover:bg-slate-700/80'
                       }`}>
-                      <span>Tài liệu & Sách của lớp</span>
-                      <span className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-400/30 px-1.5 py-0.5 rounded font-mono">
-                        PDF
-                      </span>
+                      Tài liệu & Sách của lớp
                     </button>
                   </div>
                 </div>
 
-                {/* Nhóm 4: Đội ngũ Giáo viên */}
+                {/* Nhóm 5: Đội ngũ Giáo viên */}
                 <div>
                   <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1.5">
-                    4. Đội ngũ Giáo viên
+                    5. Đội ngũ Giáo viên
                   </h4>
                   <div className="space-y-1">
                     <button
@@ -721,24 +762,17 @@ export default function ClassDashboard({ initialView }) {
           </div>
         </div>
 
-        {/* FOOTER CỦA SIDEBAR: THÔNG TIN GIÁO VIÊN & CÀI ĐẶT / ĐĂNG XUẤT */}
-        <div className="p-3.5 bg-slate-900 border-t border-slate-700/80 space-y-2">
+        {/* FOOTER CỦA SIDEBAR: THÔNG TIN GIÁO VIÊN & CÀI ĐẶT */}
+        <div className="p-3.5 bg-slate-900 border-t border-slate-700/80 space-y-2.5">
           <div className="truncate">
             <div className="text-xs font-bold text-white truncate">{user?.fullName || 'Giáo viên'}</div>
             <div className="text-[11px] text-slate-400 truncate">{user?.email}</div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsSettingsModalOpen(true)}
-              className="flex-1 px-2 py-1.5 text-xs text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 cursor-pointer transition text-center">
-              Cài đặt
-            </button>
-            <button
-              onClick={logout}
-              className="flex-1 px-2 py-1.5 text-xs text-rose-400 hover:text-rose-300 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 cursor-pointer transition text-center">
-              Đăng xuất
-            </button>
-          </div>
+          <button
+            onClick={() => setIsSettingsModalOpen(true)}
+            className="w-full px-3 py-2 text-xs font-semibold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 cursor-pointer transition text-center shadow-2xs">
+            Cài đặt tài khoản
+          </button>
         </div>
       </div>
 

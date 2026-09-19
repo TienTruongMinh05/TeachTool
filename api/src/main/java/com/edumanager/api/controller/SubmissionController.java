@@ -111,6 +111,30 @@ public class SubmissionController {
         return ResponseEntity.ok(result);
     }
 
+    @GetMapping("/class/{classId}")
+    public ResponseEntity<?> getSubmissionsByClass(
+            @PathVariable Long classId,
+            HttpServletRequest servletRequest) {
+        Long callerId = (Long) servletRequest.getAttribute("userId");
+        String callerRole = (String) servletRequest.getAttribute("userRole");
+
+        // Chống BOLA/IDOR và rò rỉ dữ liệu (Data Leak): Chỉ giáo viên phụ trách lớp mới được xem danh sách bài nộp của toàn bộ lớp
+        if (!"TEACHER".equalsIgnoreCase(callerRole)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Bạn không có quyền truy cập dữ liệu toàn bộ bài nộp của lớp học này."));
+        }
+
+        if (callerId != null && !classRoomService.canAccessClass(classId, callerId, callerRole)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Bạn không phải giáo viên phụ trách lớp học này."));
+        }
+
+        List<SubmissionResponseDTO> result = service.getSubmissionsByClass(classId).stream()
+                .map(SubmissionResponseDTO::fromEntity)
+                .toList();
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/student/{studentId}")
     public ResponseEntity<?> getSubmissionsByStudent(
             @PathVariable Long studentId,

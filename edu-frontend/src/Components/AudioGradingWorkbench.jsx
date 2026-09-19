@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { spliceAndMergeAudio } from '../utils/audioSplicer';
 import { useToast } from '../context/ToastContext';
+import { getOptimizedAudioConstraints, createOptimizedMediaRecorder } from '../utils/audioOptimizer';
 
 const formatSeconds = (sec) => {
   if (isNaN(sec) || sec == null) return '00:00';
@@ -116,8 +117,8 @@ export default function AudioGradingWorkbench({
     setIsAddingTextComment(false);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia(getOptimizedAudioConstraints());
+      mediaRecorderRef.current = createOptimizedMediaRecorder(stream, { audioBitsPerSecond: 32000 });
       recordedChunksRef.current = [];
 
       mediaRecorderRef.current.ondataavailable = (e) => {

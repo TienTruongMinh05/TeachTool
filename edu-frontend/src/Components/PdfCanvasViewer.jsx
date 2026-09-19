@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
+import { loadBookWithCache, clearBookCache } from '../utils/bookCacheService';
 
 // Cấu hình CDN worker cho pdf.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
@@ -124,12 +125,15 @@ export default function PdfCanvasViewer({
   const [activePage, setActivePage] = useState(currentPage || 1);
   const [scale, setScale] = useState(1.15);
   const [loading, setLoading] = useState(true);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [isCached, setIsCached] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState('');
 
   // Tập hợp các trang đang trong tầm nhìn để kích hoạt render Canvas
   const [visiblePages, setVisiblePages] = useState(new Set([currentPage || 1]));
 
-  // Tải tài liệu PDF
+  // Tải tài liệu PDF với bộ nhớ đệm CacheStorage
   useEffect(() => {
     if (!fileUrl) {
       setError('Không có liên kết tài liệu PDF.');
@@ -139,6 +143,7 @@ export default function PdfCanvasViewer({
 
     let isMounted = true;
     setLoading(true);
+    setDownloadProgress(0);
     setError('');
 
     // Chuẩn hóa fileUrl: Nếu là relative URL (/api/files/download/...), ghép với API base URL
@@ -149,23 +154,34 @@ export default function PdfCanvasViewer({
       resolvedUrl = `${serverOrigin}${resolvedUrl.startsWith('/') ? '' : '/'}${resolvedUrl}`;
     }
 
-    const loadingTask = pdfjsLib.getDocument({
-      url: resolvedUrl,
-      cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
-      cMapPacked: true
-    });
+    let loadingTask = null;
 
-    loadingTask.promise
-      .then(doc => {
+    async function fetchAndRenderPdf() {
+      try {
+        // Tải từ CacheStorage hoặc tải mạng với thanh tiến trình
+        const bookData = await loadBookWithCache(resolvedUrl, (percent) => {
+          if (isMounted) setDownloadProgress(percent);
+        });
+
         if (!isMounted) return;
+        setIsCached(bookData.fromCache);
+
+        loadingTask = pdfjsLib.getDocument({
+          data: bookData.data,
+          cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+          cMapPacked: true
+        });
+
+        const doc = await loadingTask.promise;
+        if (!isMounted) return;
+
         setPdfDoc(doc);
         setNumPages(doc.numPages);
         if (onTotalPagesLoaded) {
           onTotalPagesLoaded(doc.numPages);
         }
         setLoading(false);
-      })
-      .catch(err => {
+      } catch (err) {
         if (!isMounted) return;
         console.error('Lỗi tải PDF:', err);
         const isMissing = err?.message?.includes('Missing PDF') || err?.name === 'MissingPDFException';
@@ -175,7 +191,10 @@ export default function PdfCanvasViewer({
           setError('Không thể mở tệp PDF trực tiếp: ' + (err.message || 'Lỗi kết nối tệp'));
         }
         setLoading(false);
-      });
+      }
+    }
+
+    fetchAndRenderPdf();
 
     return () => {
       isMounted = false;
@@ -183,7 +202,7 @@ export default function PdfCanvasViewer({
         loadingTask.destroy();
       }
     };
-  }, [fileUrl]);
+  }, [fileUrl, reloadKey]);
 
   // Cuộn đến trang khi được truyền từ bên ngoài vào lần đầu
   useEffect(() => {
@@ -280,6 +299,18 @@ export default function PdfCanvasViewer({
     scrollToPage(p);
   };
 
+  const handleClearAndReload = async () => {
+    let resolvedUrl = fileUrl;
+    if (!resolvedUrl.startsWith('http://') && !resolvedUrl.startsWith('https://') && !resolvedUrl.startsWith('blob:')) {
+      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8081/api';
+      const serverOrigin = apiBase.replace(/\/api\/?$/, '');
+      resolvedUrl = `${serverOrigin}${resolvedUrl.startsWith('/') ? '' : '/'}${resolvedUrl}`;
+    }
+    await clearBookCache(resolvedUrl);
+    setIsCached(false);
+    setReloadKey(k => k + 1);
+  };
+
   return (
     <div className={`flex flex-col h-full bg-slate-950 text-white select-none ${className}`}>
       {/* Thanh điều khiển Toolbar */}
@@ -321,9 +352,27 @@ export default function PdfCanvasViewer({
           </button>
         </div>
 
-        {/* Hướng dẫn cuộn mượt */}
-        <div className="hidden md:block text-[11px] text-slate-400 font-medium">
-          Cuộn chuột hoặc vuốt để xem liên tục các trang
+        {/* Chỉ báo trạng thái Bộ nhớ đệm Sách số */}
+        <div className="flex items-center gap-2">
+          {isCached ? (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/70 border border-emerald-700/60 px-2.5 py-1 rounded-md shadow-xs">
+              ⚡ Bộ nhớ đệm (Mở tức thì)
+            </span>
+          ) : (
+            <span className="hidden sm:inline-flex items-center text-[11px] text-slate-400">
+              Cuộn chuột hoặc vuốt để xem liên tục các trang
+            </span>
+          )}
+
+          <button
+            type="button"
+            onClick={handleClearAndReload}
+            disabled={loading}
+            className="text-[11px] text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded border border-slate-700 transition cursor-pointer"
+            title="Tải lại sách và cập nhật bộ nhớ đệm"
+          >
+            Làm mới sách
+          </button>
         </div>
 
         {/* Bộ điều khiển Zoom */}
@@ -365,9 +414,26 @@ export default function PdfCanvasViewer({
         className="flex-1 overflow-y-auto overflow-x-auto p-4 flex flex-col items-center bg-slate-950/95 scroll-smooth"
       >
         {loading && (
-          <div className="flex flex-col items-center gap-2 text-slate-400 py-16 m-auto">
-            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            <span className="text-xs font-medium">Đang tải toàn bộ tài liệu PDF...</span>
+          <div className="flex flex-col items-center gap-3 text-slate-300 py-16 m-auto">
+            <div className="w-9 h-9 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="text-center space-y-1">
+              <span className="text-xs font-semibold block">
+                {downloadProgress > 0 && downloadProgress < 100
+                  ? `Đang tải sách số vào bộ nhớ đệm: ${downloadProgress}%`
+                  : 'Đang mở và kết xuất tài liệu...'}
+              </span>
+              <span className="text-[11px] text-slate-500 block">
+                Lần sau mở sẽ tức thì nhờ bộ nhớ đệm trình duyệt
+              </span>
+            </div>
+            {downloadProgress > 0 && downloadProgress < 100 && (
+              <div className="w-48 bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-blue-500 h-full transition-all duration-150"
+                  style={{ width: `${downloadProgress}%` }}
+                ></div>
+              </div>
+            )}
           </div>
         )}
 

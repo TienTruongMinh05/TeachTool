@@ -15,6 +15,8 @@ public record AssignmentResponseDTO(
     String attachmentFileName,
     String attachmentFileUrl,
     String attachmentsJson,
+    LocalDateTime scheduledPublishAt,
+    Boolean isPublished,
     LocalDateTime createdAt
 ) {
     public static AssignmentResponseDTO fromEntity(Assignment a) {
@@ -30,6 +32,8 @@ public record AssignmentResponseDTO(
             a.getAttachmentFileName(),
             a.getAttachmentFileUrl(),
             a.getAttachmentsJson(),
+            a.getScheduledPublishAt(),
+            a.isPublished(),
             a.getCreatedAt()
         );
     }

@@ -26,18 +26,54 @@
 
 ### 👩‍🏫 Phân Hệ Dành Cho Giáo Viên (Teacher Portal)
 * **Quản lý Lớp học Độc lập:** Tạo lớp học với mã tham gia tự động 6 ký tự (`SecureRandom`). Mỗi giáo viên có không gian quản lý lớp học độc lập, an toàn.
-* **Cơ Chế Đồng Giảng Dạy (Co-Teaching Model):** Hỗ trợ mời giáo viên đồng nghiệp cùng phụ trách lớp học qua Email. Cả Giáo viên chủ nhiệm và Giáo viên đồng phụ trách có quyền hạn ngang hàng 100% trong toàn bộ nghiệp vụ học vụ (thời khóa biểu, soạn giáo án TESOL, giao bài tập, chấm điểm, điểm danh).
-* **Thời Khóa Biểu Tương Tác:** Lịch học trực quan dạng lưới từ Thứ 2 đến Chủ nhật, khung giờ từ 7h00 sáng đến 22h00 tối, hiển thị trực quan sĩ số và nội dung bài học.
-* **Tích Hợp Kế Hoạch Giảng Dạy (Lesson Plans):** Tạo và sửa kế hoạch giảng dạy trực tiếp trong từng buổi học. Hỗ trợ chia mục bài giảng (Warm-up, Presentation, Practice, Production), đính kèm tài liệu phát tay (`.docx`, `.pdf`) và ghi chú chuẩn bị cho học sinh.
+* **Cơ Chế Đồng Giảng Dạy (Co-Teaching Model):** Hỗ trợ mời giáo viên đồng nghiệp cùng phụ trách lớp học qua Email. Cả Giáo viên chủ nhiệm và Giáo viên đồng phụ trách có quyền hạn ngang hàng 100% trong toàn bộ nghiệp vụ học vụ (thời khóa biểu, soạn giáo án TESOL, giao bài tập, chấm điểm, điểm danh). Giáo viên chủ nhiệm có quyền bảo vệ tối cao lớp học.
+* **Thời Khóa Biểu Tương Tác:** Lịch học trực quan dạng lưới từ Thứ 2 đến Chủ nhật, khung giờ từ 7h00 sáng đến 22h00 tối, hiển thị trực quan sĩ số và nội dung bài học theo màu nhận diện lớp.
+* **Tích Hợp Kế Hoạch Giảng Dạy (Lesson Plans):** Tạo và sửa kế hoạch giảng dạy trực tiếp trong từng buổi học. Hỗ trợ chia mục bài giảng (Warm-up, Presentation, Practice, Production), đính kèm tài liệu phát tay (`.docx`, `.pdf`), số trang sách giáo khoa và ghi chú chuẩn bị cho học sinh.
 * **Thư Viện 28 Hoạt Động TESOL Mẫu:** Tích hợp sẵn 28 hoạt động dạy học tương tác (Hot Seat, Running Dictation, Information Gap, Role-Play, Jeopardy...), có thể sao chép nhanh vào giáo án chỉ bằng 1 cú click.
-* **Quản Lý Bài Tập & Chấm Điểm:** Giao bài tập kèm file đề bài, giới hạn thời hạn nộp bài (`dueDate`), cho phép học sinh nộp bằng văn bản hoặc ghi âm giọng nói trực tiếp. Chấm điểm kèm nhận xét chi tiết cho từng học sinh.
-* **Điểm Danh Tự Động:** Điểm danh theo buổi học, tự động đồng bộ lý do khi học sinh báo vắng trước giờ học.
+* **Giáo Trình Số Hóa (PDF Canvas Viewer):** Tải lên giáo trình PDF dung lượng lớn (lên tới 100MB), tự động nhận diện tổng số trang, đọc sách mượt mà qua Canvas, hỗ trợ chọn trang sách gắn vào từng học phần buổi học.
+* **Giao Bài Tập Đa Tệp (Đính kèm tối đa 5 file):** Giáo viên có thể đính kèm cùng lúc tối đa 5 tệp tài liệu/đề bài khác nhau cho mỗi bài tập. Tự động thu gọn đề bài dài (`CollapsibleDescription`) giúp giao diện luôn gọn gàng.
+* **Giao Bài Hẹn Giờ & Tự Động Phát Hành (Scheduled Assignments & Auto-Push):** 
+  - Giáo viên có thể soạn trước bài tập và thiết lập thời gian phát hành chính xác trong tương lai.
+  - Trạng thái trực quan: `Chờ phát hành: [HH:mm dd/MM/yyyy]` kèm nút bấm **"Phát hành ngay"** cho phép mở bài sớm nếu thay đổi kế hoạch.
+  - Tích hợp bảo vệ thông minh: Ma trận điểm số và Heatmap tự động loại trừ bài chưa mở, không làm sai lệch tỷ lệ hoàn thành hay tạo cảnh báo sa sút giả.
+* **Bảng Danh Sách Bài Nộp In-Line:** Bảng danh sách bài nộp hiển thị ngay dưới từng bài tập được chọn thay vì cuộn xuống đáy trang, hỗ trợ đóng/mở nhanh bằng 1 nút bấm.
+* **Bàn Chấm Bài Nói Chuyên Sâu (Audio Grading Workbench):** 
+  - Nghe bài nói của học sinh ở nhiều tốc độ (0.8x, 1.0x, 1.2x, 1.5x).
+  - Thu âm nhận xét và sửa phát âm mẫu tại từng mốc thời gian (timestamp).
+  - Ghép nối âm thanh tự động (Audio Splicer): Tự động kết hợp bài nói của học sinh với các đoạn nhận xét của thầy cô thành 1 file âm thanh hoàn chỉnh liền mạch.
+* **Điểm Danh Tự Động & Ma Trận Chuyên Cần:** Điểm danh theo buổi học, tự động đồng bộ lý do khi học sinh báo vắng trước giờ học. Bảng ma trận đối chiếu toàn khóa tính toán tỷ lệ chuyên cần (%).
+* **Ma Trận Theo Dõi Điểm Số Bài Tập (Gradebook Matrix):** Bảng tổng hợp điểm số dạng Excel/Sheet, trực quan hóa toàn bộ học sinh và bài tập. Mã màu điểm số trực quan, tự động tính tỷ lệ nộp bài, điểm trung bình và hỗ trợ xuất bảng điểm CSV/Excel tiếng Việt chuẩn UTF-8 BOM chỉ với 1 click.
+* **Phân Tích Xu Hướng Học Tập & Heatmap Cảnh Báo Sớm (Learning Analytics):**
+  - Biểu đồ nhiệt (Heatmap) thể hiện mức độ tích cực kết hợp giữa **Chuyên cần (50%)** và **Điểm bài tập (50%)** qua từng tuần học.
+  - Hệ thống Cảnh báo Sớm thông minh phân cấp 3 mức: **Cảnh báo Đỏ** (nguy cơ bỏ học/vắng liên tiếp $\ge 2$ buổi/nợ bài tập), **Cảnh báo Vàng** (có dấu hiệu giảm sút phong độ), và **Tuyên dương** (học viên xuất sắc).
+  - Tích hợp tính năng **"Sao chép tin nhắn nhắc nhở"** tự động tạo nội dung tin nhắn thân thiện gửi phụ huynh/học sinh qua Zalo chỉ bằng 1 thao tác.
+* **Bộ 4 Giải Pháp Tối Ưu Hóa Toàn Diện (System Optimizations):**
+  1. *Nén âm thanh giọng nói:* Thu âm kênh đơn Mono lọc ồn 24kHz kết hợp bộ mã hóa Opus 32kbps, giảm 75-80% dung lượng file ghi âm (~240KB/phút).
+  2. *Bộ nhớ đệm sách giáo khoa (Digital Book Caching):* Ứng dụng CacheStorage API và HTTP ETag giúp mở sách giáo khoa PDF dung lượng lớn tức thì 0ms, không tốn băng thông máy chủ.
+  3. *Phân tách mã nguồn (Code Splitting):* Cấu hình dynamic import `React.lazy` và `manualChunks` tách nhỏ thư viện, giảm file JavaScript chính từ 1,090 kB xuống chỉ còn 12.28 kB (giảm 98.8%).
+  4. *Đánh chỉ mục cơ sở dữ liệu (Database Indexing):* Đánh chỉ mục JPA `@Index` và SQL tự động tối ưu hóa mọi truy vấn lọc lớp học, bài tập, điểm danh và bài nộp đạt tốc độ $O(\log N)$.
+* **Thanh Thao Tác Thông Minh:** Tự động điều chỉnh hướng mở (Smart Dropup / Dropdown) tránh tràn màn hình khi thao tác ở buổi học dưới cùng.
+* **Cẩm Nang Hướng Dẫn Tích Hợp:** Hướng dẫn sử dụng trực quan 10 chuyên đề ngay trong thanh điều hướng giáo viên.
 
 ### 👨‍🎓 Phân Hệ Dành Cho Học Sinh (Student Portal)
-* **Tham Gia Lớp Bằng Mã:** Học sinh chỉ cần nhập mã lớp do giáo viên cung cấp để tự động vào lớp.
-* **Thời Khóa Biểu Cá Nhân:** Xem lịch học hàng tuần, thông tin sách cần mang, tài liệu cần chuẩn bị trước buổi học.
-* **Nộp Bài Tập Trực Tuyến & Ghi Âm Giọng Nói:** Tích hợp bộ ghi âm audio trực tiếp trên trình duyệt hoặc tải lên file bài làm (`.mp3`, `.wav`, `.docx`, `.pdf`).
-* **Quy Trình Báo Vắng Thông Minh:** Cho phép học sinh báo vắng trước giờ học tối thiểu 2 tiếng theo chuẩn múi giờ Việt Nam (`Asia/Ho_Chi_Minh`), kèm nhập lý do vắng. Khi học sinh xác nhận, hệ thống tự động cập nhật trạng thái vắng sang danh sách điểm danh của giáo viên.
+* **Tham Gia Lớp Bằng Mã:** Học sinh chỉ cần nhập mã lớp 6 ký tự để tự động vào lớp.
+* **Thời Khóa Biểu & Kế Hoạch Buổi Học:** Xem lịch học hàng tuần, dặn dò chuẩn bị bài, thông tin sách giáo khoa cần mang và tải tài liệu phát tay trước khi đến lớp.
+* **Nhận Bài Tập Hẹn Giờ Tự Động (Auto-Push):** Đề bài hẹn giờ được bảo mật tuyệt đối trước thời gian mở. Cơ chế đồng bộ ngầm định kỳ (Background Sync 30s) tự động đẩy bài tập lên Cổng học sinh khi đến đúng giờ mà không cần tải lại trang.
+* **Làm Riêng Từng Bài Tập Trong Buổi Học:** Hệ thống phân tách rõ ràng từng bài tập độc lập (Bài tập 1, Bài tập 2...) trong cùng một buổi học, giúp học sinh làm riêng rẽ, nộp riêng và theo dõi kết quả từng bài chuẩn xác.
+* **5 Phương Thức Nộp Bài Đa Dạng:**
+  1. *Văn bản tự luận:* Gõ bài làm trực tiếp vào form nộp.
+  2. *Tệp Word (.docx, .doc, .pdf):* Tải tệp bài viết từ máy tính.
+  3. *Tệp Audio (.mp3, .wav, .m4a):* Tải tệp ghi âm từ điện thoại hoặc máy tính.
+  4. *Thu âm trực tiếp trên trình duyệt:* Tích hợp bộ ghi âm micro không cần phần mềm phụ.
+  5. *Hình ảnh / Webcam chụp bài:* Tải ảnh bài làm hoặc bật Webcam/Camera điện thoại chụp trực tiếp trang bài tập viết tay.
+* **Lưu Bản Nháp (Draft):** Cho phép lưu bài làm nháp trước khi quyết định nộp chính thức.
+* **Xóa Bài Đã Nộp Để Nộp Lại:** Khi chưa được giáo viên chấm điểm, học sinh có thể xóa bài nộp cũ để cập nhật bài làm mới nếu phát hiện lỗi sai.
+* **Xem Điểm & Trình Phát Nhận Xét Âm Thanh Timestamped:** Xem điểm số, đọc nhận xét chi tiết, nhấp vào từng mốc thời gian (timestamp) để nghe giáo viên sửa phát âm mẫu.
+* **Quy Trình Báo Vắng & Hủy Báo Vắng Thông Minh:**
+  - Báo vắng trước giờ học tối thiểu 2 tiếng theo chuẩn múi giờ Việt Nam (`Asia/Ho_Chi_Minh`), kèm nhập lý do vắng.
+  - Tự động đồng bộ sang danh sách điểm danh của giáo viên.
+  - **Hủy báo vắng:** Học sinh có thể tự hủy báo vắng nếu sắp xếp đi học lại được, hệ thống tự động hoàn trả trạng thái đi học bình thường.
+* **Trang Hướng Dẫn Học Sinh Tích Hợp:** Tab hướng dẫn sử dụng chuyên dụng ngay trên Cổng học sinh.
 
 ---
 
@@ -59,6 +95,7 @@ Hệ thống được thiết kế và kiểm thử toàn diện theo các tiêu
    - Header tải file ép buộc `Content-Disposition: attachment`, `X-Content-Type-Options: nosniff` và `Content-Security-Policy: default-src 'none'`.
 8. **Cấu Hình CORS Nghiêm Ngặt:** Chỉ chấp nhận request từ các domain chính thức của TeachTool, ngăn chặn tấn công Cross-Origin lừa đảo.
 9. **An Toàn Dữ Liệu & Che Giấu Lỗi Kỹ Thuật:** `GlobalExceptionHandler` che giấu toàn bộ cấu trúc cơ sở dữ liệu và stack trace hệ thống khi có lỗi không mong muốn.
+10. **Chính Sách Vòng Đời & Lưu Trữ Tự Động (`DataRetentionService`):** Dữ liệu giáo viên (lớp, lịch học, sách, giáo án) được lưu trữ an toàn trong vòng **6 tháng**. Bài nộp của học sinh (file, audio, ảnh chụp) được lưu giữ trong vòng **2 tuần (tuần trước & tuần này)** để tối ưu tài nguyên lưu trữ đám mây và bảo vệ hiệu năng hệ thống.
 
 ---
 
@@ -67,14 +104,17 @@ Hệ thống được thiết kế và kiểm thử toàn diện theo các tiêu
 ### Backend
 * **Ngôn ngữ:** Java 21 LTS
 * **Framework:** Spring Boot 3.x (Spring Web MVC, Spring Data JPA, Spring Validation)
-* **Cơ sở dữ liệu:** PostgreSQL 18.6 (Hỗ trợ Connection Pooling & SSL Mode Required)
+* **Cơ sở dữ liệu:** PostgreSQL 18.6 (Neon Serverless, SSL Required, Connection Pooling HikariCP)
 * **Bảo mật:** JJWT (JSON Web Token), PBKDF2 Password Hasher, Spring Interceptor RBAC
+* **Tự động hóa:** Scheduled Tasks (`DataRetentionService` dọn dẹp định kỳ 2 tuần / 6 tháng)
 * **Đóng gói:** Docker Multi-stage Container (`eclipse-temurin:21-jre-alpine`)
 
 ### Frontend
 * **Thư viện:** React 19, React Router DOM v7
 * **Build Tool:** Vite 8
-* **Styling:** Tailwind CSS v4
+* **Styling:** Tailwind CSS v4 (Chuẩn hóa bộ màu Navy hiện đại `#0f172b`)
+* **Xử lý tài liệu:** Mozilla pdf.js (Canvas PDF Rendering Engine)
+* **Xử lý âm thanh:** Web Audio API & MediaRecorder API (Audio Splicer & Trình phát nhận xét)
 * **HTTP Client:** Axios (cấu hình Request Interceptor tự động gắn Bearer Token và Response Interceptor xử lý phiên 401)
 * **Tích hợp:** Google Identity Services (GIS) OAuth 2.0 Client SDK
 
@@ -131,9 +171,17 @@ TEACHTOOL/
 │   └── Dockerfile                      # Multi-stage Dockerfile cho Cloud Deploy
 ├── edu-frontend/                       # Frontend React / Vite
 │   ├── src/
-│   │   ├── api/                        # Axios API Clients (authApi, classApi, sessionApi...)
-│   │   ├── Components/                 # Reusable UI Components (TimetableGrid, ActivityLibrary...)
-│   │   ├── context/                    # AuthContext quản lý trạng thái đăng nhập
+│   │   ├── api/                        # Axios API Clients (authApi, classApi, sessionApi, submissionApi...)
+│   │   ├── Components/                 # Reusable UI Components
+│   │   │   ├── AssignmentManager.jsx   # Quản lý & giao bài tập đính kèm đa tệp
+│   │   │   ├── AudioGradingWorkbench.jsx # Bàn chấm âm thanh nhận xét timestamp
+│   │   │   ├── BookPagePickerModal.jsx # Chọn trang sách giáo khoa
+│   │   │   ├── PdfCanvasViewer.jsx     # Trình đọc sách PDF trực quan Canvas
+│   │   │   ├── SessionList.jsx         # Quản lý buổi học & menu thông minh
+│   │   │   ├── StudentGuide.jsx        # Cẩm nang hướng dẫn dành cho học sinh
+│   │   │   ├── TimetableGrid.jsx       # Thời khóa biểu tuần ma trận
+│   │   │   └── UserGuide.jsx           # Cẩm nang hướng dẫn dành cho giáo viên
+│   │   ├── context/                    # AuthContext, ToastContext
 │   │   └── pages/                      # Pages (Login, ClassList, ClassDashboard, StudentPortal)
 │   ├── vercel.json                     # Cấu hình SPA Routing cho Vercel
 │   └── vite.config.js                  # Cấu hình Vite

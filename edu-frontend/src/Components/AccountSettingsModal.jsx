@@ -153,6 +153,20 @@ export default function AccountSettingsModal({
     }
   };
 
+  const handleLogout = async () => {
+    const ok = await confirm({
+      title: 'Đăng xuất tài khoản',
+      message: 'Bạn có chắc chắn muốn đăng xuất khỏi hệ thống TeachTool không?',
+      confirmText: 'Đăng xuất',
+      cancelText: 'Ở lại',
+      type: 'warning'
+    });
+    if (ok && onLogout) {
+      onClose();
+      onLogout();
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-3 sm:p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
@@ -441,14 +455,14 @@ export default function AccountSettingsModal({
         <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
           <button
             type="button"
-            onClick={onLogout}
-            className="px-3.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition cursor-pointer">
-            Đăng xuất
+            onClick={handleLogout}
+            className="px-3.5 py-1.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition cursor-pointer shadow-2xs">
+            Đăng xuất tài khoản
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-300 hover:bg-gray-100 rounded-lg transition cursor-pointer">
+            className="px-4 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 rounded-lg transition cursor-pointer shadow-2xs">
             Đóng
           </button>
         </div>

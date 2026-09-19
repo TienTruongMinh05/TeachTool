@@ -10,9 +10,10 @@ export default function UserGuide() {
     { id: 'sessions', title: '4. Buổi học, Giáo án & Kho hoạt động' },
     { id: 'materials', title: '5. Sách giáo khoa & Thư viện số' },
     { id: 'assignments', title: '6. Giao bài & Chấm bài Audio nâng cao' },
-    { id: 'students', title: '7. Cổng Học Sinh & Nộp bài' },
-    { id: 'attendance', title: '8. Điểm danh & Bảng chuyên cần' },
-    { id: 'account', title: '9. Tài khoản & Bảo mật phân quyền' },
+    { id: 'analytics', title: '7. Ma trận điểm & Heatmap cảnh báo sớm' },
+    { id: 'students', title: '8. Cổng Học Sinh & Nộp bài' },
+    { id: 'attendance', title: '9. Điểm danh & Bảng chuyên cần' },
+    { id: 'account', title: '10. Tài khoản, Tối ưu & Bảo mật' },
   ];
 
   return (
@@ -152,13 +153,14 @@ export default function UserGuide() {
               </div>
 
               <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
-                <h5 className="font-bold text-gray-800 text-sm">Tính năng Báo vắng tự động dành cho Học sinh</h5>
+                <h5 className="font-bold text-gray-800 text-sm">Tính năng Báo vắng & Hủy báo vắng tự động</h5>
                 <p>
                   Khi học sinh xem thời khóa biểu và bấm vào buổi học sắp diễn ra:
                 </p>
                 <ul className="list-disc pl-5 space-y-1 text-gray-600">
-                  <li><b>Quy định thời gian:</b> Bắt buộc học sinh phải gửi yêu cầu báo vắng <b>trước giờ học ít nhất 2 tiếng</b>. Nếu dưới 2 tiếng trước giờ lên lớp, hệ thống sẽ tự động khóa nút báo vắng để đảm bảo tính kỷ luật.</li>
+                  <li><b>Quy định thời gian báo vắng:</b> Bắt buộc học sinh phải gửi yêu cầu báo vắng <b>trước giờ học ít nhất 2 tiếng</b>. Nếu dưới 2 tiếng trước giờ lên lớp, hệ thống sẽ tự động khóa nút báo vắng để đảm bảo tính kỷ luật.</li>
                   <li><b>Đồng bộ sổ điểm danh:</b> Khi học sinh nhập lý do và gửi, hệ thống tự động cập nhật trạng thái của học sinh thành <b>Vắng mặt (ABSENT)</b> trên bảng điểm danh của giáo viên, kèm lời giải thích mà học sinh đã ghi.</li>
+                  <li><b>Tính năng Hủy báo vắng:</b> Trong trường hợp học sinh đã báo vắng nhưng sau đó sắp xếp đi học lại được, học sinh có thể bấm <b>"Hủy báo vắng"</b>. Hệ thống sẽ mở hộp thoại xác nhận in-app và tự động xóa trạng thái vắng, đưa học sinh trở lại danh sách điểm danh bình thường của giáo viên.</li>
                 </ul>
               </div>
             </div>
@@ -259,16 +261,46 @@ export default function UserGuide() {
             </h4>
             <div className="space-y-3 text-xs">
               <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
-                <h5 className="font-bold text-gray-800 text-sm">Giao bài tập đa dạng hình thức nộp</h5>
+                <h5 className="font-bold text-gray-800 text-sm">Giao bài tập đa dạng & Đính kèm tối đa 5 tệp đề bài</h5>
                 <p>
-                  Giáo viên có thể liên kết bài tập với buổi học, đặt hạn nộp (Deadline), đính kèm tệp đề bài hoặc audio mẫu, và lựa chọn các hình thức nộp cho phép:
+                  Giáo viên có thể liên kết bài tập với buổi học, đặt hạn nộp (Deadline), đính kèm <b>tối đa 5 tệp tài liệu/đề bài khác nhau</b> (Word, PDF, file Audio nghe mẫu...), và lựa chọn các hình thức nộp cho phép:
                 </p>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded font-semibold border border-blue-200">1. Văn bản tự luận</span>
                   <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded font-semibold border border-blue-200">2. Tệp Word (.docx)</span>
                   <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded font-semibold border border-blue-200">3. Tệp Audio (.mp3, .wav)</span>
                   <span className="px-2.5 py-1 bg-purple-50 text-purple-700 rounded font-semibold border border-purple-200">4. Ghi âm trực tiếp qua micro</span>
+                  <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded font-semibold border border-emerald-200">5. Hình ảnh / Chụp ảnh bài làm</span>
                 </div>
+                <p className="text-gray-600 pt-1">
+                  <b>Tự động thu gọn đề bài dài:</b> Đối với các bài tập có phần hướng dẫn chi tiết hoặc đề thi dài, hệ thống tự động thu gọn và cung cấp nút <i>"Xem thêm / Thu gọn"</i> để giữ cho giao diện luôn gọn gàng, thoáng mắt.
+                </p>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                <h5 className="font-bold text-gray-800 text-sm">Giao bài hẹn giờ tự động phát hành (Scheduled Publishing)</h5>
+                <p>
+                  Giáo viên có thể lên kế hoạch soạn trước bài tập cho cả tuần hoặc cả tháng:
+                </p>
+                <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
+                  <li><b>Phát hành ngay (Mặc định):</b> Bài tập mở ngay lập tức sau khi lưu để học sinh nhận đề và làm bài.</li>
+                  <li><b>Hẹn giờ phát hành:</b> Chọn chính xác ngày & giờ trong tương lai. Bài tập sẽ ở trạng thái <i>"Chờ phát hành: [ngày giờ]"</i> và hoàn toàn ẩn khỏi Cổng học sinh cho đến khi đến đúng thời gian quy định.</li>
+                  <li><b>Tự động push:</b> Khi thời gian chạm mốc hẹn, hệ thống tự động mở bài tập cho toàn bộ học sinh trong lớp mà giáo viên không cần thao tác thêm.</li>
+                  <li><b>Nút "Phát hành ngay":</b> Cho phép giáo viên thay đổi ý định và kích hoạt mở bài sớm chỉ bằng 1 cú nhấp chuột.</li>
+                  <li><b>Không phạt sai lệch:</b> Ma trận điểm số và Heatmap tự động nhận diện bài hẹn giờ, không trừ điểm hoàn thành hay cảnh báo nợ bài cho học sinh trước giờ mở.</li>
+                </ul>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                <h5 className="font-bold text-gray-800 text-sm">Bảng danh sách bài nộp hiển thị ngay dưới từng bài tập (In-Line)</h5>
+                <p>
+                  Khi giáo viên bấm <b>"Xem danh sách nộp"</b> trên một bài tập:
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-gray-600">
+                  <li>Bảng danh sách các bài làm của học sinh sẽ <b>mở rộng ngay phía dưới bài tập đó</b> (không cần cuộn trang xuống cuối).</li>
+                  <li>Hiển thị rõ ràng định dạng bài làm của từng em (Văn bản, File Word, File Audio, Thu âm trực tiếp, hoặc Hình ảnh).</li>
+                  <li>Nút đóng tinh gọn <b>✕</b> ở góc tiêu đề giúp thu gọn bảng danh sách nhanh chóng khi hoàn tất chấm bài.</li>
+                </ul>
               </div>
 
               <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
@@ -295,44 +327,94 @@ export default function UserGuide() {
           </div>
         )}
 
-        {/* PHẦN 7: CỔNG HỌC SINH & NỘP BÀI */}
-        {activeSection === 'students' && (
+        {/* PHẦN 7: MA TRẬN ĐIỂM SỐ & HEATMAP CẢNH BÁO SỚM */}
+        {activeSection === 'analytics' && (
           <div className="space-y-4 animate-fade-in">
             <h4 className="text-lg font-bold text-gray-800">
-              7. Hướng Dẫn Dành Cho Phía Học Sinh (Student Portal)
+              7. Ma Trận Điểm Số Bài Tập & Heatmap Cảnh Báo Sớm
             </h4>
             <div className="space-y-3 text-xs">
               <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
-                <h5 className="font-bold text-gray-800 text-sm">Theo dõi tiến độ học tập & Thời khóa biểu</h5>
+                <h5 className="font-bold text-gray-800 text-sm">Ma trận theo dõi điểm số bài tập (Gradebook Matrix)</h5>
+                <p>
+                  Tại mục <b>"3. Đánh giá & Phân tích" → "Ma trận điểm số"</b>, hệ thống cung cấp bảng tổng hợp dạng Excel trực quan:
+                </p>
+                <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
+                  <li><b>Các dòng học sinh cố định:</b> Hiển thị tên, avatar, email, tỷ lệ hoàn thành bài tập (%) và điểm trung bình tích lũy.</li>
+                  <li><b>Các cột bài tập:</b> Mỗi cột ứng với 1 bài tập trong lớp, hiển thị trực quan trạng thái điểm bằng mã màu thông minh: Xanh lá ($\ge 8.5$ điểm), Xanh dương (7.0 - 8.4 điểm), Vàng cam (5.0 - 6.9 điểm), Đỏ (&lt; 5.0 điểm), hoặc huy hiệu <i>Đã nộp</i> / <i>Quá hạn</i>.</li>
+                  <li><b>Xem nhanh chi tiết:</b> Bấm vào bất kỳ ô điểm nào để mở xem nội dung bài làm, file đính kèm, điểm số và nhận xét của giáo viên.</li>
+                  <li><b>Xuất bảng điểm Excel/CSV:</b> Bấm <b>"Xuất Bảng Điểm (Excel/CSV)"</b> để tải về file bảng điểm hoàn chỉnh chuẩn tiếng Việt có dấu (UTF-8 BOM), sẵn sàng nộp báo cáo hoặc in ấn.</li>
+                </ul>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                <h5 className="font-bold text-gray-800 text-sm">Biểu đồ nhiệt (Heatmap) & Hệ thống Cảnh báo Sớm Tự Động</h5>
+                <p>
+                  Tại mục <b>"Heatmap & Cảnh báo"</b>, hệ thống phân tích xu hướng học tập kết hợp giữa <b>Chuyên cần (50%)</b> và <b>Điểm số bài tập (50%)</b> qua từng tuần học:
+                </p>
+                <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
+                  <li>
+                    <b>🔴 Cảnh báo Đỏ (Nguy cơ cao):</b> Tự động phát hiện học sinh vắng $\ge 2$ buổi liên tiếp, nợ $\ge 2$ bài tập hoặc điểm số sụt giảm nghiêm trọng.
+                  </li>
+                  <li>
+                    <b>🟡 Cảnh báo Vàng (Cần lưu ý & Động viên):</b> Học sinh có 1 buổi vắng hoặc điểm bài tập gần nhất có dấu hiệu tụt dốc.
+                  </li>
+                  <li>
+                    <b>⭐ Tuyên dương học viên tiêu biểu:</b> Học sinh có chuyên cần 100% và điểm trung bình $\ge 8.5$.
+                  </li>
+                  <li>
+                    <b>Nút "Sao chép tin nhắn gửi học sinh":</b> Chỉ với 1 click, hệ thống tự động soạn sẵn tin nhắn cá nhân hóa lịch sự, nêu rõ lý do nhắc nhở để thầy/cô dán gửi ngay cho học sinh hoặc phụ huynh qua Zalo/Facebook.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PHẦN 8: HƯỚNG DẪN DÀNH CHO PHÍA HỌC SINH (STUDENT PORTAL) */}
+        {activeSection === 'students' && (
+          <div className="space-y-4 animate-fade-in">
+            <h4 className="text-lg font-bold text-gray-800">
+              8. Hướng Dẫn Dành Cho Phía Học Sinh (Student Portal)
+            </h4>
+            <div className="space-y-3 text-xs">
+              <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                <h5 className="font-bold text-gray-800 text-sm">Theo dõi tiến độ học tập & Làm riêng từng bài tập</h5>
                 <p>
                   Học sinh đăng nhập để theo dõi lịch học cá nhân của toàn bộ các lớp mình tham gia:
                 </p>
                 <ul className="list-disc pl-5 space-y-1 text-gray-600">
                   <li>Xem phòng học, giờ học, tên sách và đặc biệt là mục <b>"Cần chuẩn bị trước khi tới lớp"</b>.</li>
                   <li>Bấm vào buổi học để tải tài liệu phát tay do giáo viên gửi.</li>
-                  <li>Xem tình trạng nộp bài tập của từng buổi học (Chưa làm, Đã nộp, Đã chấm điểm).</li>
+                  <li><b>Làm riêng từng bài tập:</b> Nếu một buổi học có nhiều bài tập (Bài 1, Bài 2...), hệ thống sẽ hiển thị các nút làm bài và trạng thái nộp riêng biệt cho từng bài, giúp học sinh chủ động hoàn thành từng phần.</li>
                 </ul>
               </div>
 
               <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
-                <h5 className="font-bold text-gray-800 text-sm">Quy trình ghi âm nộp bài trực tiếp bằng micro</h5>
-                <ol className="list-decimal pl-5 space-y-1.5 text-gray-600">
-                  <li>Học sinh bấm vào bài tập $\rightarrow$ chọn <b>"Làm & Nộp Bài"</b>.</li>
-                  <li>Chọn phương thức <b>"Thu âm ngay"</b>. Khi trình duyệt yêu cầu cấp quyền Micro, bấm <i>"Cho phép (Allow)"</i>.</li>
-                  <li>Bấm <b>"Bắt đầu ghi âm"</b> và đọc bài làm. Khi đọc xong bấm <b>"Dừng ghi âm"</b>.</li>
-                  <li>Học sinh có thể nghe lại bản thu của mình. Nếu hài lòng, bấm <b>"Xác nhận nộp file ghi âm này"</b> $\rightarrow$ <b>"Xác Nhận Nộp Bài"</b>.</li>
-                  <li>Sau khi giáo viên chấm bài, học sinh có thể mở lại để xem điểm, đọc lời nhận xét chi tiết và nghe file audio sửa mẫu từ thầy cô.</li>
-                </ol>
+                <h5 className="font-bold text-gray-800 text-sm">Đa dạng hình thức nộp bài (Văn bản, File, Thu âm, Chụp ảnh)</h5>
+                <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
+                  <li><b>Văn bản & Tệp Word:</b> Gõ trực tiếp bài làm hoặc tải tệp tài liệu từ thiết bị.</li>
+                  <li><b>Ghi âm trực tiếp:</b> Bấm thu âm ngay trên trình duyệt máy tính hoặc điện thoại mà không cần cài thêm ứng dụng nào khác.</li>
+                  <li><b>Chụp ảnh nộp bài:</b> Học sinh làm bài trên giấy, sau đó dùng camera điện thoại hoặc webcam máy tính chụp trực tiếp hình ảnh trang bài làm để nộp.</li>
+                  <li><b>Lưu bản nháp:</b> Có thể bấm <i>"Lưu bản nháp (chưa nộp)"</i> để tiếp tục chỉnh sửa trước khi nộp chính thức.</li>
+                </ul>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                <h5 className="font-bold text-gray-800 text-sm">Tính năng Xóa bài đã nộp để nộp lại</h5>
+                <p className="text-gray-600">
+                  Khi học sinh đã nộp bài nhưng phát hiện nộp nhầm tệp hoặc muốn làm lại tốt hơn: Nếu <b>giáo viên chưa chấm điểm</b>, học sinh chỉ cần bấm nút <b>"Xóa bài đã nộp"</b> trong modal bài tập. Bài tập sẽ lập tức chuyển về trạng thái Chưa nộp để học sinh tải lên bài làm mới.
+                </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* PHẦN 8: ĐIỂM DANH & CHUYÊN CẦN */}
+        {/* PHẦN 9: ĐIỂM DANH & CHUYÊN CẦN */}
         {activeSection === 'attendance' && (
           <div className="space-y-4 animate-fade-in">
             <h4 className="text-lg font-bold text-gray-800">
-              8. Điểm Danh & Bảng Ma Trận Chuyên Cần
+              9. Điểm Danh & Bảng Ma Trận Chuyên Cần
             </h4>
             <div className="space-y-3 text-xs">
               <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
@@ -353,11 +435,11 @@ export default function UserGuide() {
           </div>
         )}
 
-        {/* PHẦN 9: TÀI KHOẢN & BẢO MẬT PHÂN QUYỀN */}
+        {/* PHẦN 10: TÀI KHOẢN, TỐI ƯU & BẢO MẬT */}
         {activeSection === 'account' && (
           <div className="space-y-4 animate-fade-in">
             <h4 className="text-lg font-bold text-gray-800">
-              9. Quản Lý Tài Khoản & Cơ Chế Bảo Mật Dữ Liệu
+              10. Quản Lý Tài Khoản, Tối Ưu Hóa & Bảo Mật Dữ Liệu
             </h4>
             <div className="space-y-3 text-xs">
               <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
@@ -395,6 +477,13 @@ export default function UserGuide() {
                     <b>Bài nộp của Học sinh (Lưu trữ 2 tuần):</b> Các bài làm học sinh đã nộp (văn bản, tệp Word/PDF, file âm thanh ghi âm giọng nói, ảnh chụp bài tập) được lưu giữ nguyên vẹn trong vòng <b>2 tuần (tuần trước & tuần này)</b>. Khoảng thời gian này hoàn toàn đáp ứng chu trình giao bài - làm bài - giáo viên chấm và nhận xét. Sau 2 tuần, các bài nộp và tệp đính kèm nhị phân sẽ được tác vụ tự động dọn dẹp để giải phóng dung lượng bộ nhớ PostgreSQL.
                   </li>
                 </ul>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                <h5 className="font-bold text-gray-800 text-sm">Giao diện Navy hiện đại & Hệ thống Thông báo In-App</h5>
+                <p>
+                  Ứng dụng đã loại bỏ hoàn toàn các hộp thoại thô của trình duyệt (`alert`, `confirm`), thay thế bằng hệ thống thông báo **In-App Toast** và Modal xác nhận hiện đại, không làm đóng băng giao diện. Bộ màu chuẩn hóa tông **Navy `#0f172b`** sang trọng, dịu mắt, cùng phong cách nút bấm tối giản giúp trải nghiệm giảng dạy và quản lý luôn mượt mà.
+                </p>
               </div>
 
               <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">

@@ -238,9 +238,6 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Tài Liệu & Sách Giáo Khoa Của Lớp</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Quản lý giáo trình PDF, sách bài tập và tài liệu giảng dạy riêng cho lớp {classInfo?.name || ''}
-          </p>
         </div>
         <button
           type="button"

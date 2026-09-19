@@ -67,9 +67,10 @@ public class StudentPortalController {
 
                 String planTitle = matchedPlan.map(TeachingPlan::getTitle).orElse(null);
 
-                // Tìm bài tập gắn với buổi học này
+                // Tìm bài tập gắn với buổi học này (chỉ lấy bài đã đến thời gian phát hành)
                 List<Assignment> rawSessionAssignments = assignments.stream()
                         .filter(a -> a.getSession() != null && a.getSession().getId().equals(session.getId()))
+                        .filter(Assignment::isPublished)
                         .toList();
 
                 List<AssignmentResponseDTO> sessionAssignments = rawSessionAssignments.stream()

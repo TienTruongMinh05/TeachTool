@@ -60,6 +60,7 @@ public class AssignmentService {
         existing.setAttachmentFileName(updated.getAttachmentFileName());
         existing.setAttachmentFileUrl(updated.getAttachmentFileUrl());
         existing.setAttachmentsJson(updated.getAttachmentsJson());
+        existing.setScheduledPublishAt(updated.getScheduledPublishAt());
 
         if (updated.getSession() != null && updated.getSession().getId() != null) {
             Session session = sessionRepo.findById(updated.getSession().getId())
@@ -67,6 +68,18 @@ public class AssignmentService {
             existing.setSession(session);
         }
 
+        return assignmentRepo.save(existing);
+    }
+
+    public Assignment publishNow(Long id, Long callerId) {
+        Assignment existing = assignmentRepo.findById(id)
+            .orElseThrow(() -> new RuntimeException("Không tìm thấy bài tập có ID: " + id));
+
+        if (callerId != null && existing.getClassRoom() != null && !classRoomService.isTeacherOfClass(existing.getClassRoom(), callerId)) {
+            throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học của bài tập này.");
+        }
+
+        existing.setScheduledPublishAt(java.time.LocalDateTime.now());
         return assignmentRepo.save(existing);
     }
 
@@ -96,6 +109,8 @@ public class AssignmentService {
         List<Enrollment> enrollments = enrollmentRepo.findByStudentId(studentId);
         List<Long> classIds = enrollments.stream().map(e -> e.getClassRoom().getId()).toList();
         if (classIds.isEmpty()) return List.of();
-        return assignmentRepo.findByClassRoomIdIn(classIds);
+        return assignmentRepo.findByClassRoomIdIn(classIds).stream()
+                .filter(Assignment::isPublished)
+                .toList();
     }
 }

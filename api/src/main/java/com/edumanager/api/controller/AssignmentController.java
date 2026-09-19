@@ -34,7 +34,9 @@ public class AssignmentController {
         if (callerId != null && !classRoomService.canAccessClass(classId, callerId, callerRole)) {
             throw new SecurityException("Bạn không có quyền truy cập danh sách bài tập của lớp này.");
         }
+        boolean isStudent = "STUDENT".equalsIgnoreCase(callerRole);
         return service.getAssignmentsByClass(classId).stream()
+                .filter(a -> !isStudent || a.isPublished())
                 .map(AssignmentResponseDTO::fromEntity)
                 .toList();
     }
@@ -51,7 +53,9 @@ public class AssignmentController {
                 throw new SecurityException("Bạn không có quyền truy cập bài tập của buổi học này.");
             }
         }
+        boolean isStudent = "STUDENT".equalsIgnoreCase(callerRole);
         return service.getAssignmentsBySession(sessionId).stream()
+                .filter(a -> !isStudent || a.isPublished())
                 .map(AssignmentResponseDTO::fromEntity)
                 .toList();
     }
@@ -63,6 +67,14 @@ public class AssignmentController {
             jakarta.servlet.http.HttpServletRequest request) {
         Long callerId = (Long) request.getAttribute("userId");
         return AssignmentResponseDTO.fromEntity(service.updateAssignment(id, assignment, callerId));
+    }
+
+    @PostMapping("/api/assignments/{id}/publish-now")
+    public AssignmentResponseDTO publishNow(
+            @PathVariable Long id,
+            jakarta.servlet.http.HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        return AssignmentResponseDTO.fromEntity(service.publishNow(id, callerId));
     }
 
     @DeleteMapping("/api/assignments/{id}")

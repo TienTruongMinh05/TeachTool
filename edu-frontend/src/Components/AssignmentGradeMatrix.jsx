@@ -1,0 +1,606 @@
+// File: src/Components/AssignmentGradeMatrix.jsx
+import { useState, useEffect, useMemo } from 'react';
+import { assignmentApi } from '../api/assignmentApi';
+import { submissionApi } from '../api/submissionApi';
+import { studentApi } from '../api/studentApi';
+import { useToast } from '../context/ToastContext';
+
+export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateToGrading }) {
+  const { toast } = useToast();
+  const [students, setStudents] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Bộ lọc & Tìm kiếm
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL' | 'INCOMPLETE' | 'LOW_SCORE' | 'PERFECT'
+  const [sortBy, setSortBy] = useState('NAME_ASC'); // 'NAME_ASC' | 'SCORE_DESC' | 'SCORE_ASC' | 'COMPLETION_DESC'
+
+  // Modal xem nhanh chi tiết bài nộp
+  const [selectedCell, setSelectedCell] = useState(null);
+
+  useEffect(() => {
+    loadMatrixData();
+  }, [classId]);
+
+  const loadMatrixData = async () => {
+    try {
+      setLoading(true);
+      const [studRes, asgnRes, subRes] = await Promise.all([
+        studentApi.getByClass(classId),
+        assignmentApi.getByClass(classId),
+        submissionApi.getByClass(classId).catch(() => [])
+      ]);
+
+      setStudents(Array.isArray(studRes) ? studRes : []);
+      setAssignments(Array.isArray(asgnRes) ? asgnRes : []);
+      setSubmissions(Array.isArray(subRes) ? subRes : []);
+    } catch (err) {
+      console.error('Lỗi khi tải ma trận điểm số:', err);
+      toast.error('Không thể tải dữ liệu ma trận điểm: ' + (err.message || 'Lỗi mạng'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Map submissions theo key `${studentId}_${assignmentId}` để tra cứu O(1)
+  const submissionMap = useMemo(() => {
+    const map = new Map();
+    submissions.forEach(sub => {
+      const studentId = sub.student?.id || sub.studentId;
+      const assignmentId = sub.assignment?.id || sub.assignmentId;
+      if (studentId && assignmentId) {
+        map.set(`${studentId}_${assignmentId}`, sub);
+      }
+    });
+    return map;
+  }, [submissions]);
+
+  // Tính toán số liệu thống kê cho từng học sinh
+  const studentStats = useMemo(() => {
+    const now = new Date();
+    const publishedAssignments = assignments.filter(a => !(a.scheduledPublishAt && new Date(a.scheduledPublishAt) > now));
+    const publishedCount = publishedAssignments.length;
+
+    return students.map(student => {
+      let submittedCount = 0;
+      let gradedCount = 0;
+      let totalScore = 0;
+      const studentSubmissions = [];
+
+      assignments.forEach(asgn => {
+        const sub = submissionMap.get(`${student.id}_${asgn.id}`);
+        if (sub) {
+          submittedCount++;
+          studentSubmissions.push(sub);
+          const numScore = parseFloat(sub.score);
+          if (!isNaN(numScore)) {
+            gradedCount++;
+            totalScore += numScore;
+          }
+        }
+      });
+
+      const avgScore = gradedCount > 0 ? (totalScore / gradedCount).toFixed(1) : null;
+      const completionRate = publishedCount > 0 ? Math.round((submittedCount / publishedCount) * 100) : (assignments.length === 0 ? 0 : 100);
+
+      return {
+        ...student,
+        submittedCount,
+        gradedCount,
+        avgScore: avgScore !== null ? parseFloat(avgScore) : null,
+        completionRate
+      };
+    });
+  }, [students, assignments, submissionMap]);
+
+  // Lọc và sắp xếp danh sách học sinh
+  const filteredStudents = useMemo(() => {
+    let result = studentStats.filter(st => {
+      const matchSearch =
+        st.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        st.email?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      if (!matchSearch) return false;
+
+      if (filterStatus === 'INCOMPLETE') {
+        return st.completionRate < 100;
+      }
+      if (filterStatus === 'LOW_SCORE') {
+        return st.avgScore !== null && st.avgScore < 5.0;
+      }
+      if (filterStatus === 'PERFECT') {
+        return st.completionRate === 100 && st.avgScore !== null && st.avgScore >= 8.0;
+      }
+      return true;
+    });
+
+    result.sort((a, b) => {
+      if (sortBy === 'NAME_ASC') {
+        return (a.fullName || '').localeCompare(b.fullName || '', 'vi');
+      }
+      if (sortBy === 'SCORE_DESC') {
+        return (b.avgScore ?? -1) - (a.avgScore ?? -1);
+      }
+      if (sortBy === 'SCORE_ASC') {
+        return (a.avgScore ?? 999) - (b.avgScore ?? 999);
+      }
+      if (sortBy === 'COMPLETION_DESC') {
+        return b.completionRate - a.completionRate;
+      }
+      return 0;
+    });
+
+    return result;
+  }, [studentStats, searchTerm, filterStatus, sortBy]);
+
+  // Thống kê tổng quan cả lớp
+  const classSummary = useMemo(() => {
+    if (studentStats.length === 0) return { avg: null, completion: 0, totalStudents: 0 };
+    const scores = studentStats.map(s => s.avgScore).filter(s => s !== null);
+    const avg = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : null;
+    const totalComp = studentStats.reduce((sum, s) => sum + s.completionRate, 0);
+    const completion = Math.round(totalComp / studentStats.length);
+
+    return {
+      avg,
+      completion,
+      totalStudents: studentStats.length,
+      totalAssignments: assignments.length
+    };
+  }, [studentStats, assignments]);
+
+  // Xuất file CSV (Tương thích tốt với Excel tiếng Việt nhờ UTF-8 BOM)
+  const handleExportCSV = () => {
+    if (students.length === 0 || assignments.length === 0) {
+      toast.warning('Chưa có đủ dữ liệu học sinh hoặc bài tập để xuất bảng điểm.');
+      return;
+    }
+
+    const headers = [
+      'STT',
+      'Họ và tên',
+      'Email',
+      ...assignments.map(a => `"${a.title.replace(/"/g, '""')}"`),
+      'Số bài đã nộp',
+      'Tỷ lệ hoàn thành (%)',
+      'Điểm trung bình'
+    ];
+
+    const rows = filteredStudents.map((st, idx) => {
+      const assignmentScores = assignments.map(a => {
+        const sub = submissionMap.get(`${st.id}_${a.id}`);
+        if (!sub) return 'Chưa nộp';
+        if (sub.score !== null && sub.score !== undefined) return sub.score;
+        return 'Đã nộp (Chưa chấm)';
+      });
+
+      return [
+        idx + 1,
+        `"${st.fullName || ''}"`,
+        `"${st.email || ''}"`,
+        ...assignmentScores,
+        `${st.submittedCount}/${assignments.length}`,
+        `${st.completionRate}%`,
+        st.avgScore !== null ? st.avgScore : 'N/A'
+      ];
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Bang_Diem_${classInfo?.name || 'Lop'}_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('Đã xuất bảng điểm ma trận thành công file CSV!');
+  };
+
+  const getScoreBadgeColor = (scoreStr) => {
+    const num = parseFloat(scoreStr);
+    if (isNaN(num)) return 'bg-blue-100 text-blue-700 border-blue-200';
+    if (num >= 8.5) return 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold';
+    if (num >= 7.0) return 'bg-blue-100 text-blue-800 border-blue-300 font-semibold';
+    if (num >= 5.0) return 'bg-amber-100 text-amber-800 border-amber-300 font-medium';
+    return 'bg-rose-100 text-rose-800 border-rose-300 font-bold';
+  };
+
+  const isPastDue = (dueDateStr) => {
+    if (!dueDateStr) return false;
+    return new Date(dueDateStr) < new Date();
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex flex-col items-center justify-center min-h-[400px] text-slate-500 gap-3">
+        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <span className="text-xs font-medium">Đang khởi tạo ma trận điểm số bài tập...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto animate-fade-in select-none">
+      {/* HEADER & THẺ TỔNG QUAN */}
+      <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg sm:text-xl font-bold text-slate-800">
+            Ma Trận Theo Dõi Điểm Số Bài Tập
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="flex-1 md:flex-none px-3.5 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl transition cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
+          >
+            <span>Xuất Bảng Điểm (Excel/CSV)</span>
+          </button>
+          <button
+            type="button"
+            onClick={loadMatrixData}
+            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl border border-slate-200 transition cursor-pointer"
+            title="Tải lại dữ liệu"
+          >
+            ↻
+          </button>
+        </div>
+      </div>
+
+      {/* 4 THẺ CHỈ SỐ KPI */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Sĩ số lớp</span>
+          <div className="text-2xl font-black text-slate-800 mt-1">{classSummary.totalStudents} <span className="text-xs font-normal text-slate-500">học sinh</span></div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Tổng số bài tập</span>
+          <div className="text-2xl font-black text-blue-600 mt-1">{classSummary.totalAssignments} <span className="text-xs font-normal text-slate-500">bài</span></div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Tỷ lệ hoàn thành bài</span>
+          <div className="text-2xl font-black text-emerald-600 mt-1">{classSummary.completion}%</div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">Điểm trung bình lớp</span>
+          <div className="text-2xl font-black text-indigo-600 mt-1">
+            {classSummary.avg !== null ? `${classSummary.avg} / 10` : 'Chưa có điểm'}
+          </div>
+        </div>
+      </div>
+
+      {/* BỘ LỌC VÀ TÌM KIẾM */}
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+        <div className="flex-1 min-w-[220px]">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Tìm theo tên học sinh, email..."
+            className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Lọc trạng thái */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          >
+            <option value="ALL">Tất cả học sinh ({studentStats.length})</option>
+            <option value="INCOMPLETE">Chưa nộp đủ bài ({studentStats.filter(s => s.completionRate < 100).length})</option>
+            <option value="LOW_SCORE">Cần chú ý: Điểm &lt; 5.0 ({studentStats.filter(s => s.avgScore !== null && s.avgScore < 5.0).length})</option>
+            <option value="PERFECT">Xuất sắc & Đầy đủ ({studentStats.filter(s => s.completionRate === 100 && s.avgScore >= 8.0).length})</option>
+          </select>
+
+          {/* Sắp xếp */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="text-xs px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+          >
+            <option value="NAME_ASC">Sắp xếp: Tên A → Z</option>
+            <option value="SCORE_DESC">Điểm trung bình (Cao → Thấp)</option>
+            <option value="SCORE_ASC">Điểm trung bình (Thấp → Cao)</option>
+            <option value="COMPLETION_DESC">Tỷ lệ hoàn thành (Cao → Thấp)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* BẢNG MA TRẬN ĐIỂM SỐ */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+        <div className="overflow-x-auto max-h-[620px] scrollbar-thin">
+          <table className="w-full text-left text-xs border-collapse">
+            {/* THEAD */}
+            <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 sticky top-0 z-20 shadow-2xs">
+              <tr>
+                <th className="py-3 px-3 w-12 text-center border-r border-slate-200 bg-slate-50 sticky left-0 z-20">
+                  STT
+                </th>
+                <th className="py-3 px-3 min-w-[200px] border-r border-slate-200 bg-slate-50 sticky left-12 z-20 shadow-xs">
+                  Học sinh
+                </th>
+                <th className="py-3 px-3 w-28 text-center border-r border-slate-200 bg-slate-50">
+                  Đã nộp
+                </th>
+                <th className="py-3 px-3 w-24 text-center border-r border-slate-200 bg-slate-50">
+                  ĐTB
+                </th>
+
+                {/* CÁC CỘT BÀI TẬP */}
+                {assignments.map((asgn, idx) => {
+                  const isScheduled = asgn.scheduledPublishAt && new Date(asgn.scheduledPublishAt) > new Date();
+                  return (
+                    <th key={asgn.id} className="py-2.5 px-3 min-w-[140px] max-w-[170px] border-r border-slate-200 text-center">
+                      <div className="truncate font-bold text-slate-800" title={asgn.title}>
+                        B{idx + 1}. {asgn.title}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-normal mt-0.5">
+                        {isScheduled ? (
+                          <span className="text-amber-600 font-semibold">Chờ mở</span>
+                        ) : asgn.dueDate ? (
+                          new Date(asgn.dueDate).toLocaleDateString('vi-VN')
+                        ) : (
+                          'Không hạn'
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+
+            {/* TBODY */}
+            <tbody className="divide-y divide-slate-100">
+              {filteredStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={4 + assignments.length} className="py-12 text-center text-slate-400">
+                    Không tìm thấy học sinh nào phù hợp với bộ lọc.
+                  </td>
+                </tr>
+              ) : (
+                filteredStudents.map((st, idx) => (
+                  <tr key={st.id} className="hover:bg-slate-50/80 transition group">
+                    {/* Cột STT cố định */}
+                    <td className="py-3 px-3 text-center text-slate-400 font-mono border-r border-slate-100 bg-white group-hover:bg-slate-50/80 sticky left-0 z-10">
+                      {idx + 1}
+                    </td>
+
+                    {/* Cột Học sinh cố định */}
+                    <td className="py-3 px-3 border-r border-slate-100 bg-white group-hover:bg-slate-50/80 sticky left-12 z-10 shadow-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                          {st.fullName ? st.fullName.charAt(0).toUpperCase() : 'H'}
+                        </div>
+                        <div className="truncate">
+                          <div className="font-semibold text-slate-800 truncate" title={st.fullName}>
+                            {st.fullName}
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate" title={st.email}>
+                            {st.email}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Tiến độ nộp */}
+                    <td className="py-3 px-3 text-center border-r border-slate-100">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                        st.completionRate === 100
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : st.completionRate >= 50
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : 'bg-rose-50 text-rose-700 border border-rose-200'
+                      }`}>
+                        {st.submittedCount}/{assignments.length} ({st.completionRate}%)
+                      </span>
+                    </td>
+
+                    {/* Điểm trung bình */}
+                    <td className="py-3 px-3 text-center border-r border-slate-100 font-mono">
+                      {st.avgScore !== null ? (
+                        <span className={`inline-block px-2 py-0.5 rounded-md text-xs ${getScoreBadgeColor(st.avgScore)}`}>
+                          {st.avgScore}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300 text-[11px]">-</span>
+                      )}
+                    </td>
+
+                    {/* CÁC Ô ĐIỂM BÀI TẬP */}
+                    {assignments.map(asgn => {
+                      const sub = submissionMap.get(`${st.id}_${asgn.id}`);
+                      const isScheduled = asgn.scheduledPublishAt && new Date(asgn.scheduledPublishAt) > new Date();
+                      const overdue = !isScheduled && isPastDue(asgn.dueDate);
+
+                      return (
+                        <td
+                          key={asgn.id}
+                          onClick={() => setSelectedCell({ student: st, assignment: asgn, submission: sub })}
+                          className="py-2.5 px-2 text-center border-r border-slate-100 cursor-pointer hover:bg-blue-50/50 transition"
+                        >
+                          {sub ? (
+                            sub.score !== null && sub.score !== undefined ? (
+                              <span className={`inline-block px-2 py-1 rounded-md text-xs border ${getScoreBadgeColor(sub.score)} shadow-2xs`}>
+                                {sub.score}
+                              </span>
+                            ) : (
+                              <span className="inline-block px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                Đã nộp
+                              </span>
+                            )
+                          ) : isScheduled ? (
+                            <span className="text-slate-400 text-[11px] italic">
+                              Chưa mở
+                            </span>
+                          ) : overdue ? (
+                            <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-600 border border-rose-200">
+                              Quá hạn
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 text-[11px] hover:text-slate-500">
+                              Chưa nộp
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
+              )}
+            </tbody>
+
+            {/* TFOOT DÒNG TỔNG KẾT ĐIỂM TRUNG BÌNH THEO BÀI TẬP */}
+            {assignments.length > 0 && (
+              <tfoot className="bg-slate-100/90 font-semibold text-slate-700 border-t-2 border-slate-300 sticky bottom-0 z-20">
+                <tr>
+                  <td colSpan={2} className="py-3 px-3 text-right pr-4 uppercase text-[11px] tracking-wider text-slate-500 sticky left-0 z-20 bg-slate-100">
+                    ĐTB từng bài tập:
+                  </td>
+                  <td className="py-3 px-3 text-center border-r border-slate-200">
+                    {classSummary.completion}%
+                  </td>
+                  <td className="py-3 px-3 text-center border-r border-slate-200 font-mono text-indigo-700 font-bold">
+                    {classSummary.avg !== null ? classSummary.avg : '-'}
+                  </td>
+
+                  {assignments.map(asgn => {
+                    const subsForAsgn = submissions.filter(
+                      s => (s.assignment?.id || s.assignmentId) === asgn.id
+                    );
+                    const scoredSubs = subsForAsgn.filter(s => !isNaN(parseFloat(s.score)));
+                    const avgAsgnScore = scoredSubs.length > 0
+                      ? (scoredSubs.reduce((acc, cur) => acc + parseFloat(cur.score), 0) / scoredSubs.length).toFixed(1)
+                      : null;
+
+                    return (
+                      <td key={asgn.id} className="py-2.5 px-2 text-center border-r border-slate-200 font-mono text-xs">
+                        {avgAsgnScore !== null ? (
+                          <div className="space-y-0.5">
+                            <span className="font-bold text-slate-800">{avgAsgnScore}</span>
+                            <div className="text-[10px] text-slate-400 font-normal">
+                              ({subsForAsgn.length}/{students.length})
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-[11px]">
+                            {subsForAsgn.length > 0 ? `(${subsForAsgn.length} nộp)` : '-'}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+
+      {/* MODAL XEM CHI TIẾT Ô ĐIỂM ĐƯỢC CHỌN */}
+      {selectedCell && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-slate-200 overflow-hidden animate-scale-up">
+            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-sm text-white">Chi Tiết Bài Nộp & Điểm Số</h3>
+                <span className="text-xs text-slate-400">{selectedCell.student?.fullName}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCell(null)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg transition cursor-pointer text-base font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1">
+                <span className="text-[11px] text-slate-400 font-medium block">Bài tập:</span>
+                <div className="font-bold text-slate-800 text-sm">{selectedCell.assignment?.title}</div>
+                {selectedCell.assignment?.dueDate && (
+                  <div className="text-slate-500 text-[11px]">
+                    Hạn nộp: {new Date(selectedCell.assignment.dueDate).toLocaleString('vi-VN')}
+                  </div>
+                )}
+              </div>
+
+              {selectedCell.submission ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-blue-50/70 border border-blue-200 rounded-xl">
+                    <span className="font-semibold text-blue-950">Điểm số hiện tại:</span>
+                    <span className={`px-2.5 py-1 rounded-md text-sm font-bold border ${getScoreBadgeColor(selectedCell.submission.score)}`}>
+                      {selectedCell.submission.score !== null ? selectedCell.submission.score : 'Chưa chấm điểm'}
+                    </span>
+                  </div>
+
+                  {selectedCell.submission.submittedAt && (
+                    <div className="text-slate-500 text-[11px]">
+                      Thời gian nộp: {new Date(selectedCell.submission.submittedAt).toLocaleString('vi-VN')}
+                    </div>
+                  )}
+
+                  {selectedCell.submission.textContent && (
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                      <span className="text-[11px] font-semibold text-slate-500 block mb-1">Nội dung học sinh viết:</span>
+                      <p className="text-slate-700 whitespace-pre-wrap">{selectedCell.submission.textContent}</p>
+                    </div>
+                  )}
+
+                  {selectedCell.submission.fileUrl && (
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                      <span className="font-medium text-slate-700 truncate mr-2">
+                        📎 {selectedCell.submission.fileName || 'Tệp đính kèm'}
+                      </span>
+                      <a
+                        href={selectedCell.submission.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-2.5 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition"
+                      >
+                        Mở tệp
+                      </a>
+                    </div>
+                  )}
+
+                  {selectedCell.submission.feedback && (
+                    <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200">
+                      <span className="text-[11px] font-semibold text-emerald-800 block mb-1">Nhận xét của giáo viên:</span>
+                      <p className="text-emerald-900">{selectedCell.submission.feedback}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  <p className="font-semibold text-slate-600">Học sinh chưa nộp bài tập này.</p>
+                  <p className="text-[11px] mt-1">
+                    {isPastDue(selectedCell.assignment?.dueDate)
+                      ? 'Bài tập đã quá hạn nộp.'
+                      : 'Học sinh vẫn còn thời gian để hoàn thành bài.'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedCell(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-lg transition cursor-pointer"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

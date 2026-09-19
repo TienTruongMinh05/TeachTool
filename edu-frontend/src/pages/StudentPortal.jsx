@@ -10,6 +10,7 @@ import StudentFeedbackAudioPlayer from '../Components/StudentFeedbackAudioPlayer
 import TimetableGrid from '../Components/TimetableGrid';
 import AccountSettingsModal from '../Components/AccountSettingsModal';
 import CollapsibleDescription from '../Components/CollapsibleDescription';
+import StudentGuide from '../Components/StudentGuide';
 
 export default function StudentPortal() {
   const { user, logout, updateUser } = useAuth();
@@ -94,7 +95,16 @@ export default function StudentPortal() {
         setSchedule(val);
         try { localStorage.setItem(`cached_student_schedule_${user.id}`, JSON.stringify(val)); } catch {}
       }
-      if (assignRes.status === 'fulfilled') setAssignments(assignRes.value || []);
+      if (assignRes.status === 'fulfilled') {
+        const rawAss = assignRes.value || [];
+        const now = new Date();
+        const publishedOnly = rawAss.filter(a => {
+          if (a.isPublished === false) return false;
+          if (a.scheduledPublishAt && new Date(a.scheduledPublishAt) > now) return false;
+          return true;
+        });
+        setAssignments(publishedOnly);
+      }
       if (subsRes.status === 'fulfilled') setSubmissions(subsRes.value || []);
       if (classesRes.status === 'fulfilled') {
         const cVal = classesRes.value || [];
@@ -110,6 +120,21 @@ export default function StudentPortal() {
 
   useEffect(() => {
     loadData();
+
+    // Tự động kiểm tra và đồng bộ bài tập mới mở / lịch học mỗi 30 giây
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadData();
+      }
+    }, 30000);
+
+    const handleFocus = () => loadData();
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [user?.id]);
 
   const handleJoinClass = async (e) => {
@@ -614,14 +639,18 @@ export default function StudentPortal() {
               + Vào Lớp Bằng Mã
             </button>
             <button
+              onClick={() => setActiveTab('guide')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition cursor-pointer border whitespace-nowrap ${
+                activeTab === 'guide'
+                  ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
+                  : 'text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border-slate-700'
+              }`}>
+              Hướng dẫn
+            </button>
+            <button
               onClick={() => setIsSettingsModalOpen(true)}
               className="px-3 py-1.5 text-xs font-medium text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition cursor-pointer border border-slate-700 whitespace-nowrap">
               Cài đặt
-            </button>
-            <button
-              onClick={logout}
-              className="px-2.5 py-1.5 text-xs font-medium text-rose-400 hover:text-rose-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition cursor-pointer border border-slate-700 whitespace-nowrap">
-              Đăng xuất
             </button>
           </div>
         </div>
@@ -629,8 +658,8 @@ export default function StudentPortal() {
 
       {/* NỘI DUNG CHÍNH */}
       <main className="max-w-6xl mx-auto px-3 sm:px-6 pt-5 sm:pt-7">
-        {/* THANH ĐIỀU HƯỚNG TAB (CHỈ CÒN 2 TAB: THỜI KHÓA BIỂU & LỚP CỦA TÔI) */}
-        <div className="grid grid-cols-2 gap-1 bg-slate-200/80 p-1 rounded-xl max-w-sm mb-6 shadow-xs">
+        {/* THANH ĐIỀU HƯỚNG TAB (THỜI KHÓA BIỂU, LỚP CỦA TÔI & HƯỚNG DẪN) */}
+        <div className="grid grid-cols-3 gap-1 bg-slate-200/80 p-1 rounded-xl max-w-md mb-6 shadow-xs">
           <button
             onClick={() => setActiveTab('schedule')}
             className={`py-2 px-1 text-center text-xs font-semibold rounded-lg transition cursor-pointer truncate ${
@@ -644,6 +673,13 @@ export default function StudentPortal() {
               activeTab === 'classes' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-700 hover:text-gray-900'
             }`}>
             Lớp Của Tôi ({enrolledClasses.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('guide')}
+            className={`py-2 px-1 text-center text-xs font-semibold rounded-lg transition cursor-pointer truncate ${
+              activeTab === 'guide' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-700 hover:text-gray-900'
+            }`}>
+            Hướng Dẫn
           </button>
         </div>
 
@@ -1262,6 +1298,11 @@ export default function StudentPortal() {
               </div>
             )}
           </div>
+        )}
+
+        {/* TAB 3: CẨM NANG HƯỚNG DẪN DÀNH CHO HỌC SINH */}
+        {activeTab === 'guide' && (
+          <StudentGuide />
         )}
       </main>
 

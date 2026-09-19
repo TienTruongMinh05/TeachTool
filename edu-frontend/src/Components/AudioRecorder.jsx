@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { fileApi } from '../api/fileApi';
+import { 
+  getOptimizedAudioConstraints, 
+  createOptimizedMediaRecorder, 
+  formatAudioFileSize 
+} from '../utils/audioOptimizer';
 
 export default function AudioRecorder({ onRecordingUploaded }) {
   const [isRecording, setIsRecording] = useState(false);
@@ -29,8 +34,11 @@ export default function AudioRecorder({ onRecordingUploaded }) {
     audioChunksRef.current = [];
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      // 1. Áp dụng chuẩn thu âm giọng nói Mono + Giảm tiếng ồn môi trường
+      const stream = await navigator.mediaDevices.getUserMedia(getOptimizedAudioConstraints());
+      
+      // 2. Kích hoạt bộ mã hóa nén tối ưu 32kbps Opus/WebM (giảm 70-80% dung lượng)
+      const mediaRecorder = createOptimizedMediaRecorder(stream, { audioBitsPerSecond: 32000 });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -141,10 +149,17 @@ export default function AudioRecorder({ onRecordingUploaded }) {
       {/* Trình nghe lại sau khi thu âm */}
       {audioUrl && !isRecording && (
         <div className="pt-2 space-y-3 border-t border-slate-200">
-          <div>
-            <span className="text-xs text-slate-500 font-medium block mb-1">
-              Nghe lại bản thu âm ({formatTime(recordingTime)}):
-            </span>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-600 font-medium">
+                Nghe lại bản thu âm ({formatTime(recordingTime)}):
+              </span>
+              {audioBlob && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  ⚡ Nén tối ưu: {formatAudioFileSize(audioBlob.size)}
+                </span>
+              )}
+            </div>
             <audio controls src={audioUrl} className="w-full h-10" />
           </div>
 

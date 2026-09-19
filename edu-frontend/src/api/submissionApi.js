@@ -7,6 +7,8 @@ export const submissionApi = {
     axiosClient.put(`/submissions/${submissionId}/grade`, data),
   getByAssignment: (assignmentId) => 
     axiosClient.get(`/submissions/assignment/${assignmentId}`),
+  getByClass: (classId) => 
+    axiosClient.get(`/submissions/class/${classId}`),
   getByStudent: (studentId) => 
     axiosClient.get(`/submissions/student/${studentId}`),
   getSubmission: (assignmentId, studentId) => 

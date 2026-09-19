@@ -186,6 +186,8 @@ public class FileUploadController {
                 return ResponseEntity.ok()
                         .contentType(MediaType.parseMediaType(contentType))
                         .header(HttpHeaders.CONTENT_DISPOSITION, dispositionType + "; filename=\"" + resource.getFilename() + "\"")
+                        .header(HttpHeaders.CACHE_CONTROL, "public, max-age=604800, immutable")
+                        .header(HttpHeaders.ETAG, "\"" + fileName + "\"")
                         .header("Accept-Ranges", "bytes")
                         .header("X-Content-Type-Options", "nosniff")
                         .body(resource);
@@ -234,6 +236,8 @@ public class FileUploadController {
                     return ResponseEntity.ok()
                             .contentType(MediaType.parseMediaType(contentType))
                             .header(HttpHeaders.CONTENT_DISPOSITION, dispositionType + "; filename=\"" + dbFile.getOriginalName() + "\"")
+                            .header(HttpHeaders.CACHE_CONTROL, "public, max-age=604800, immutable")
+                            .header(HttpHeaders.ETAG, "\"" + fileName + "\"")
                             .header("Accept-Ranges", "bytes")
                             .header("X-Content-Type-Options", "nosniff")
                             .body(resource);

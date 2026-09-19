@@ -6,7 +6,12 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "assignments")
+@Table(name = "assignments", indexes = {
+    @Index(name = "idx_assignments_class_id", columnList = "class_id"),
+    @Index(name = "idx_assignments_session_id", columnList = "session_id"),
+    @Index(name = "idx_assignments_due_date", columnList = "dueDate"),
+    @Index(name = "idx_assignments_publish_at", columnList = "scheduled_publish_at")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -42,6 +47,9 @@ public class Assignment {
     @Column(columnDefinition = "TEXT")
     private String attachmentsJson;
 
+    @Column(name = "scheduled_publish_at")
+    private LocalDateTime scheduledPublishAt;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
@@ -53,5 +61,10 @@ public class Assignment {
         if (allowedSubmissionTypes == null || allowedSubmissionTypes.trim().isEmpty()) {
             allowedSubmissionTypes = "TEXT,DOCX,AUDIO,DIRECT_RECORD";
         }
+    }
+
+    @Transient
+    public boolean isPublished() {
+        return scheduledPublishAt == null || !scheduledPublishAt.isAfter(LocalDateTime.now());
     }
 }

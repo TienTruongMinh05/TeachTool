@@ -27,9 +27,6 @@ export default function BookPagePickerModal({
             <h3 className="font-bold text-xs sm:text-sm truncate text-white" title={material.title}>
               {material.title}
             </h3>
-            <span className="text-[11px] text-slate-400">
-              Lật xem đến trang cần dạy rồi bấm nút "Chọn Trang Này"
-            </span>
           </div>
 
           <div className="flex items-center gap-2">

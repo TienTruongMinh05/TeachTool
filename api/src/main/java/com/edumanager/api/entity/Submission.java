@@ -9,7 +9,12 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 @Entity
-@Table(name = "submissions")
+@Table(name = "submissions", indexes = {
+    @Index(name = "idx_submissions_assignment_id", columnList = "assignment_id"),
+    @Index(name = "idx_submissions_student_id", columnList = "student_id"),
+    @Index(name = "idx_submissions_asgn_student", columnList = "assignment_id, student_id"),
+    @Index(name = "idx_submissions_submitted_at", columnList = "submittedAt")
+})
 @Getter
 @Setter
 @NoArgsConstructor
