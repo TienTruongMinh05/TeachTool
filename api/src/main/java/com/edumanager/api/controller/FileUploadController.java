@@ -151,7 +151,12 @@ public class FileUploadController {
     }
 
     @GetMapping("/system-diag")
-    public ResponseEntity<?> systemDiag() {
+    public ResponseEntity<?> systemDiag(HttpServletRequest request) {
+        String role = (String) request.getAttribute("userRole");
+        if (!"TEACHER".equalsIgnoreCase(role)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Chức năng chẩn đoán hệ thống chỉ dành cho Giáo viên / Quản trị viên."));
+        }
         Runtime rt = Runtime.getRuntime();
         java.util.Map<String, Object> map = new java.util.LinkedHashMap<>();
         map.put("maxMemoryMB", rt.maxMemory() / (1024 * 1024));
@@ -160,7 +165,6 @@ public class FileUploadController {
         map.put("availableProcessors", rt.availableProcessors());
         map.put("buildVersion", "v4-xmx384m");
         map.put("javaVersion", String.valueOf(System.getProperty("java.version")));
-        map.put("javaOpts", String.valueOf(System.getenv("JAVA_OPTS")));
         return ResponseEntity.ok(map);
     }
 

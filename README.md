@@ -93,8 +93,13 @@ Hệ thống được thiết kế và kiểm thử toàn diện theo các tiêu
    - Danh sách trắng (Whitelist) nghiêm ngặt chỉ cho phép tài liệu học tập (`.pdf`, `.docx`, `.xlsx`, `.pptx`, `.txt`), âm thanh ghi âm (`.mp3`, `.wav`, `.m4a`, `.webm`) và hình ảnh. Cấm hoàn toàn các file thực thi và web script (`.html`, `.svg`, `.js`, `.exe`).
    - Tên file được băm ngẫu nhiên bằng UUID và kiểm tra chống Path Traversal (`targetLocation.startsWith(uploadDir)`).
    - Header tải file ép buộc `Content-Disposition: attachment`, `X-Content-Type-Options: nosniff` và `Content-Security-Policy: default-src 'none'`.
-8. **Cấu Hình CORS Nghiêm Ngặt:** Chỉ chấp nhận request từ các domain chính thức của TeachTool, ngăn chặn tấn công Cross-Origin lừa đảo.
-9. **An Toàn Dữ Liệu & Che Giấu Lỗi Kỹ Thuật:** `GlobalExceptionHandler` che giấu toàn bộ cấu trúc cơ sở dữ liệu và stack trace hệ thống khi có lỗi không mong muốn.
+8. **Cấu Hình CORS & HTTP Security Headers Toàn Diện:**
+   - Cấu hình CORS đồng bộ đa domain Vercel và Render.
+   - Bổ sung các HTTP Security Headers (`X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Strict-Transport-Security`, `Referrer-Policy`) chống tấn công Clickjacking và MIME-sniffing.
+9. **Bảo Vệ Tính Toàn Vẹn Hệ Thống & Che Giấu Thông Tin Máy Chủ:**
+   - Endpoint `/api/files/system-diag` được bảo vệ nghiêm ngặt bằng quyền `TEACHER`, loại bỏ hoàn toàn việc hiển thị biến môi trường `JAVA_OPTS`.
+   - Kho hoạt động mẫu hệ thống (`ActivityTemplate`) được gắn cờ `is_system_default` bất biến, ngăn chặn việc xóa hoặc sửa trái phép tài nguyên chung.
+   - `GlobalExceptionHandler` che giấu toàn bộ cấu trúc cơ sở dữ liệu và stack trace hệ thống khi có lỗi không mong muốn.
 10. **Chính Sách Vòng Đời & Lưu Trữ Tự Động (`DataRetentionService`):** Dữ liệu giáo viên (lớp, lịch học, sách, giáo án) được lưu trữ an toàn trong vòng **6 tháng**. Bài nộp của học sinh (file, audio, ảnh chụp) được lưu giữ trong vòng **2 tuần (tuần trước & tuần này)** để tối ưu tài nguyên lưu trữ đám mây và bảo vệ hiệu năng hệ thống.
 
 ---

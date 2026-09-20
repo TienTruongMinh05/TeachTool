@@ -12,8 +12,11 @@ import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HashMap;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import java.util.Map;
 
+@Slf4j
 @Service
 public class JwtService {
 
@@ -24,6 +27,15 @@ public class JwtService {
 
     @Value("${app.jwt.secret:teachtool_super_secure_jwt_secret_key_2026_classroom_manager_advanced_security_token}")
     private String jwtSecret;
+
+    @PostConstruct
+    public void validateSecret() {
+        if ("teachtool_super_secure_jwt_secret_key_2026_classroom_manager_advanced_security_token".equals(jwtSecret)) {
+            log.warn("[SECURITY AUDIT] Ứng dụng đang sử dụng JWT Secret mặc định! Vui lòng cấu hình biến môi trường APP_JWT_SECRET trên môi trường Production (Render/Docker) để ngăn chặn giả mạo token.");
+        } else {
+            log.info("[SECURITY AUDIT] Khóa ký JWT được cấu hình từ biến môi trường hợp lệ.");
+        }
+    }
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 

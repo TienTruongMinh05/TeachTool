@@ -22,6 +22,7 @@ public class ActivityTemplateService {
         try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute("ALTER TABLE activity_templates ALTER COLUMN description TYPE TEXT");
+            stmt.execute("ALTER TABLE activity_templates ADD COLUMN IF NOT EXISTS is_system_default BOOLEAN DEFAULT FALSE");
         } catch (Exception e) {
             System.err.println("Note on alter table activity_templates: " + e.getMessage());
         }
@@ -439,8 +440,10 @@ public class ActivityTemplateService {
             if (existingOpt.isPresent()) {
                 ActivityTemplate existing = existingOpt.get();
                 existing.setDescription(act.getDescription());
+                existing.setIsSystemDefault(true);
                 repository.save(existing);
             } else {
+                act.setIsSystemDefault(true);
                 repository.save(act);
             }
         }
@@ -451,21 +454,28 @@ public class ActivityTemplateService {
     }
 
     public ActivityTemplate createActivity(ActivityTemplate activity) {
+        activity.setId(null);
+        activity.setIsSystemDefault(false);
         return repository.save(activity);
     }
 
     public ActivityTemplate updateActivity(Long id, ActivityTemplate updated) {
         ActivityTemplate existing = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động có ID: " + id));
+        if (Boolean.TRUE.equals(existing.getIsSystemDefault())) {
+            throw new SecurityException("Không thể chỉnh sửa hoạt động mẫu mặc định của hệ thống.");
+        }
         existing.setName(updated.getName());
         existing.setDescription(updated.getDescription());
         return repository.save(existing);
     }
 
     public void deleteActivity(Long id) {
-        if (!repository.existsById(id)) {
-            throw new RuntimeException("Không tìm thấy hoạt động có ID: " + id);
+        ActivityTemplate existing = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động có ID: " + id));
+        if (Boolean.TRUE.equals(existing.getIsSystemDefault())) {
+            throw new SecurityException("Không thể xóa hoạt động mẫu mặc định của hệ thống.");
         }
-        repository.deleteById(id);
+        repository.delete(existing);
     }
 }

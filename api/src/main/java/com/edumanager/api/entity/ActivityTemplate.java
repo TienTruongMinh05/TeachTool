@@ -20,4 +20,8 @@ public class ActivityTemplate {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @Builder.Default
+    @Column(name = "is_system_default")
+    private Boolean isSystemDefault = false;
 }

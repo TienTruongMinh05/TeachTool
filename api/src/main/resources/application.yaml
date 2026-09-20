@@ -31,4 +31,4 @@ app:
   google:
     client-id: ${APP_GOOGLE_CLIENT_ID:}
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173}
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:https://teachtool-app.vercel.app,https://teachtool-vn.vercel.app,https://teachtool-edu.vercel.app,https://edu-frontend-sigma-snowy.vercel.app,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173}
