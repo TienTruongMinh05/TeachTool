@@ -22,6 +22,7 @@ export default function StudentInquiryWidget({ user, classes = [] }) {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const isFetchingMessagesRef = useRef(false);
 
   // Khởi tạo lớp học mặc định khi mở
   useEffect(() => {
@@ -56,17 +57,42 @@ export default function StudentInquiryWidget({ user, classes = [] }) {
     fetchThread();
   }, [isOpen, selectedClassId]);
 
+  // Polling tin nhắn mỗi 1s khi mở bubble hội thoại để cập nhật tin nhắn siêu mượt mà
+  useEffect(() => {
+    if (!isOpen || !activeThread?.id) return;
+
+    const interval = setInterval(() => {
+      fetchMessages(activeThread.id, true);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isOpen, activeThread?.id]);
+
   // Lấy lịch sử tin nhắn
-  const fetchMessages = async (threadId) => {
+  const fetchMessages = async (threadId, quiet = false) => {
+    if (!threadId || isFetchingMessagesRef.current) return;
     try {
-      setLoadingMessages(true);
+      isFetchingMessagesRef.current = true;
+      if (!quiet) setLoadingMessages(true);
       const msgs = await inquiryApi.getThreadMessages(threadId);
-      setMessages(msgs || []);
-      scrollToBottom();
+      const safeMsgs = Array.isArray(msgs) ? msgs : [];
+      setMessages(prev => {
+        const isChanged =
+          prev.length !== safeMsgs.length ||
+          (safeMsgs.length > 0 && prev[prev.length - 1]?.id !== safeMsgs[safeMsgs.length - 1]?.id);
+        if (isChanged) {
+          scrollToBottom();
+          return safeMsgs;
+        }
+        return prev;
+      });
     } catch (err) {
-      console.warn('Lỗi lấy tin nhắn:', err);
+      if (!quiet && err.response?.status !== 404) {
+        console.warn('Lỗi lấy tin nhắn:', err);
+      }
     } finally {
-      setLoadingMessages(false);
+      if (!quiet) setLoadingMessages(false);
+      isFetchingMessagesRef.current = false;
     }
   };
 

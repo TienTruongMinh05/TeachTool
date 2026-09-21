@@ -33,6 +33,7 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const isFetchingMessagesRef = useRef(false);
 
   // Tải danh sách lớp học của giáo viên để làm dropdown lọc
   useEffect(() => {
@@ -78,30 +79,51 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
     fetchThreads();
   }, [classFilter]);
 
-  // Tự động polling cập nhật tin nhắn mới mỗi 15 giây
+  // Polling tin nhắn của thread đang mở mỗi 1s để tin nhắn hiển thị siêu mượt mà
+  useEffect(() => {
+    if (!selectedThread?.id) return;
+
+    const interval = setInterval(() => {
+      fetchMessages(selectedThread.id, true);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [selectedThread?.id]);
+
+  // Polling danh sách threads mỗi 3s để cập nhật trạng thái viền/tin nhắn mới ở sidebar
   useEffect(() => {
     const interval = setInterval(() => {
       fetchThreads(true);
-      if (selectedThread && selectedThread.id) {
-        fetchMessages(selectedThread.id, true);
-      }
-    }, 15000);
+    }, 3000);
+
     return () => clearInterval(interval);
-  }, [fetchThreads, selectedThread]);
+  }, [fetchThreads]);
 
   // Tải tin nhắn của thread được chọn
   const fetchMessages = async (threadId, quiet = false) => {
+    if (!threadId || isFetchingMessagesRef.current) return;
     try {
+      isFetchingMessagesRef.current = true;
       if (!quiet) setLoadingMessages(true);
       const msgs = await inquiryApi.getThreadMessages(threadId);
-      setMessages(Array.isArray(msgs) ? msgs : []);
+      const safeMsgs = Array.isArray(msgs) ? msgs : [];
+      setMessages((prev) => {
+        const isChanged =
+          prev.length !== safeMsgs.length ||
+          (safeMsgs.length > 0 && prev[prev.length - 1]?.id !== safeMsgs[safeMsgs.length - 1]?.id);
+        if (isChanged) {
+          return safeMsgs;
+        }
+        return prev;
+      });
     } catch (err) {
-      console.warn('Lỗi tải tin nhắn:', err);
       if (!quiet && err.response?.status !== 404) {
+        console.warn('Lỗi tải tin nhắn:', err);
         toast.error('Không thể tải nội dung tin nhắn.');
       }
     } finally {
       if (!quiet) setLoadingMessages(false);
+      isFetchingMessagesRef.current = false;
     }
   };
 
