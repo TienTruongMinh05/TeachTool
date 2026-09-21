@@ -720,19 +720,6 @@ export default function ClassDashboard({ initialView }) {
                       }`}>
                       Điểm danh & Chuyên cần
                     </button>
-
-                    <button
-                      onClick={() => {
-                        handleNavigateView('student_inquiries');
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer text-slate-300 hover:bg-slate-700/80 flex items-center justify-between">
-                      <span>Câu hỏi từ học viên</span>
-                      {unansweredInquiriesCount > 0 && (
-                        <span className="px-1.5 py-0.2 text-[9px] font-bold bg-rose-500 text-white rounded-full">
-                          {unansweredInquiriesCount}
-                        </span>
-                      )}
-                    </button>
                   </div>
                 </div>
 

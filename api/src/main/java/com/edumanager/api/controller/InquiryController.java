@@ -105,4 +105,23 @@ public class InquiryController {
         InquiryMessageResponseDTO response = inquiryService.sendMessage(threadId, callerId, callerRole, body);
         return ResponseEntity.ok(response);
     }
+
+    /**
+     * Giáo viên: Xóa cuộc trò chuyện để giải phóng hệ thống
+     */
+    @DeleteMapping("/threads/{threadId}")
+    public ResponseEntity<?> deleteThread(
+            @PathVariable Long threadId,
+            HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        String callerRole = (String) request.getAttribute("userRole");
+
+        if (!"TEACHER".equalsIgnoreCase(callerRole)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Chức năng chỉ dành cho Giáo viên."));
+        }
+
+        inquiryService.deleteThread(threadId, callerId, callerRole);
+        return ResponseEntity.ok(Map.of("message", "Đã xóa cuộc trò chuyện thành công."));
+    }
 }

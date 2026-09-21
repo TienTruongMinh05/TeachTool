@@ -221,6 +221,28 @@ public class InquiryService {
     }
 
     /**
+     * Giáo viên: Xóa cuộc trò chuyện và toàn bộ tin nhắn để giải phóng hệ thống
+     */
+    @Transactional
+    public void deleteThread(Long threadId, Long teacherId, String callerRole) {
+        if (!"TEACHER".equalsIgnoreCase(callerRole)) {
+            throw new SecurityException("Chỉ giáo viên mới có quyền xóa cuộc trò chuyện.");
+        }
+
+        InquiryThread thread = threadRepo.findById(threadId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy cuộc hội thoại ID: " + threadId));
+
+        validateThreadAccess(thread, teacherId, callerRole);
+
+        // 1. Xóa toàn bộ tin nhắn thuộc thread
+        messageRepo.deleteByThreadId(threadId);
+
+        // 2. Xóa thread
+        threadRepo.delete(thread);
+        log.info("Giáo viên ID {} đã xóa cuộc trò chuyện ID {}", teacherId, threadId);
+    }
+
+    /**
      * Xác thực phân quyền truy cập thread chống IDOR / BOLA
      */
     private void validateThreadAccess(InquiryThread thread, Long callerId, String callerRole) {

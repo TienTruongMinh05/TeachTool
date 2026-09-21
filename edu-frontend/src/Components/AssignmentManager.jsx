@@ -206,11 +206,19 @@ export default function AssignmentManager({ classId }) {
         }
       }
 
+      const attachments = Array.isArray(formData.attachments) ? formData.attachments : [];
+      const firstAttachment = attachments[0] || {};
+
+      const formatDateTimeForBackend = (dtStr) => {
+        if (!dtStr) return null;
+        return dtStr.length === 16 ? dtStr + ':00' : dtStr;
+      };
+
       const payload = {
         title: formData.title,
         description: formData.description,
-        dueDate: formData.dueDate ? formData.dueDate + ':00' : null,
-        scheduledPublishAt: formData.isScheduled && formData.scheduledPublishAt ? formData.scheduledPublishAt + ':00' : null,
+        dueDate: formatDateTimeForBackend(formData.dueDate),
+        scheduledPublishAt: formData.isScheduled ? formatDateTimeForBackend(formData.scheduledPublishAt) : null,
         allowedSubmissionTypes: allowedTypes.join(','),
         attachmentFileName: firstAttachment.fileName || null,
         attachmentFileUrl: firstAttachment.fileUrl || null,

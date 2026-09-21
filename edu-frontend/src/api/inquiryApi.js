@@ -21,4 +21,8 @@ export const inquiryApi = {
   // 5. Gửi tin nhắn mới (văn bản + tệp đính kèm)
   sendMessage: (threadId, data) =>
     axiosClient.post(`/inquiries/threads/${threadId}/messages`, data),
+
+  // 6. Giáo viên: Xóa cuộc trò chuyện để giải phóng hệ thống
+  deleteThread: (threadId) =>
+    axiosClient.delete(`/inquiries/threads/${threadId}`),
 };

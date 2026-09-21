@@ -29,6 +29,8 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
 
   // Mobile navigation: khi chọn thread trên màn hình nhỏ, chuyển sang view chat
   const [mobileChatView, setMobileChatView] = useState(false);
+  const [confirmDeleteThread, setConfirmDeleteThread] = useState(null);
+  const [deletingThread, setDeletingThread] = useState(false);
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -270,6 +272,28 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
     }
   };
 
+  // Xóa cuộc trò chuyện để giải phóng hệ thống
+  const handleDeleteThread = async () => {
+    if (!confirmDeleteThread) return;
+    try {
+      setDeletingThread(true);
+      await inquiryApi.deleteThread(confirmDeleteThread.id);
+      toast.success('Đã xóa cuộc trò chuyện và giải phóng dung lượng.');
+      setThreads((prev) => prev.filter((t) => t.id !== confirmDeleteThread.id));
+      if (selectedThread?.id === confirmDeleteThread.id) {
+        setSelectedThread(null);
+        setMessages([]);
+        setMobileChatView(false);
+      }
+      setConfirmDeleteThread(null);
+    } catch (err) {
+      console.error('Lỗi khi xóa cuộc trò chuyện:', err);
+      toast.error('Không thể xóa cuộc trò chuyện: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setDeletingThread(false);
+    }
+  };
+
   // Parse attachments JSON an toàn
   const parseAttachments = (json) => {
     if (!json) return [];
@@ -321,9 +345,6 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-400">
-              Kênh giải đáp thắc mắc trực tiếp — tin nhắn được mã hóa bảo mật
-            </p>
           </div>
         </div>
 
@@ -648,6 +669,19 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                     </svg>
                     <span>{selectedThread.totalFilesCount}/15</span>
                   </span>
+
+                  {/* Nút Xóa chat phía giáo viên */}
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteThread(selectedThread)}
+                    className="inline-flex items-center gap-1 text-xs px-2.5 py-1 text-rose-600 hover:text-white hover:bg-rose-600 bg-rose-50 rounded-lg border border-rose-200 font-medium transition cursor-pointer"
+                    title="Xóa cuộc trò chuyện khi đã hoàn tất để nhẹ hệ thống"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>Xóa chat</span>
+                  </button>
                 </div>
               </div>
 
@@ -867,6 +901,47 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
           )}
         </div>
       </div>
+
+      {/* MODAL XÁC NHẬN XÓA CUỘC TRÒ CHUYỆN */}
+      {confirmDeleteThread && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-200 animate-scale-up font-sans">
+            <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-3 mx-auto">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 text-center mb-1">
+              Xóa cuộc trò chuyện?
+            </h3>
+            <p className="text-xs text-slate-500 text-center mb-4 leading-relaxed">
+              Toàn bộ tin nhắn và tệp đính kèm với học viên <strong>{confirmDeleteThread.studentName}</strong> sẽ được xóa hoàn toàn để giải phóng dung lượng hệ thống.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={deletingThread}
+                onClick={() => setConfirmDeleteThread(null)}
+                className="flex-1 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                disabled={deletingThread}
+                onClick={handleDeleteThread}
+                className="flex-1 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 rounded-lg transition cursor-pointer shadow-xs flex items-center justify-center gap-1"
+              >
+                {deletingThread ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  'Xóa vĩnh viễn'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
