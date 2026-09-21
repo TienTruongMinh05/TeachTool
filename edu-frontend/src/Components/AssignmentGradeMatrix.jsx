@@ -453,8 +453,13 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
                 {activeAssignments.map((asgn, idx) => {
                   const isScheduled = asgn.scheduledPublishAt && new Date(asgn.scheduledPublishAt) > new Date();
                   return (
-                    <th key={asgn.id} className="py-2.5 px-3 min-w-[140px] max-w-[170px] border-r border-slate-200 text-center">
-                      <div className="truncate font-bold text-slate-800" title={asgn.title}>
+                    <th 
+                      key={asgn.id} 
+                      onClick={() => onNavigateToGrading && onNavigateToGrading(asgn.id)}
+                      className="py-2.5 px-3 min-w-[140px] max-w-[170px] border-r border-slate-200 text-center cursor-pointer hover:bg-slate-100/90 transition group/th"
+                      title={`Bấm để chuyển sang quản lý bài tập "${asgn.title}"`}
+                    >
+                      <div className="truncate font-bold text-slate-800 group-hover/th:text-blue-600 transition" title={asgn.title}>
                         B{idx + 1}. {asgn.title}
                       </div>
                       <div className="text-[10px] text-slate-400 font-normal mt-0.5">
@@ -540,8 +545,9 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
                       return (
                         <td
                           key={asgn.id}
-                          onClick={() => setSelectedCell({ student: st, assignment: asgn, submission: sub })}
-                          className="py-2.5 px-2 text-center border-r border-slate-100 cursor-pointer hover:bg-blue-50/50 transition"
+                          onClick={() => onNavigateToGrading && onNavigateToGrading(asgn.id)}
+                          className="py-2.5 px-2 text-center border-r border-slate-100 cursor-pointer hover:bg-blue-50/70 hover:scale-[1.02] transition"
+                          title={`Bấm để chuyển đến phần quản lý bài tập "${asgn.title}"`}
                         >
                           {sub ? (
                             sub.score !== null && sub.score !== undefined && sub.score !== '' ? (

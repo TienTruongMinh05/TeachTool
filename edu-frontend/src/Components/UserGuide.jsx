@@ -485,10 +485,10 @@ export default function UserGuide() {
                 </p>
                 <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
                   <li>
-                    <b>Dữ liệu phía Giáo viên (Lưu trữ 6 tháng):</b> Toàn bộ thông tin lớp học, thời khóa biểu, buổi học trong tuần, giáo án/học phần chi tiết và sách giáo khoa/tài liệu đính kèm được lưu trữ an toàn trong vòng <b>6 tháng</b>. Khi tạo lớp học mới, thời gian kết thúc sẽ được hệ thống tự động gợi ý mặc định là +6 tháng (chuẩn học kỳ).
+                    <b>Dữ liệu phía Giáo viên (Lưu trữ 6 tháng hoặc đến khi xóa):</b> Toàn bộ thông tin lớp học, thời khóa biểu, buổi học trong tuần, giáo án/học phần chi tiết và sách giáo khoa/tài liệu đính kèm được lưu trữ an toàn trong vòng <b>6 tháng</b> hoặc đến khi chủ động bị xóa. Khi tạo lớp học mới, thời gian kết thúc sẽ được hệ thống tự động gợi ý mặc định là +6 tháng (chuẩn học kỳ).
                   </li>
                   <li>
-                    <b>Bài nộp của Học sinh (Lưu trữ 2 tuần):</b> Các bài làm học sinh đã nộp (văn bản, tệp Word/PDF, file âm thanh ghi âm giọng nói, ảnh chụp bài tập) được lưu giữ nguyên vẹn trong vòng <b>2 tuần (tuần trước & tuần này)</b>. Khoảng thời gian này hoàn toàn đáp ứng chu trình giao bài - làm bài - giáo viên chấm và nhận xét. Sau 2 tuần, các bài nộp và tệp đính kèm nhị phân sẽ được tác vụ tự động dọn dẹp để giải phóng dung lượng bộ nhớ PostgreSQL.
+                    <b>Bài nộp của Học sinh (Lưu trữ 1 tháng):</b> Các bài làm học sinh đã nộp (văn bản, tệp Word/PDF, file âm thanh ghi âm giọng nói, ảnh chụp bài tập) được lưu giữ trong vòng <b>1 tháng</b> (30 ngày) kể từ ngày nộp lên hệ thống. Khoảng thời gian này hoàn toàn đáp ứng chu trình giao bài - làm bài - giáo viên chấm và nhận xét. Sau 1 tháng, các bài nộp cũ sẽ được tác vụ tự động dọn dẹp để tối ưu dung lượng lưu trữ.
                   </li>
                 </ul>
               </div>

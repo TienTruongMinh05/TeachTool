@@ -1506,9 +1506,9 @@ export default function StudentPortal() {
                 );
               })()}
 
-              {/* Thông báo chính sách lưu trữ bài làm 2 tuần */}
+              {/* Thông báo chính sách lưu trữ bài làm 1 tháng */}
               <div className="p-2 bg-amber-50/90 border border-amber-200/80 rounded-lg text-xs text-amber-900">
-                <b>Lưu ý lưu trữ:</b> Bài làm đã nộp được lưu giữ trong <b>2 tuần</b> (tuần trước & tuần này) để tối ưu lưu trữ hệ thống.
+                <b>Lưu ý lưu trữ:</b> Bài làm đã nộp được lưu giữ trong <b>1 tháng</b> (30 ngày) kể từ ngày nộp lên hệ thống.
               </div>
 
               {/* Chọn phương thức nộp bài (chỉ hiện các phương thức được giáo viên cho phép) */}

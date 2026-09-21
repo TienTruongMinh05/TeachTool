@@ -71,6 +71,7 @@ export default function ClassDashboard({ initialView }) {
   // Tab con khi đang trong 1 lớp: 'sessions' | 'timetable' | 'assignments' | 'students' | 'attendance'
   const [activeClassTab, setActiveClassTab] = useState('sessions');
   const [targetSessionId, setTargetSessionId] = useState(null);
+  const [targetAssignmentId, setTargetAssignmentId] = useState(null);
 
   // Timetable data
   const [timetableSessions, setTimetableSessions] = useState([]);
@@ -363,7 +364,12 @@ export default function ClassDashboard({ initialView }) {
             </div>
           );
         case 'assignments':
-          return <AssignmentManager classId={selectedClassId} />;
+          return (
+            <AssignmentManager
+              classId={selectedClassId}
+              initialAssignmentId={targetAssignmentId}
+            />
+          );
         case 'students':
           return <StudentList classId={selectedClassId} />;
         case 'attendance':
@@ -378,7 +384,10 @@ export default function ClassDashboard({ initialView }) {
             <AssignmentGradeMatrix
               classId={selectedClassId}
               classInfo={classInfo}
-              onNavigateToGrading={() => setActiveClassTab('assignments')}
+              onNavigateToGrading={(asgnId) => {
+                setTargetAssignmentId(asgnId);
+                setActiveClassTab('assignments');
+              }}
             />
           );
         case 'analytics_heatmap':
@@ -565,13 +574,9 @@ export default function ClassDashboard({ initialView }) {
                   : 'text-slate-300 hover:bg-slate-700/80'
               }`}>
               <span>Câu hỏi từ học viên</span>
-              {unansweredInquiriesCount > 0 ? (
+              {unansweredInquiriesCount > 0 && (
                 <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-500 text-white rounded-full animate-pulse shadow-xs">
                   {unansweredInquiriesCount}
-                </span>
-              ) : (
-                <span className="text-[10px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">
-                  Hỗ trợ
                 </span>
               )}
             </button>
@@ -913,7 +918,7 @@ export default function ClassDashboard({ initialView }) {
               <div className="p-2.5 bg-blue-50/70 border border-blue-200/60 rounded-lg text-xs text-blue-900 flex items-start gap-2">
                 <span className="text-sm">ℹ️</span>
                 <div className="leading-relaxed">
-                  <span className="font-semibold">Chính sách lưu trữ:</span> Dữ liệu giáo viên (lớp, lịch học, sách, buổi học, giáo án) được lưu trữ trong <b>6 tháng</b>. Bài nộp của học viên lưu giữ <b>2 tuần</b> để tối ưu bộ nhớ.
+                  <span className="font-semibold">Chính sách lưu trữ:</span> Dữ liệu giáo viên (lớp, lịch học, sách, buổi học, giáo án) được lưu trữ trong <b>6 tháng</b> hoặc đến khi bị xóa. Bài nộp của học viên lưu giữ <b>1 tháng</b> từ ngày nộp lên hệ thống.
                 </div>
               </div>
 

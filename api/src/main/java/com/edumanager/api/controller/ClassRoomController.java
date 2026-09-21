@@ -22,6 +22,19 @@ public class ClassRoomController {
         return ClassResponseDTO.fromEntity(service.createClass(classRoom, callerId), callerId);
     }
 
+    @PostMapping("/{id}/clone")
+    public ClassResponseDTO cloneClass(
+            @PathVariable Long id,
+            @RequestBody ClassRoom copyRequest,
+            HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        String callerRole = (String) request.getAttribute("userRole");
+        if (!"TEACHER".equalsIgnoreCase(callerRole)) {
+            throw new SecurityException("Chỉ giáo viên mới có quyền nhân bản lớp học.");
+        }
+        return ClassResponseDTO.fromEntity(service.cloneClass(id, copyRequest, callerId), callerId);
+    }
+
     @GetMapping
     public List<ClassResponseDTO> getAllClasses(HttpServletRequest request) {
         Long callerId = (Long) request.getAttribute("userId");

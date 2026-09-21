@@ -168,9 +168,10 @@ function ClassList({ showTopBar = false, onSelectClass }) {
 
   const handleCopySubmit = async (e) => {
     e.preventDefault();
+    if (!copyingClass) return;
     try {
-      await classApi.create(copyFormData);
-      toast.success(`Đã nhân bản lớp học "${copyFormData.name}" thành công`);
+      await classApi.clone(copyingClass.id, copyFormData);
+      toast.success(`Đã nhân bản lớp học "${copyFormData.name}" thành công với đầy đủ giáo án và sách.`);
       fetchClasses();
       setCopyingClass(null);
     } catch (error) {
@@ -408,7 +409,7 @@ function ClassList({ showTopBar = false, onSelectClass }) {
               <div className="p-2.5 bg-blue-50/70 border border-blue-200/60 rounded-lg text-xs text-blue-900 flex items-start gap-2">
                 <span className="text-sm">ℹ️</span>
                 <div className="leading-relaxed">
-                  <span className="font-semibold">Chính sách lưu trữ:</span> Dữ liệu giáo viên (lớp, lịch học, sách, buổi học, giáo án) được lưu trữ trong <b>6 tháng</b>. Bài nộp của học viên lưu giữ <b>2 tuần</b> để tối ưu bộ nhớ.
+                  <span className="font-semibold">Chính sách lưu trữ:</span> Dữ liệu giáo viên (lớp, lịch học, sách, buổi học, giáo án) được lưu trữ trong <b>6 tháng</b> hoặc đến khi bị xóa. Bài nộp của học viên lưu giữ <b>1 tháng</b> từ ngày nộp lên hệ thống.
                 </div>
               </div>
               
@@ -500,11 +501,11 @@ function ClassList({ showTopBar = false, onSelectClass }) {
                 </button>
               </div>
 
-              {/* Thông báo chính sách lưu trữ */}
+              {/* Thông báo quy tắc nhân bản & lưu trữ */}
               <div className="p-2.5 bg-purple-50/70 border border-purple-200/60 rounded-lg text-xs text-purple-900 flex items-start gap-2">
                 <span className="text-sm">ℹ️</span>
                 <div className="leading-relaxed">
-                  <span className="font-semibold">Chính sách lưu trữ:</span> Dữ liệu lớp học và giáo án được lưu trữ trong <b>6 tháng</b>.
+                  <span className="font-semibold">Quy tắc nhân bản:</span> Sao chép toàn bộ giáo án, sách và bài tập (thời gian giáo án để mặc định). Danh sách học sinh và bài nộp sẽ không sao chép. Dữ liệu lớp học được lưu trữ trong <b>6 tháng</b> hoặc đến khi bị xóa.
                 </div>
               </div>
               

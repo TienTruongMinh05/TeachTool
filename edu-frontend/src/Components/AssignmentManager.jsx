@@ -8,7 +8,7 @@ import AudioGradingWorkbench from './AudioGradingWorkbench';
 import CollapsibleDescription from './CollapsibleDescription';
 import { useToast } from '../context/ToastContext';
 
-export default function AssignmentManager({ classId }) {
+export default function AssignmentManager({ classId, initialAssignmentId = null }) {
   const { toast, confirm } = useToast();
   const [assignments, setAssignments] = useState([]);
   const [sessions, setSessions] = useState([]);
@@ -70,6 +70,22 @@ export default function AssignmentManager({ classId }) {
   useEffect(() => {
     loadData();
   }, [classId]);
+
+  // Khi có initialAssignmentId được truyền từ ma trận điểm số hoặc bên ngoài
+  useEffect(() => {
+    if (initialAssignmentId && assignments.length > 0) {
+      const target = assignments.find(a => String(a.id) === String(initialAssignmentId));
+      if (target) {
+        openSubmissionsView(target);
+        setTimeout(() => {
+          const el = document.getElementById(`assignment-card-${target.id}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 200);
+      }
+    }
+  }, [initialAssignmentId, assignments]);
 
   const handleOpenCreateModal = () => {
     setEditingAssignment(null);
@@ -420,6 +436,7 @@ export default function AssignmentManager({ classId }) {
           return (
             <div 
               key={assignment.id} 
+              id={`assignment-card-${assignment.id}`}
               className={`bg-white border rounded-xl shadow-xs transition overflow-hidden ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/10' : 'border-gray-200'}`}>
               <div className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-gray-50/60 border-b border-gray-200">
                 <div>
@@ -540,11 +557,6 @@ export default function AssignmentManager({ classId }) {
                       title="Đóng">
                       ✕
                     </button>
-                  </div>
-
-                  {/* Thông báo chính sách lưu trữ bài nộp 2 tuần */}
-                  <div className="px-4 py-2 bg-amber-50/80 border-b border-amber-200/80 text-amber-900 text-xs">
-                    <b>Chính sách lưu trữ:</b> Bài làm của học sinh được lưu giữ trong <b>2 tuần</b> (tuần trước & tuần này) để tối ưu không gian lưu trữ đám mây.
                   </div>
 
                   {loadingSubmissions ? (

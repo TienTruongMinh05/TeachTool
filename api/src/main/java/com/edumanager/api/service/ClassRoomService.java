@@ -1,15 +1,20 @@
 package com.edumanager.api.service;
 
 import com.edumanager.api.entity.Assignment;
+import com.edumanager.api.entity.ClassMaterial;
 import com.edumanager.api.entity.ClassRoom;
 import com.edumanager.api.entity.Enrollment;
 import com.edumanager.api.entity.Session;
+import com.edumanager.api.entity.TeachingPlan;
+import com.edumanager.api.entity.TeachingPlanSection;
 import com.edumanager.api.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -90,6 +95,125 @@ public class ClassRoomService {
             });
         }
         return saved;
+    }
+
+    /**
+     * Nhân bản lớp học: sao chép thông tin lớp, sách/tài liệu, buổi học & giáo án (reset ngày giờ về null/00:00),
+     * và bài tập (reset hạn nộp). Loại trừ danh sách học sinh và bài nộp.
+     */
+    @Transactional
+    public ClassRoom cloneClass(Long sourceClassId, ClassRoom copyRequest, Long teacherId) {
+        ClassRoom sourceClass = getClassById(sourceClassId);
+        if (teacherId != null && !isTeacherOfClass(sourceClass, teacherId)) {
+            throw new SecurityException("Bạn không có quyền nhân bản lớp học này.");
+        }
+
+        // 1. Tạo ClassRoom mới
+        ClassRoom newClass = ClassRoom.builder()
+                .name(copyRequest.getName() != null && !copyRequest.getName().trim().isEmpty() 
+                        ? copyRequest.getName().trim() 
+                        : (sourceClass.getName() + " (Bản sao)"))
+                .startDate(copyRequest.getStartDate() != null ? copyRequest.getStartDate() : sourceClass.getStartDate())
+                .endDate(copyRequest.getEndDate() != null ? copyRequest.getEndDate() : sourceClass.getEndDate())
+                .classCode(generateUniqueClassCode())
+                .teacherId(teacherId != null ? teacherId : sourceClass.getTeacherId())
+                .build();
+
+        ClassRoom savedClass = repository.save(newClass);
+
+        // Gán giáo viên tạo lớp làm PRIMARY teacher
+        if (teacherId != null) {
+            userRepository.findById(teacherId).ifPresent(user -> {
+                classTeacherRepository.save(com.edumanager.api.entity.ClassTeacher.builder()
+                        .classRoom(savedClass)
+                        .teacher(user)
+                        .roleInClass("PRIMARY")
+                        .joinedAt(java.time.LocalDateTime.now())
+                        .build());
+            });
+        }
+
+        // 2. Sao chép Sách & Tài liệu lớp học (ClassMaterial)
+        List<ClassMaterial> sourceMaterials = classMaterialRepository.findByClassRoomIdOrderByCreatedAtDesc(sourceClassId);
+        for (ClassMaterial mat : sourceMaterials) {
+            ClassMaterial newMat = ClassMaterial.builder()
+                    .classRoom(savedClass)
+                    .title(mat.getTitle())
+                    .category(mat.getCategory())
+                    .fileUrl(mat.getFileUrl())
+                    .fileName(mat.getFileName())
+                    .totalPages(mat.getTotalPages())
+                    .description(mat.getDescription())
+                    .build();
+            classMaterialRepository.save(newMat);
+        }
+
+        // 3. Sao chép Buổi học (Session) & Kế hoạch giảng dạy (TeachingPlan + Sections)
+        // Quy tắc: giáo án / buổi học đặt thời gian mặc định là ngày 0 tháng 0 năm 0, 0h0p sa (startTime = null, endTime = null)
+        List<Session> sourceSessions = sessionRepository.findByClassRoomId(sourceClassId);
+        Map<Long, Session> sessionMap = new HashMap<>();
+
+        for (Session oldSess : sourceSessions) {
+            Session newSess = Session.builder()
+                    .classRoom(savedClass)
+                    .topic(oldSess.getTopic())
+                    .startTime(null) // Reset thời gian về chưa xếp lịch (ngày 0 tháng 0 năm 0, 0h0p sa)
+                    .endTime(null)
+                    .durationMinutes(oldSess.getDurationMinutes())
+                    .build();
+            Session savedSess = sessionRepository.save(newSess);
+            sessionMap.put(oldSess.getId(), savedSess);
+
+            // Tìm và sao chép TeachingPlan tương ứng
+            teachingPlanRepository.findBySessionId(oldSess.getId()).ifPresent(oldPlan -> {
+                TeachingPlan newPlan = TeachingPlan.builder()
+                        .classRoom(savedClass)
+                        .session(savedSess)
+                        .title(oldPlan.getTitle())
+                        .build();
+
+                if (oldPlan.getSections() != null) {
+                    for (TeachingPlanSection oldSec : oldPlan.getSections()) {
+                        TeachingPlanSection newSec = TeachingPlanSection.builder()
+                                .teachingPlan(newPlan)
+                                .timeAllocation(oldSec.getTimeAllocation())
+                                .content(oldSec.getContent())
+                                .activity(oldSec.getActivity())
+                                .handoutType(oldSec.getHandoutType())
+                                .handoutText(oldSec.getHandoutText())
+                                .handoutFileName(oldSec.getHandoutFileName())
+                                .handoutFilePath(oldSec.getHandoutFilePath())
+                                .studentPreparation(oldSec.getStudentPreparation())
+                                .orderIndex(oldSec.getOrderIndex())
+                                .build();
+                        newPlan.getSections().add(newSec);
+                    }
+                }
+                teachingPlanRepository.save(newPlan);
+            });
+        }
+
+        // 4. Sao chép Bài tập (Assignment)
+        List<Assignment> sourceAssignments = assignmentRepository.findByClassRoomId(sourceClassId);
+        for (Assignment oldAsgn : sourceAssignments) {
+            Session mappedSession = (oldAsgn.getSession() != null) ? sessionMap.get(oldAsgn.getSession().getId()) : null;
+            Assignment newAsgn = Assignment.builder()
+                    .classRoom(savedClass)
+                    .session(mappedSession)
+                    .title(oldAsgn.getTitle())
+                    .description(oldAsgn.getDescription())
+                    .allowedSubmissionTypes(oldAsgn.getAllowedSubmissionTypes())
+                    .attachmentFileName(oldAsgn.getAttachmentFileName())
+                    .attachmentFileUrl(oldAsgn.getAttachmentFileUrl())
+                    .attachmentsJson(oldAsgn.getAttachmentsJson())
+                    .dueDate(null) // Reset hạn nộp bài
+                    .scheduledPublishAt(null)
+                    .build();
+            assignmentRepository.save(newAsgn);
+        }
+
+        // Tuyệt đối KHÔNG sao chép Enrollment (học sinh), Submission (bài nộp), Attendance (điểm danh), InquiryThread (chat)
+        return savedClass;
     }
 
     // Lấy danh sách toàn bộ lớp học (hoặc lớp của giáo viên phụ trách)

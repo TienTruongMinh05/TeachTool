@@ -12,4 +12,5 @@ export const classApi = {
     getTeachers: (classId) => axiosClient.get(`/classes/${classId}/teachers`),
     addTeacher: (classId, email) => axiosClient.post(`/classes/${classId}/teachers`, { email }),
     removeTeacher: (classId, teacherId) => axiosClient.delete(`/classes/${classId}/teachers/${teacherId}`),
+    clone: (id, data) => axiosClient.post(`/classes/${id}/clone`, data),
 };

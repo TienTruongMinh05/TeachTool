@@ -771,8 +771,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
   };
 
   const formatDateTime = (isoString) => {
-    if (!isoString) return '—';
+    if (!isoString) return '00:00 SA, 00/00/0000';
     const date = new Date(isoString);
+    if (isNaN(date.getTime()) || date.getFullYear() <= 1970) return '00:00 SA, 00/00/0000';
     return date.toLocaleString('vi-VN', {
       hour: '2-digit',
       minute: '2-digit',

@@ -78,18 +78,18 @@ public class DataRetentionService {
     }
 
     /**
-     * 1. HỌC SINH: Bài học sinh đã nộp chỉ lưu trữ trong 2 tuần (14 ngày).
-     * Sau 14 ngày, bài nộp và tệp đính kèm nhị phân trong stored_files / uploads sẽ bị xóa để tiết kiệm không gian lưu trữ.
+     * 1. HỌC SINH: Bài học sinh đã nộp lưu trữ trong 1 tháng (30 ngày) kể từ ngày nộp.
+     * Sau 1 tháng, bài nộp và tệp đính kèm nhị phân trong stored_files / uploads sẽ bị xóa để tiết kiệm không gian lưu trữ.
      */
     @Transactional
     public void purgeExpiredStudentSubmissions() {
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(14);
+        LocalDateTime cutoff = LocalDateTime.now().minusMonths(1);
         List<Submission> expiredSubmissions = submissionRepository.findBySubmittedAtBefore(cutoff);
         if (expiredSubmissions.isEmpty()) {
             return;
         }
 
-        log.info("[DataRetention] Found {} student submissions older than 14 days (cutoff: {}). Purging...", 
+        log.info("[DataRetention] Found {} student submissions older than 1 month (cutoff: {}). Purging...", 
                 expiredSubmissions.size(), cutoff);
 
         int fileCount = 0;
@@ -163,11 +163,11 @@ public class DataRetentionService {
 
     /**
      * 3. TỆP RÁC (ORPHANED FILES):
-     * Dọn dẹp các tệp tải lên quá 14 ngày không còn được liên kết với bất kỳ Tài liệu lớp học, Bài tập, Bài nộp hay Avatar nào.
+     * Dọn dẹp các tệp tải lên quá 1 tháng không còn được liên kết với bất kỳ Tài liệu lớp học, Bài tập, Bài nộp hay Avatar nào.
      */
     @Transactional
     public void purgeOrphanedStoredFiles() {
-        LocalDateTime cutoff = LocalDateTime.now().minusDays(14);
+        LocalDateTime cutoff = LocalDateTime.now().minusMonths(1);
         List<String> oldStoredNames = storedFileRepository.findStoredNamesByCreatedAtBefore(cutoff);
         if (oldStoredNames.isEmpty()) {
             return;

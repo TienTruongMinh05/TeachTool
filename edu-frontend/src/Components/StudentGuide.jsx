@@ -11,7 +11,7 @@ export default function StudentGuide() {
     { id: 'audio_feedback', title: '5. Xem điểm & Nghe thầy cô sửa bài' },
     { id: 'delete_submission', title: '6. Xóa bài đã nộp để nộp lại' },
     { id: 'absence', title: '7. Báo vắng & Hủy báo vắng' },
-    { id: 'account', title: '8. Tài khoản & Lưu trữ 2 tuần' },
+    { id: 'account', title: '8. Tài khoản & Lưu trữ 1 tháng' },
   ];
 
   return (
@@ -241,7 +241,7 @@ export default function StudentGuide() {
                 <ul className="list-disc pl-5 space-y-1 text-gray-600">
                   <li>Trạng thái bài tập chuyển thành nhãn màu xanh <b>"Đã chấm điểm"</b> kèm điểm số cụ thể (thang điểm 10).</li>
                   <li>Bấm vào bài tập để mở modal xem lại toàn bộ nội dung bạn đã nộp và lời nhận xét chi tiết của thầy cô.</li>
-                  <li><b>Thời hạn lưu trữ:</b> Bài làm và lời phê của bạn được lưu trữ an toàn trong vòng <b>14 ngày (2 tuần)</b> kể từ lúc nộp. Các bạn hãy chủ động xem điểm và nghe lời sửa bài của thầy cô trong khoảng thời gian này nhé!</li>
+                  <li><b>Thời hạn lưu trữ:</b> Bài làm và lời phê của bạn được lưu trữ an toàn trong vòng <b>1 tháng</b> (30 ngày) kể từ lúc nộp. Các bạn hãy chủ động xem điểm và nghe lời sửa bài của thầy cô trong khoảng thời gian này nhé!</li>
                 </ul>
               </div>
 
@@ -356,16 +356,16 @@ export default function StudentGuide() {
               </div>
 
               <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
-                <h5 className="font-bold text-gray-800 text-sm">Chính sách lưu trữ bài nộp 2 tuần</h5>
+                <h5 className="font-bold text-gray-800 text-sm">Chính sách lưu trữ bài nộp 1 tháng</h5>
                 <p>
                   Để tối ưu hóa không gian lưu trữ và đảm bảo hệ thống luôn hoạt động nhanh chóng:
                 </p>
                 <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
                   <li>
-                    Các bài làm đã nộp (file văn bản, tệp Word, file audio thu âm, ảnh chụp bài tập) được lưu giữ trong vòng <b>2 tuần (tuần trước & tuần này)</b>.
+                    Các bài làm đã nộp (file văn bản, tệp Word, file audio thu âm, ảnh chụp bài tập) được lưu giữ trong vòng <b>1 tháng</b> (30 ngày) kể từ ngày nộp lên hệ thống.
                   </li>
                   <li>
-                    Khoảng thời gian 2 tuần hoàn toàn đủ để giáo viên chấm điểm, nhận xét và học sinh xem lại kết quả.
+                    Khoảng thời gian 1 tháng hoàn toàn đủ để giáo viên chấm điểm, nhận xét và học sinh xem lại kết quả.
                   </li>
                   <li>
                     <b>Khuyến nghị:</b> Các tệp bài viết quan trọng bạn nên lưu giữ một bản sao lưu trên máy tính hoặc điện thoại cá nhân.
