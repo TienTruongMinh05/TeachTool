@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { XIcon } from './Icons';
 
 export default function ChangePasswordModal({ isOpen, onClose }) {
   const { changePassword } = useAuth();
@@ -53,8 +54,8 @@ export default function ChangePasswordModal({ isOpen, onClose }) {
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white text-lg font-bold cursor-pointer">
-            ✕
+            className="text-slate-400 hover:text-white p-1 cursor-pointer">
+            <XIcon className="w-5 h-5" />
           </button>
         </div>
 

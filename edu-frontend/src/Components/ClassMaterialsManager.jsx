@@ -4,6 +4,7 @@ import { fileApi } from '../api/fileApi';
 import { materialApi } from '../api/materialApi';
 import { useToast } from '../context/ToastContext';
 import PdfCanvasViewer from './PdfCanvasViewer';
+import { XIcon, CheckCircleIcon } from './Icons';
 
 // Cấu hình CDN worker cho pdf.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
@@ -406,8 +407,9 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
                   </div>
                 )}
                 {formData.fileName && !uploading && (
-                  <p className="text-[11px] text-emerald-700 font-medium mt-1">
-                    ✓ Đã tải lên: {formData.fileName} ({formData.totalPages} trang)
+                  <p className="text-[11px] text-emerald-700 font-medium mt-1 flex items-center gap-1">
+                    <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>Đã tải lên: {formData.fileName} ({formData.totalPages} trang)</span>
                   </p>
                 )}
               </div>
@@ -477,10 +479,10 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
               <button
                 type="button"
                 onClick={() => setViewingMaterial(null)}
-                className="p-1.5 text-slate-400 hover:text-white text-base font-bold rounded-lg transition cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg transition cursor-pointer"
                 title="Đóng"
               >
-                ✕
+                <XIcon className="w-5 h-5" />
               </button>
             </div>
 

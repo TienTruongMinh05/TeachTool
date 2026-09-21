@@ -52,9 +52,9 @@ export default function StudentList({ classId }) {
   const handleCopyInfo = (student) => {
     const text = `${student.studentName} - ${student.studentEmail}`;
     navigator.clipboard.writeText(text).then(() => {
-      showToast(`✓ Đã sao chép: "${text}" vào bộ nhớ tạm!`);
+      showToast(`Đã sao chép: "${text}" vào bộ nhớ tạm!`);
     }).catch(() => {
-      showToast(`✓ Học sinh: ${text}`);
+      showToast(`Học sinh: ${text}`);
     });
   };
 

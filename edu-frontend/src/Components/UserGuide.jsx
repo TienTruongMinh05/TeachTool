@@ -63,7 +63,7 @@ export default function UserGuide() {
                 <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">Bước 1: Giáo viên tạo lớp</span>
                 <h5 className="font-bold text-gray-800 text-sm">Tạo lớp & Nhận Mã Lớp (Class Code)</h5>
                 <p className="text-xs text-gray-600 leading-relaxed">
-                  Tại màn hình <b>"Danh sách lớp học"</b>, bấm <b>"+ Thêm Lớp Mới"</b>. Hệ thống tự động sinh 1 mã lớp gồm 6 ký tự ngẫu nhiên (ví dụ: <code className="bg-slate-100 text-blue-600 px-1 py-0.5 rounded font-mono font-bold">DJ4FHF</code>). Thầy/cô chỉ cần bấm nút <b>Copy</b> và gửi mã này cho học sinh qua Zalo/Facebook/Email.
+                  Tại màn hình <b>"Danh sách lớp học"</b>, bấm <b>"+ Thêm Lớp Mới"</b>. Hệ thống tự động sinh 1 mã lớp gồm 6 ký tự ngẫu nhiên (ví dụ: <code className="bg-slate-100 text-blue-600 px-1 py-0.5 rounded font-mono font-bold">ABC123</code>). Thầy/cô chỉ cần bấm nút <b>Copy</b> và gửi mã này cho học sinh qua Zalo/Facebook/Email.
                 </p>
               </div>
 
@@ -300,7 +300,7 @@ export default function UserGuide() {
                 <ul className="list-disc pl-5 space-y-1 text-gray-600">
                   <li>Bảng danh sách các bài làm của học sinh sẽ <b>mở rộng ngay phía dưới bài tập đó</b> (không cần cuộn trang xuống cuối).</li>
                   <li>Hiển thị rõ ràng định dạng bài làm của từng em (Văn bản, File Word, File Audio, Thu âm trực tiếp, hoặc Hình ảnh).</li>
-                  <li>Nút đóng tinh gọn <b>✕</b> ở góc tiêu đề giúp thu gọn bảng danh sách nhanh chóng khi hoàn tất chấm bài.</li>
+                  <li>Nút đóng tinh gọn ở góc tiêu đề giúp thu gọn bảng danh sách nhanh chóng khi hoàn tất chấm bài.</li>
                 </ul>
               </div>
 

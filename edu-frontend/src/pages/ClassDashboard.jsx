@@ -16,10 +16,12 @@ import ClassMaterialsManager from '../Components/ClassMaterialsManager';
 import AssignmentGradeMatrix from '../Components/AssignmentGradeMatrix';
 import LearningAnalyticsHeatmap from '../Components/LearningAnalyticsHeatmap';
 import StudentInquiriesManager from '../Components/StudentInquiriesManager';
+import { sessionApi } from '../api/sessionApi';
+import { attendanceApi } from '../api/attendanceApi';
 import { inquiryApi } from '../api/inquiryApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { InfoIcon, MenuIcon } from '../Components/Icons';
+import { InfoIcon, MenuIcon, XIcon } from '../Components/Icons';
 
 const getTodayStr = () => {
   const d = new Date();
@@ -162,6 +164,54 @@ export default function ClassDashboard({ initialView }) {
     const interval = setInterval(fetchUnansweredInquiriesCount, 30000);
     return () => clearInterval(interval);
   }, [fetchUnansweredInquiriesCount]);
+
+  // Đếm số lượng học viên xin học Online trong lớp đang chọn
+  const [onlineRequestsCount, setOnlineRequestsCount] = useState(0);
+
+  const fetchOnlineRequestsCount = useCallback(async (classId) => {
+    if (!classId) {
+      setOnlineRequestsCount(0);
+      return;
+    }
+    try {
+      const [sessionsRes, attendanceRes] = await Promise.allSettled([
+        sessionApi.getByClass(classId),
+        attendanceApi.getByClass(classId)
+      ]);
+
+      const sessions = (sessionsRes.status === 'fulfilled' && Array.isArray(sessionsRes.value)) ? sessionsRes.value : [];
+      const attendances = (attendanceRes.status === 'fulfilled' && Array.isArray(attendanceRes.value)) ? attendanceRes.value : [];
+
+      const now = Date.now() - 30 * 60 * 1000;
+      const upcomingSessionIds = new Set(
+        sessions
+          .filter((s) => {
+            const time = new Date(s.endTime || s.startTime).getTime();
+            return !isNaN(time) && time >= now;
+          })
+          .map((s) => s.id)
+      );
+
+      const count = attendances.filter((a) => {
+        const sId = a.sessionId || (a.session && a.session.id);
+        return upcomingSessionIds.has(sId) && a.status === 'ONLINE';
+      }).length;
+
+      setOnlineRequestsCount(count);
+    } catch {
+      // Bỏ qua lỗi ngầm
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedClassId) {
+      fetchOnlineRequestsCount(selectedClassId);
+      const interval = setInterval(() => fetchOnlineRequestsCount(selectedClassId), 30000);
+      return () => clearInterval(interval);
+    } else {
+      setOnlineRequestsCount(0);
+    }
+  }, [selectedClassId, fetchOnlineRequestsCount]);
 
   // Đồng bộ view khi URL thay đổi
   useEffect(() => {
@@ -334,6 +384,7 @@ export default function ClassDashboard({ initialView }) {
               classInfo={classInfo}
               targetSessionId={targetSessionId}
               onSelectSessionForAttendance={handleSelectSessionForAttendance}
+              onOnlineRequestsChange={setOnlineRequestsCount}
             />
           );
         case 'timetable':
@@ -420,6 +471,7 @@ export default function ClassDashboard({ initialView }) {
               classInfo={classInfo}
               targetSessionId={targetSessionId}
               onSelectSessionForAttendance={handleSelectSessionForAttendance}
+              onOnlineRequestsChange={setOnlineRequestsCount}
             />
           );
       }
@@ -480,8 +532,8 @@ export default function ClassDashboard({ initialView }) {
           </div>
           <button
             onClick={() => setIsMobileMenuOpen(false)}
-            className="md:hidden text-slate-400 hover:text-white text-lg font-bold p-1">
-            ✕
+            className="md:hidden text-slate-400 hover:text-white p-1 cursor-pointer">
+            <XIcon className="w-5 h-5" />
           </button>
         </div>
 
@@ -665,6 +717,11 @@ export default function ClassDashboard({ initialView }) {
                           : 'text-slate-300 hover:bg-slate-700/80'
                       }`}>
                       <span>Buổi học & Kế hoạch</span>
+                      {onlineRequestsCount > 0 && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-500 text-white rounded-full animate-pulse shadow-xs" title={`Có ${onlineRequestsCount} bạn xin học online`}>
+                          {onlineRequestsCount}
+                        </span>
+                      )}
                     </button>
 
                     <button

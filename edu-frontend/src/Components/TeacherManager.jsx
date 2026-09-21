@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { classApi } from '../api/classApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { CrownIcon, UsersIcon } from './Icons';
+import { CrownIcon, UsersIcon, XIcon } from './Icons';
 
 export default function TeacherManager({ classId, classInfo, onClassUpdated }) {
   const { user } = useAuth();
@@ -237,8 +237,8 @@ export default function TeacherManager({ classId, classInfo, onClassUpdated }) {
               <h3 className="text-lg font-bold text-slate-800">Mời Giáo Viên Đồng Giảng Dạy</h3>
               <button
                 onClick={() => setIsInviteModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 text-lg cursor-pointer">
-                ✕
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
+                <XIcon className="w-5 h-5" />
               </button>
             </div>
 

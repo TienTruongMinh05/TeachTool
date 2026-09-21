@@ -3,6 +3,7 @@ import { authApi } from '../api/authApi';
 import { userApi } from '../api/userApi';
 import { enrollmentApi } from '../api/enrollmentApi';
 import { useToast } from '../context/ToastContext';
+import { XIcon } from './Icons';
 
 export default function AccountSettingsModal({
   isOpen,
@@ -182,8 +183,8 @@ export default function AccountSettingsModal({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white text-xl font-bold p-1 cursor-pointer transition">
-            ✕
+            className="text-slate-400 hover:text-white p-1 cursor-pointer transition">
+            <XIcon className="w-5 h-5" />
           </button>
         </div>
 

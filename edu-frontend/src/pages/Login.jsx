@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { CheckCircleIcon, XCircleIcon } from '../Components/Icons';
 
 export default function Login() {
   const { login, register, loginWithGoogle } = useAuth();
@@ -302,8 +303,15 @@ export default function Login() {
                         Tạo lớp, soạn kế hoạch giảng dạy, điểm danh, giao bài tập
                       </p>
                     </div>
-                    <div className="mt-2 text-[10px] font-bold text-blue-600">
-                      {regRole === 'TEACHER' ? '✓ Đã chọn' : 'Chọn vai trò này'}
+                    <div className="mt-2 text-[10px] font-bold text-blue-600 flex items-center gap-1">
+                      {regRole === 'TEACHER' ? (
+                        <>
+                          <CheckCircleIcon className="w-3.5 h-3.5 shrink-0" />
+                          <span>Đã chọn</span>
+                        </>
+                      ) : (
+                        'Chọn vai trò này'
+                      )}
                     </div>
                   </div>
 
@@ -320,8 +328,15 @@ export default function Login() {
                         Nhập mã tham gia lớp, xem thời khóa biểu, làm bài & báo vắng
                       </p>
                     </div>
-                    <div className="mt-2 text-[10px] font-bold text-emerald-600">
-                      {regRole === 'STUDENT' ? '✓ Đã chọn' : 'Chọn vai trò này'}
+                    <div className="mt-2 text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                      {regRole === 'STUDENT' ? (
+                        <>
+                          <CheckCircleIcon className="w-3.5 h-3.5 shrink-0" />
+                          <span>Đã chọn</span>
+                        </>
+                      ) : (
+                        'Chọn vai trò này'
+                      )}
                     </div>
                   </div>
                 </div>
@@ -383,9 +398,15 @@ export default function Login() {
                 {regConfirmPassword && (
                   <div className="mt-1 text-[11px]">
                     {regConfirmPassword === regPassword ? (
-                      <span className="text-emerald-600 font-medium">✓ Mật khẩu hoàn toàn trùng khớp</span>
+                      <span className="text-emerald-600 font-medium flex items-center gap-1">
+                        <CheckCircleIcon className="w-3.5 h-3.5 shrink-0" />
+                        <span>Mật khẩu hoàn toàn trùng khớp</span>
+                      </span>
                     ) : (
-                      <span className="text-red-600 font-medium">✗ Mật khẩu chưa trùng khớp</span>
+                      <span className="text-red-600 font-medium flex items-center gap-1">
+                        <XCircleIcon className="w-3.5 h-3.5 shrink-0" />
+                        <span>Mật khẩu chưa trùng khớp</span>
+                      </span>
                     )}
                   </div>
                 )}

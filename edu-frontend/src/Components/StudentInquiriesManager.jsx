@@ -4,6 +4,7 @@ import { inquiryApi } from '../api/inquiryApi';
 import { fileApi } from '../api/fileApi';
 import { classApi } from '../api/classApi';
 import { useToast } from '../context/ToastContext';
+import { XIcon } from './Icons';
 
 export default function StudentInquiriesManager({ onNavigateToClass }) {
   const { toast } = useToast();
@@ -441,9 +442,9 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 text-xs p-0.5 cursor-pointer"
+                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
                 >
-                  ✕
+                  <XIcon className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
@@ -815,9 +816,9 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                         <button
                           type="button"
                           onClick={() => handleRemoveFile(idx)}
-                          className="text-slate-400 hover:text-slate-700 font-bold cursor-pointer"
+                          className="text-slate-400 hover:text-slate-700 p-0.5 cursor-pointer"
                         >
-                          ✕
+                          <XIcon className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     ))}

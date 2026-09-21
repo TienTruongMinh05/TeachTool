@@ -61,9 +61,19 @@ public class SessionController {
         return SessionResponseDTO.fromEntity(service.updateSession(sessionId, session, callerId));
     }
 
-    @PatchMapping("/{sessionId}/announcement")
+    @RequestMapping(value = "/{sessionId}/announcement", method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST})
     public SessionResponseDTO updateAnnouncement(
             @PathVariable Long classId,
+            @PathVariable Long sessionId,
+            @RequestBody java.util.Map<String, String> payload,
+            jakarta.servlet.http.HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        String announcement = payload != null ? payload.get("announcement") : null;
+        return SessionResponseDTO.fromEntity(service.updateAnnouncement(sessionId, announcement, callerId));
+    }
+
+    @RequestMapping(value = "/api/sessions/{sessionId}/announcement", method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST})
+    public SessionResponseDTO updateAnnouncementDirect(
             @PathVariable Long sessionId,
             @RequestBody java.util.Map<String, String> payload,
             jakarta.servlet.http.HttpServletRequest request) {

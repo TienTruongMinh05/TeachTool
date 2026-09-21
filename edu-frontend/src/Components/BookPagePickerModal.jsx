@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import PdfCanvasViewer from './PdfCanvasViewer';
+import { XIcon } from './Icons';
 
 export default function BookPagePickerModal({
   material,
@@ -41,10 +42,10 @@ export default function BookPagePickerModal({
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white text-base font-bold rounded-lg transition cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-white rounded-lg transition cursor-pointer"
               title="Đóng"
             >
-              ✕
+              <XIcon className="w-5 h-5" />
             </button>
           </div>
         </div>

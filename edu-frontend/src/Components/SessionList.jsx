@@ -9,9 +9,9 @@ import BookPagePickerModal from './BookPagePickerModal';
 import { getStoredClassMaterials, saveStoredClassMaterials } from './ClassMaterialsManager';
 import { materialApi } from '../api/materialApi';
 import { useToast } from '../context/ToastContext';
-import { MegaphoneIcon, BookOpenIcon, GlobeIcon } from './Icons';
+import { MegaphoneIcon, BookOpenIcon, GlobeIcon, XIcon, CheckCircleIcon } from './Icons';
 
-export default function SessionList({ classId, classInfo, onSelectSessionForAttendance, targetSessionId = null }) {
+export default function SessionList({ classId, classInfo, onSelectSessionForAttendance, targetSessionId = null, onOnlineRequestsChange = null }) {
   const { toast, confirm } = useToast();
   const [sessions, setSessions] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -145,8 +145,27 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
 
       if (attendanceRes.status === 'fulfilled' && Array.isArray(attendanceRes.value)) {
         setAllAttendances(attendanceRes.value);
+        if (typeof onOnlineRequestsChange === 'function') {
+          const now = Date.now() - 30 * 60 * 1000;
+          const upcomingIds = new Set(
+            sessionList
+              .filter(s => {
+                const time = new Date(s.endTime || s.startTime).getTime();
+                return !isNaN(time) && time >= now;
+              })
+              .map(s => s.id)
+          );
+          const count = attendanceRes.value.filter(a => {
+            const sId = a.sessionId || (a.session && a.session.id);
+            return upcomingIds.has(sId) && a.status === 'ONLINE';
+          }).length;
+          onOnlineRequestsChange(count);
+        }
       } else {
         setAllAttendances([]);
+        if (typeof onOnlineRequestsChange === 'function') {
+          onOnlineRequestsChange(0);
+        }
       }
     } catch (error) {
       console.error('Lỗi khi tải dữ liệu buổi học:', error);
@@ -595,9 +614,10 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
   const handleSaveAnnouncement = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!announcementModalSession) return;
+    const effectiveClassId = announcementModalSession.classId || classId;
     try {
       setSavingAnnouncement(true);
-      await sessionApi.updateAnnouncement(classId, announcementModalSession.id, announcementInput.trim());
+      await sessionApi.updateAnnouncement(effectiveClassId, announcementModalSession.id, announcementInput.trim());
       toast.success('Đã lưu thông báo cho buổi học thành công!');
       setAnnouncementModalSession(null);
       await loadData();
@@ -617,9 +637,10 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
       type: 'danger'
     });
     if (!ok) return;
+    const effectiveClassId = announcementModalSession.classId || classId;
     try {
       setSavingAnnouncement(true);
-      await sessionApi.updateAnnouncement(classId, announcementModalSession.id, '');
+      await sessionApi.updateAnnouncement(effectiveClassId, announcementModalSession.id, '');
       toast.success('Đã xóa thông báo của buổi học!');
       setAnnouncementModalSession(null);
       await loadData();
@@ -887,12 +908,12 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
             : 'border-gray-200'
         }`}>
         {/* THANH TIÊU ĐỀ BUỔI HỌC (CARD HEADER) */}
-        <div className={`p-4 sm:p-4.5 border-b border-gray-200 rounded-t-xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 ${
+        <div className={`p-4 sm:p-4.5 border-b border-gray-200 rounded-t-xl space-y-3 ${
           isTarget ? 'bg-blue-50/80' : isPast ? 'bg-slate-100/70' : 'bg-slate-50'
         }`}>
-          <div className="flex items-start gap-3 w-full lg:w-auto">
+          <div className="flex items-start gap-3 w-full">
             {/* Checkbox chọn buổi học */}
-            <div className="pt-0.5">
+            <div className="pt-0.5 shrink-0">
               <input
                 type="checkbox"
                 checked={isSelected}
@@ -902,24 +923,24 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
               />
             </div>
 
-            <div className="space-y-1 w-full lg:w-auto">
+            <div className="space-y-1 flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 {/* Badge Tên lớp thay thế cho Buổi 1, Buổi 2 */}
-                <span className="px-2.5 py-0.5 text-xs font-bold bg-blue-600 text-white rounded">
+                <span className="px-2.5 py-0.5 text-xs font-bold bg-blue-600 text-white rounded shrink-0">
                   {classInfo?.name || 'Lớp học'}
                 </span>
                 <h4 className="font-bold text-gray-800 text-base">{session.topic || 'Chưa đặt tên'}</h4>
                 {sections.length > 0 ? (
-                  <span className="px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
+                  <span className="px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200 shrink-0">
                     {sections.length} học phần
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full border border-amber-200">
+                  <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full border border-amber-200 shrink-0">
                     Chưa có học phần
                   </span>
                 )}
                 {isPast && (
-                  <span className="px-2 py-0.5 text-[11px] font-medium bg-slate-200 text-slate-700 rounded">
+                  <span className="px-2 py-0.5 text-[11px] font-medium bg-slate-200 text-slate-700 rounded shrink-0">
                     Đã hoàn thành
                   </span>
                 )}
@@ -979,8 +1000,8 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
             </div>
           </div>
 
-          {/* NÚT THAO TÁC: GIỮ XEM KẾ HOẠCH, THÊM HỌC PHẦN, ĐIỂM DANH, THÔNG BÁO + GOM COPY/SỬA/XÓA VÀO DROPDOWN */}
-          <div className="flex flex-wrap items-center gap-1.5 w-full lg:w-auto justify-start lg:justify-end pt-2 lg:pt-0 border-t lg:border-t-0 border-gray-200 relative">
+          {/* NÚT THAO TÁC: XẾP THÀNH 1 HÀNG GỌN GÀNG, KHÔNG BỊ CHE KHUẤT HAY NHẢY HÀNG SO LỆCH */}
+          <div className="flex flex-wrap items-center justify-end gap-2 pt-2.5 border-t border-slate-200/80 w-full relative">
             <button
               onClick={() => toggleSessionExpand(session.id)}
               className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition cursor-pointer">
@@ -1397,8 +1418,8 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
               <button
                 type="button"
                 onClick={() => setIsCreateModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600 text-xl font-bold p-1">
-                ✕
+                className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer">
+                <XIcon className="w-5 h-5" />
               </button>
             </div>
 
@@ -1416,7 +1437,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                     required
                     value={sessionFormData.topic}
                     onChange={(e) => setSessionFormData({ ...sessionFormData, topic: e.target.value })}
-                    placeholder="Ví dụ: Unit 1 - Introduction & Ice Breaking"
+                    placeholder="Nhập chủ đề buổi học..."
                     className="w-full border border-gray-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
@@ -1509,7 +1530,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                               type="text"
                               value={sec.timeAllocation}
                               onChange={(e) => handleUpdateDraftSection(idx, 'timeAllocation', e.target.value)}
-                              placeholder="Thời lượng (vd: 20 phút)"
+                              placeholder="Thời lượng (VD: 20 phút)"
                               className="w-full border border-gray-300 rounded p-1.5 text-xs"
                             />
                           </div>
@@ -1588,8 +1609,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                                 className="text-xs"
                               />
                               {sec.handoutFileName && (
-                                <span className="text-xs text-emerald-700 font-semibold truncate">
-                                  ✓ {sec.handoutFileName}
+                                <span className="text-xs text-emerald-700 font-semibold truncate flex items-center gap-1">
+                                  <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span>{sec.handoutFileName}</span>
                                 </span>
                               )}
                             </div>
@@ -1786,8 +1808,8 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                   setActivePlanForSection(null);
                   setEditingSectionIndex(null);
                 }}
-                className="text-gray-400 hover:text-gray-600 font-bold">
-                ✕
+                className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer">
+                <XIcon className="w-5 h-5" />
               </button>
             </div>
 
@@ -1859,7 +1881,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                   required
                   value={sectionFormData.content}
                   onChange={(e) => setSectionFormData({ ...sectionFormData, content: e.target.value })}
-                  placeholder="Ví dụ: Unit 2 Grammar: Present Perfect / Speaking Part 1"
+                  placeholder="Nhập nội dung học phần..."
                   className="w-full border border-gray-300 rounded p-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
@@ -1871,7 +1893,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                     type="text"
                     value={sectionFormData.timeAllocation}
                     onChange={(e) => setSectionFormData({ ...sectionFormData, timeAllocation: e.target.value })}
-                    placeholder="Ví dụ: 15 phút"
+                    placeholder="Thời lượng (VD: 15 phút)"
                     className="w-full border border-gray-300 rounded p-2 text-xs"
                   />
                 </div>
@@ -1964,8 +1986,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                     />
                     {uploadingHandoutFile && <div className="text-xs text-blue-600">Đang tải file lên...</div>}
                     {sectionFormData.handoutFileName && (
-                      <div className="text-xs text-emerald-700 font-semibold">
-                        ✓ Đã đính kèm: {sectionFormData.handoutFileName}
+                      <div className="text-xs text-emerald-700 font-semibold flex items-center gap-1">
+                        <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Đã đính kèm: {sectionFormData.handoutFileName}</span>
                       </div>
                     )}
                   </div>
@@ -2104,8 +2127,8 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
               <button
                 type="button"
                 onClick={() => setAnnouncementModalSession(null)}
-                className="text-gray-400 hover:text-gray-600 text-lg font-bold p-1 cursor-pointer">
-                ✕
+                className="text-gray-400 hover:text-gray-600 p-1 cursor-pointer">
+                <XIcon className="w-5 h-5" />
               </button>
             </div>
 
@@ -2118,12 +2141,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                   rows={4}
                   value={announcementInput}
                   onChange={(e) => setAnnouncementInput(e.target.value)}
-                  placeholder="Ví dụ: Hôm nay trời mưa to, lớp chuyển sang học online qua Zoom: https://zoom.us/j/... hoặc Mang theo giấy kiểm tra A4..."
+                  placeholder="Nhập thông báo..."
                   className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 leading-relaxed"
                 />
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Thông báo này sẽ hiển thị nổi bật với <b>viền đỏ nhấp nháy</b> và <b>nền vàng</b> ở trên cùng khi học sinh mở xem buổi học.
-                </p>
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100">

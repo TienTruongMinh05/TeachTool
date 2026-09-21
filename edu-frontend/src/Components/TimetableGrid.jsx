@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { studentPortalApi } from '../api/studentPortalApi';
 import { useToast } from '../context/ToastContext';
 import CollapsibleDescription from './CollapsibleDescription';
-import { MegaphoneIcon, PaperclipIcon, GlobeIcon, XCircleIcon } from './Icons';
+import { MegaphoneIcon, PaperclipIcon, GlobeIcon, XCircleIcon, XIcon } from './Icons';
 
 // Color palette for classes (accessible, modern pastel tones)
 const CLASS_COLORS = [
@@ -282,7 +282,7 @@ export default function TimetableGrid({
     if (!studentId || !session) return;
     const isOnline = session.attendanceStatus === 'ONLINE';
     const ok = await confirm({
-      title: isOnline ? 'Hủy học Online' : 'Hủy báo vắng',
+      title: 'Hủy yêu cầu',
       message: isOnline
         ? 'Bạn có chắc chắn muốn hủy đăng ký học Online để đi học trực tiếp tại lớp không?'
         : 'Bạn có chắc chắn muốn hủy báo vắng để đi học lại buổi học này không?',
@@ -534,6 +534,8 @@ export default function TimetableGrid({
                     const color = getClassColor(classId);
                     const sId = session.sessionId || session.id;
                     const hasAbsentReport = session.attendanceStatus === 'ABSENT';
+                    const isOnlineReport = session.attendanceStatus === 'ONLINE';
+                    const hasAnyReport = hasAbsentReport || isOnlineReport;
                     const unviewedNews = isNewsUnviewed(session);
 
                     // Xử lý viền theo trạng thái bài tập
@@ -600,52 +602,59 @@ export default function TimetableGrid({
                           </div>
                         </div>
 
-                        {/* Footer: Badges */}
+                        {/* Footer: Badges & Actions */}
                         <div className="pt-1 border-t border-black/5 mt-auto space-y-1">
                           <div className="flex items-center justify-between gap-1 text-[10px]">
                             <span className="font-medium opacity-90 truncate">
                               Sĩ số: <b>{session.studentCount != null ? session.studentCount : '—'}</b>
                             </span>
-
-                            {isStudent && canReportAbsence(session) && !hasAbsentReport && (
-                              <button
-                                type="button"
-                                onClick={(e) => handleOpenAbsence(e, session)}
-                                className="px-1.5 py-0.5 text-[9px] font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 rounded border border-rose-300 transition cursor-pointer"
-                              >
-                                Báo vắng
-                              </button>
-                            )}
-
-                            {isStudent && hasAbsentReport && !isSessionEnded(session) && (
-                              <button
-                                type="button"
-                                onClick={(e) => handleCancelAbsence(e, session)}
-                                disabled={isCancellingAbsence}
-                                className="px-1.5 py-0.5 text-[9px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded border border-emerald-300 transition cursor-pointer"
-                              >
-                                {isCancellingAbsence ? '...' : 'Hủy vắng'}
-                              </button>
-                            )}
-                          </div>
-
-                          {/* Nhóm badge trạng thái: Bài tập & Dặn dò chuẩn bị */}
-                          <div className="flex flex-wrap items-center gap-1">
-                            {homeworkStatusBadge}
-
                             {/* Ô Tin tức nhấp nháy chậm nếu có thông báo hoặc dặn dò chưa xem */}
                             {unviewedNews && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-900 rounded border border-amber-300 animate-[pulse_2.5s_ease-in-out_infinite] shadow-2xs">
+                              <span className="text-[9px] font-bold px-1 py-0.5 bg-amber-100 text-amber-900 rounded border border-amber-300 animate-[pulse_2.5s_ease-in-out_infinite] shadow-2xs shrink-0">
                                 Tin tức
                               </span>
                             )}
+                          </div>
+
+                          {/* Nhóm badge trạng thái: Bài tập & Vắng/Online */}
+                          <div className="flex flex-wrap items-center gap-1">
+                            {homeworkStatusBadge}
 
                             {hasAbsentReport && (
                               <span className="text-[9px] font-bold px-1.5 py-0.5 bg-rose-200 text-rose-800 rounded">
                                 Đã báo vắng
                               </span>
                             )}
+
+                            {isOnlineReport && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-sky-100 text-sky-800 border border-sky-300 rounded flex items-center gap-0.5">
+                                <GlobeIcon className="w-2.5 h-2.5 text-sky-600 shrink-0" />
+                                <span>Đã chọn học online</span>
+                              </span>
+                            )}
                           </div>
+
+                          {/* Nút hành động: Canh xuống 1 hàng riêng để nút nằm gọn luôn, không nhảy hàng so lệch */}
+                          {isStudent && canReportAbsence(session) && !hasAnyReport && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenAbsence(e, session)}
+                              className="w-full text-center px-1.5 py-0.5 text-[9px] font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 rounded border border-rose-300 transition cursor-pointer block"
+                            >
+                              Báo vắng
+                            </button>
+                          )}
+
+                          {isStudent && hasAnyReport && !isSessionEnded(session) && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleCancelAbsence(e, session)}
+                              disabled={isCancellingAbsence}
+                              className="w-full text-center px-1.5 py-0.5 text-[9px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded border border-emerald-300 transition cursor-pointer block"
+                            >
+                              {isCancellingAbsence ? '...' : 'Hủy yêu cầu'}
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -674,9 +683,9 @@ export default function TimetableGrid({
               <button
                 type="button"
                 onClick={() => setSelectedSession(null)}
-                className="text-gray-400 hover:text-gray-700 text-lg font-bold p-1 cursor-pointer"
+                className="text-gray-400 hover:text-gray-700 p-1 cursor-pointer"
               >
-                ✕
+                <XIcon className="w-5 h-5" />
               </button>
             </div>
 
@@ -867,7 +876,7 @@ export default function TimetableGrid({
                   disabled={isCancellingAbsence}
                   className="px-3.5 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition cursor-pointer flex items-center gap-1.5"
                 >
-                  {isCancellingAbsence ? 'Đang xử lý...' : (selectedSession.attendanceStatus === 'ONLINE' ? 'Hủy học Online (Đi học trực tiếp)' : 'Hủy báo vắng (Đi học lại)')}
+                  {isCancellingAbsence ? 'Đang xử lý...' : 'Hủy yêu cầu'}
                 </button>
               )}
               <button
@@ -908,9 +917,9 @@ export default function TimetableGrid({
               <button
                 type="button"
                 onClick={() => setShowAbsenceModal(false)}
-                className="text-gray-400 hover:text-gray-700 text-lg font-bold p-1 cursor-pointer"
+                className="text-gray-400 hover:text-gray-700 p-1 cursor-pointer"
               >
-                ✕
+                <XIcon className="w-5 h-5" />
               </button>
             </div>
 
@@ -1053,8 +1062,8 @@ export default function TimetableGrid({
                   onChange={(e) => setAbsenceReason(e.target.value)}
                   placeholder={
                     absenceType === 'ONLINE'
-                      ? 'Ví dụ: Trời mưa to, bị cảm nhẹ, gia đình không kịp đưa đón...'
-                      : 'Ví dụ: Em bị sốt / gia đình có việc đột xuất...'
+                      ? 'Nhập lý do xin học online...'
+                      : 'Nhập lý do xin nghỉ học...'
                   }
                   className="w-full border border-gray-300 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />

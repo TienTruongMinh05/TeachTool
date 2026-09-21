@@ -139,7 +139,7 @@ export default function AttendanceManager({ classId, initialSessionId = null }) 
       });
 
       await attendanceApi.batchMark(selectedSessionId, items);
-      setSaveMessage('✓ Đã lưu điểm danh thành công!');
+      setSaveMessage('Đã lưu điểm danh thành công!');
       toast.success('Đã lưu điểm danh thành công!');
       setTimeout(() => setSaveMessage(''), 3000);
     } catch (error) {
@@ -268,10 +268,10 @@ export default function AttendanceManager({ classId, initialSessionId = null }) 
             <table className="min-w-full text-left text-sm">
               <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 text-xs font-semibold uppercase tracking-wider">
                 <tr>
-                  <th className="px-5 py-3.5">Mã HV</th>
-                  <th className="px-5 py-3.5">Học sinh</th>
-                  <th className="px-5 py-3.5 text-center">Trạng thái điểm danh</th>
-                  <th className="px-5 py-3.5">Ghi chú</th>
+                  <th className="px-5 py-3.5 w-20 min-w-[70px]">Mã HV</th>
+                  <th className="px-5 py-3.5 min-w-[200px]">Học sinh</th>
+                  <th className="px-5 py-3.5 text-center w-[340px] min-w-[340px] whitespace-nowrap">Trạng thái điểm danh</th>
+                  <th className="px-5 py-3.5 min-w-[220px]">Ghi chú</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -281,13 +281,13 @@ export default function AttendanceManager({ classId, initialSessionId = null }) 
 
                   return (
                     <tr key={st.id} className="hover:bg-gray-50/70 transition">
-                      <td className="px-5 py-3.5 font-medium text-gray-900">#{st.studentId}</td>
+                      <td className="px-5 py-3.5 font-medium text-gray-900 whitespace-nowrap">#{st.studentId}</td>
                       <td className="px-5 py-3.5">
                         <div className="font-semibold text-gray-800">{st.studentName}</div>
                         <div className="text-xs text-gray-500">{st.studentEmail}</div>
                       </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex justify-center items-center gap-1.5 flex-wrap">
+                      <td className="px-5 py-3.5 w-[340px] min-w-[340px] whitespace-nowrap text-center">
+                        <div className="flex justify-center items-center gap-1.5 whitespace-nowrap">
                           <button 
                             type="button"
                             onClick={() => handleStatusChange(st.studentId, 'PRESENT')}
@@ -314,7 +314,7 @@ export default function AttendanceManager({ classId, initialSessionId = null }) 
                           </button>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-5 py-3.5 min-w-[220px]">
                         <input 
                           type="text"
                           value={currentRecord.note || ''}

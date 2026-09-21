@@ -7,7 +7,7 @@ import { fileApi } from '../api/fileApi';
 import AudioGradingWorkbench from './AudioGradingWorkbench';
 import CollapsibleDescription from './CollapsibleDescription';
 import { useToast } from '../context/ToastContext';
-import { PaperclipIcon } from './Icons';
+import { PaperclipIcon, XIcon } from './Icons';
 
 export default function AssignmentManager({ classId, initialAssignmentId = null }) {
   const { toast, confirm } = useToast();
@@ -440,16 +440,16 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
               id={`assignment-card-${assignment.id}`}
               className={`bg-white border rounded-xl shadow-xs transition overflow-hidden ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/10' : 'border-gray-200'}`}>
               <div className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-gray-50/60 border-b border-gray-200">
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     {matchedSession && (
-                      <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 text-blue-800 rounded">
+                      <span className="px-2 py-0.5 text-xs font-bold bg-blue-100 text-blue-800 rounded shrink-0">
                         {matchedSession.topic}
                       </span>
                     )}
                     <h4 className="font-bold text-gray-800 text-base">{assignment.title}</h4>
                     {assignment.scheduledPublishAt && new Date(assignment.scheduledPublishAt) > new Date() && (
-                      <span className="px-2 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-800 rounded border border-amber-200">
+                      <span className="px-2 py-0.5 text-[11px] font-semibold bg-amber-100 text-amber-800 rounded border border-amber-200 shrink-0">
                         Chờ phát hành: {formatDateTime(assignment.scheduledPublishAt)}
                       </span>
                     )}
@@ -460,7 +460,7 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 shrink-0 self-start md:self-center">
                   {assignment.scheduledPublishAt && new Date(assignment.scheduledPublishAt) > new Date() && (
                     <button
                       type="button"
@@ -554,9 +554,9 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
                     </div>
                     <button
                       onClick={() => setActiveAssignmentForSubmissions(null)}
-                      className="text-slate-400 hover:text-white p-1 text-base font-bold leading-none rounded hover:bg-white/10 transition cursor-pointer"
+                      className="text-slate-400 hover:text-white p-1 rounded hover:bg-white/10 transition cursor-pointer"
                       title="Đóng">
-                      ✕
+                      <XIcon className="w-4 h-4" />
                     </button>
                   </div>
 
@@ -674,8 +674,8 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
               </div>
               <button
                 onClick={() => { setSelectedSubmissionToGrade(null); setSelectedStudentForGrading(null); }}
-                className="text-slate-400 hover:text-white text-lg font-bold cursor-pointer">
-                ✕
+                className="text-slate-400 hover:text-white p-1 cursor-pointer">
+                <XIcon className="w-5 h-5" />
               </button>
             </div>
 
@@ -851,7 +851,7 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
                   required
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="VD: Bài tập nói về chủ đề Environment / Bài tập viết Essay 1"
+                  placeholder="Nhập tiêu đề bài tập..."
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
@@ -953,10 +953,10 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
                         <button
                           type="button"
                           onClick={() => handleRemoveAttachment(idx)}
-                          className="text-red-500 hover:text-red-700 p-1 font-bold cursor-pointer transition"
+                          className="text-red-500 hover:text-red-700 p-1 cursor-pointer transition"
                           title="Xóa tệp này"
                         >
-                          ✕
+                          <XIcon className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     ))}

@@ -204,21 +204,6 @@ public class StudentPortalController {
         if (isOnline) {
             finalStatus = "ONLINE";
             finalNote = rawReason.isEmpty() ? "[Xin học Online]" : "[Xin học Online] " + rawReason;
-
-            // Tự động gửi tin nhắn thông báo vào kênh Thắc mắc tới Giáo viên
-            try {
-                if (session.getClassRoom() != null) {
-                    InquiryThread thread = inquiryService.getOrCreateStudentThread(session.getClassRoom().getId(), studentId);
-                    String msgContent = "[Xin học Online] Em xin phép tham gia học online buổi \"" 
-                            + (session.getTopic() != null ? session.getTopic() : "Buổi học") 
-                            + "\" (" + session.getStartTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")) + ")"
-                            + (rawReason.isEmpty() ? "." : " do: " + rawReason + ".")
-                            + " Nhờ Thầy/Cô gửi link phòng học qua thông báo buổi học giúp em với ạ!";
-                    inquiryService.sendMessage(thread.getId(), studentId, "STUDENT", new com.edumanager.api.dto.SendInquiryMessageRequest(msgContent, null));
-                }
-            } catch (Exception ignored) {
-                // Tiếp tục xử lý nếu chat gặp sự cố
-            }
         } else {
             // Kiểm tra 3 cam kết bù bài bắt buộc
             if (!commitmentsConfirmed) {

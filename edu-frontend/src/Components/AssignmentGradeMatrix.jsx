@@ -4,7 +4,7 @@ import { assignmentApi } from '../api/assignmentApi';
 import { submissionApi } from '../api/submissionApi';
 import { studentApi } from '../api/studentApi';
 import { useToast } from '../context/ToastContext';
-import { PaperclipIcon } from './Icons';
+import { PaperclipIcon, XIcon } from './Icons';
 
 export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateToGrading }) {
   const { toast } = useToast();
@@ -640,9 +640,9 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
               <button
                 type="button"
                 onClick={() => setSelectedCell(null)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg transition cursor-pointer text-base font-bold"
+                className="p-1 text-slate-400 hover:text-white rounded-lg transition cursor-pointer"
               >
-                ✕
+                <XIcon className="w-5 h-5" />
               </button>
             </div>
 

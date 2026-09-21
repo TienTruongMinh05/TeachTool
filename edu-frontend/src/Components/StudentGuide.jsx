@@ -60,7 +60,7 @@ export default function StudentGuide() {
                 <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">Bước 1: Nhận mã & Vào lớp</span>
                 <h5 className="font-bold text-gray-800 text-sm">Nhập Mã Lớp (Class Code)</h5>
                 <p className="text-xs text-gray-600 leading-relaxed">
-                  Nhận mã lớp gồm 6 ký tự do thầy/cô cung cấp (ví dụ: <code className="bg-slate-100 text-blue-600 px-1 py-0.5 rounded font-mono font-bold">DJ4FHF</code>). Bấm nút <b>"+ Vào Lớp Bằng Mã"</b> ở góc trên bên phải để vào lớp ngay tức thì.
+                  Nhận mã lớp gồm 6 ký tự do thầy/cô cung cấp (ví dụ: <code className="bg-slate-100 text-blue-600 px-1 py-0.5 rounded font-mono font-bold">ABC123</code>). Bấm nút <b>"+ Vào Lớp Bằng Mã"</b> ở góc trên bên phải để vào lớp ngay tức thì.
                 </p>
               </div>
 

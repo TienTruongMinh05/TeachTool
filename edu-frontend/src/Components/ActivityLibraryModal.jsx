@@ -269,7 +269,7 @@ export default function ActivityLibraryModal({ isOpen, onClose, onSelectActivity
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ví dụ: Role-play phỏng vấn, Đấu giá câu ngữ pháp, Slap the board..."
+                    placeholder="Nhập tên hoạt động..."
                     className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>

@@ -6,7 +6,7 @@ import { attendanceApi } from '../api/attendanceApi';
 import { assignmentApi } from '../api/assignmentApi';
 import { submissionApi } from '../api/submissionApi';
 import { useToast } from '../context/ToastContext';
-import { AlertTriangleIcon, StarIcon } from './Icons';
+import { AlertTriangleIcon, StarIcon, XIcon } from './Icons';
 
 export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
   const { toast } = useToast();
@@ -761,9 +761,9 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
               <button
                 type="button"
                 onClick={() => setSelectedCellInfo(null)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg transition cursor-pointer text-base font-bold"
+                className="p-1 text-slate-400 hover:text-white rounded-lg transition cursor-pointer"
               >
-                ✕
+                <XIcon className="w-5 h-5" />
               </button>
             </div>
 

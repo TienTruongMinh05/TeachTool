@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { spliceAndMergeAudio } from '../utils/audioSplicer';
 import { useToast } from '../context/ToastContext';
 import { getOptimizedAudioConstraints, createOptimizedMediaRecorder } from '../utils/audioOptimizer';
+import { XIcon } from './Icons';
 
 const formatSeconds = (sec) => {
   if (isNaN(sec) || sec == null) return '00:00';
@@ -378,9 +379,9 @@ export default function AudioGradingWorkbench({
             <button
               type="button"
               onClick={() => setIsAddingTextComment(false)}
-              className="text-slate-400 hover:text-white"
+              className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
             >
-              ✕
+              <XIcon className="w-3.5 h-3.5" />
             </button>
           </div>
           <input
@@ -465,7 +466,7 @@ export default function AudioGradingWorkbench({
                   className="text-slate-500 hover:text-rose-400 p-1 cursor-pointer"
                   title="Xóa mốc này"
                 >
-                  ✕
+                  <XIcon className="w-3.5 h-3.5" />
                 </button>
               </div>
             ))}
@@ -481,9 +482,9 @@ export default function AudioGradingWorkbench({
             <button
               type="button"
               onClick={() => setMergedPreviewUrl(null)}
-              className="text-slate-400 hover:text-white text-xs"
+              className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
             >
-              ✕
+              <XIcon className="w-3.5 h-3.5" />
             </button>
           </div>
           <audio controls src={mergedPreviewUrl} className="w-full h-8" />

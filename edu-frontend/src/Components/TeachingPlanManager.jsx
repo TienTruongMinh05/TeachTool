@@ -5,6 +5,7 @@ import { activityApi } from '../api/activityApi';
 import { fileApi } from '../api/fileApi';
 import ActivityLibraryModal from './ActivityLibraryModal';
 import { useToast } from '../context/ToastContext';
+import { CheckCircleIcon } from './Icons';
 
 export default function TeachingPlanManager({ classId }) {
   const { toast, confirm } = useToast();
@@ -505,7 +506,7 @@ export default function TeachingPlanManager({ classId }) {
                   type="text" 
                   value={newPlanData.title}
                   onChange={(e) => setNewPlanData({...newPlanData, title: e.target.value})}
-                  placeholder="VD: Kế hoạch giảng dạy chủ đề Unit 1"
+                  placeholder="Nhập tên kế hoạch giảng dạy..."
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
@@ -591,7 +592,7 @@ export default function TeachingPlanManager({ classId }) {
                   required
                   value={sectionFormData.timeAllocation}
                   onChange={(e) => setSectionFormData({...sectionFormData, timeAllocation: e.target.value})}
-                  placeholder="VD: 15 phút, hoặc 19:00 - 19:15..."
+                  placeholder="Thời lượng (VD: 15 phút)..."
                   className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
@@ -606,7 +607,7 @@ export default function TeachingPlanManager({ classId }) {
                   rows={2}
                   value={sectionFormData.content}
                   onChange={(e) => setSectionFormData({...sectionFormData, content: e.target.value})}
-                  placeholder="VD: Sách Cambridge IELTS 18 - Test 1 - Reading Passage 1"
+                  placeholder="Nhập nội dung bài dạy..."
                   className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
@@ -625,7 +626,7 @@ export default function TeachingPlanManager({ classId }) {
                     className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                   <button 
-                    type="button"
+                    type="button" 
                     onClick={() => setIsActivityModalOpen(true)}
                     className="px-3 py-1.5 text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white rounded shadow-xs cursor-pointer transition whitespace-nowrap">
                     Chọn từ kho
@@ -655,7 +656,7 @@ export default function TeachingPlanManager({ classId }) {
                   rows={2}
                   value={sectionFormData.studentPreparation}
                   onChange={(e) => setSectionFormData({...sectionFormData, studentPreparation: e.target.value})}
-                  placeholder="VD: Đọc trước bài đọc Passage 1 trang 24, chuẩn bị từ vựng Unit 3..."
+                  placeholder="Nhập dặn dò chuẩn bị cho học sinh..."
                   className="w-full border border-gray-300 rounded px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
@@ -723,8 +724,9 @@ export default function TeachingPlanManager({ classId }) {
                     />
                     {uploadingFile && <p className="text-xs text-blue-600">Đang tải tệp lên...</p>}
                     {sectionFormData.handoutFileName && (
-                      <p className="text-xs text-emerald-700 font-medium">
-                        ✓ Đã đính kèm: {sectionFormData.handoutFileName}
+                      <p className="text-xs text-emerald-700 font-medium flex items-center gap-1">
+                        <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Đã đính kèm: {sectionFormData.handoutFileName}</span>
                       </p>
                     )}
                   </div>

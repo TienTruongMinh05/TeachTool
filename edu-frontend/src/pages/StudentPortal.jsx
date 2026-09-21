@@ -12,7 +12,7 @@ import AccountSettingsModal from '../Components/AccountSettingsModal';
 import CollapsibleDescription from '../Components/CollapsibleDescription';
 import StudentGuide from '../Components/StudentGuide';
 import StudentInquiryWidget from '../Components/StudentInquiryWidget';
-import { MegaphoneIcon, PaperclipIcon, GlobeIcon, XCircleIcon } from '../Components/Icons';
+import { MegaphoneIcon, PaperclipIcon, GlobeIcon, XCircleIcon, XIcon, CheckCircleIcon } from '../Components/Icons';
 
 export default function StudentPortal() {
   const { user, logout, updateUser } = useAuth();
@@ -643,11 +643,14 @@ export default function StudentPortal() {
 
   const handleCancelAbsence = async (session) => {
     if (!user?.id || !session) return;
+    const isOnline = session.attendanceStatus === 'ONLINE';
     const ok = await confirm({
-      title: 'Hủy báo vắng',
-      message: 'Bạn có chắc chắn muốn hủy báo vắng để đi học lại buổi học này không?',
-      confirmText: 'Xác nhận đi học',
-      cancelText: 'Giữ báo vắng',
+      title: 'Hủy yêu cầu',
+      message: isOnline
+        ? 'Bạn có chắc chắn muốn hủy đăng ký học Online để đi học trực tiếp tại lớp không?'
+        : 'Bạn có chắc chắn muốn hủy báo vắng để đi học lại buổi học này không?',
+      confirmText: 'Xác nhận đi học trực tiếp',
+      cancelText: 'Giữ nguyên',
       type: 'info'
     });
     if (!ok) return;
@@ -656,10 +659,10 @@ export default function StudentPortal() {
     try {
       setCancellingAbsenceId(sId);
       await studentPortalApi.cancelAbsence(user.id, sId);
-      toast.success('Đã hủy báo vắng thành công! Bạn có thể tham gia buổi học.');
+      toast.success('Đã hủy yêu cầu thành công! Bạn có thể tham gia buổi học.');
       await loadData();
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'Lỗi khi hủy báo vắng.');
+      toast.error('Lỗi khi hủy yêu cầu: ' + (err.response?.data?.message || err.message));
     } finally {
       setCancellingAbsenceId(null);
     }
@@ -908,7 +911,7 @@ export default function StudentPortal() {
                                   {isOnline && (
                                     <span className="text-xs font-bold px-2 py-0.5 bg-sky-100 text-sky-700 border border-sky-200 rounded flex items-center gap-1">
                                       <GlobeIcon className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                                      <span>Đã xin học Online</span>
+                                      <span>Đã chọn học online</span>
                                     </span>
                                   )}
                                 </div>
@@ -948,7 +951,7 @@ export default function StudentPortal() {
                                       onClick={() => handleCancelAbsence(item)}
                                       disabled={cancellingAbsenceId === (item.sessionId || item.id)}
                                       className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition cursor-pointer shadow-xs">
-                                      {cancellingAbsenceId === (item.sessionId || item.id) ? 'Đang xử lý...' : (isOnline ? 'Hủy học Online (Đi học trực tiếp)' : 'Hủy báo vắng (Đi học lại)')}
+                                      {cancellingAbsenceId === (item.sessionId || item.id) ? 'Đang xử lý...' : 'Hủy yêu cầu'}
                                     </button>
                                   ) : (
                                     <span className="px-3 py-1.5 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg border border-slate-200">
@@ -1500,7 +1503,7 @@ export default function StudentPortal() {
                   required
                   value={classCodeInput}
                   onChange={(e) => setClassCodeInput(e.target.value.toUpperCase())}
-                  placeholder="VD: DJ4FHF"
+                  placeholder="VD: ABC123"
                   maxLength={10}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm uppercase tracking-widest font-mono font-bold text-center focus:ring-2 focus:ring-blue-500"
                 />
@@ -1540,8 +1543,8 @@ export default function StudentPortal() {
               </div>
               <button
                 onClick={() => setActiveAssignmentToSubmit(null)}
-                className="text-slate-400 hover:text-white font-bold p-1 cursor-pointer">
-                ✕
+                className="text-slate-400 hover:text-white p-1 cursor-pointer">
+                <XIcon className="w-5 h-5" />
               </button>
             </div>
 
@@ -1781,8 +1784,9 @@ export default function StudentPortal() {
                   />
                   {uploadingFile && <div className="text-xs text-blue-600">Đang tải file lên...</div>}
                   {uploadedFileData.fileName && (
-                    <div className="text-xs text-emerald-700 font-semibold mt-1">
-                      ✓ Đã đính kèm: {uploadedFileData.fileName}
+                    <div className="text-xs text-emerald-700 font-semibold mt-1 flex items-center gap-1">
+                      <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>Đã đính kèm: {uploadedFileData.fileName}</span>
                     </div>
                   )}
                 </div>
@@ -1803,8 +1807,9 @@ export default function StudentPortal() {
                   {uploadingFile && <div className="text-xs text-blue-600">Đang tải file âm thanh lên...</div>}
                   {uploadedFileData.fileUrl && (
                     <div className="pt-2 space-y-1">
-                      <span className="text-xs text-emerald-700 font-semibold block">
-                        ✓ Đã đính kèm: {uploadedFileData.fileName}
+                      <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1">
+                        <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Đã đính kèm: {uploadedFileData.fileName}</span>
                       </span>
                       <audio controls src={uploadedFileData.fileUrl} className="w-full h-8" />
                     </div>
@@ -1902,7 +1907,10 @@ export default function StudentPortal() {
                   {uploadedFileData.fileUrl && (
                     <div className="pt-2 space-y-2">
                       <div className="text-xs text-emerald-700 font-semibold flex items-center justify-between">
-                        <span>✓ Đã đính kèm ảnh: {uploadedFileData.fileName}</span>
+                        <span className="flex items-center gap-1">
+                          <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>Đã đính kèm ảnh: {uploadedFileData.fileName}</span>
+                        </span>
                         <a
                           href={uploadedFileData.fileUrl}
                           target="_blank"
@@ -2149,8 +2157,8 @@ export default function StudentPortal() {
                   onChange={(e) => setAbsenceReason(e.target.value)}
                   placeholder={
                     absenceType === 'ONLINE'
-                      ? 'Ví dụ: Trời mưa to, bị cảm nhẹ, gia đình không kịp đưa đón...'
-                      : 'Ví dụ: Em bị ốm sốt, gia đình có việc bận đột xuất...'
+                      ? 'Nhập lý do xin học online...'
+                      : 'Nhập lý do xin nghỉ học...'
                   }
                   className="w-full text-xs p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
