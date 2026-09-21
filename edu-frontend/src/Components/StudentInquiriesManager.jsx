@@ -5,9 +5,6 @@ import { fileApi } from '../api/fileApi';
 import { classApi } from '../api/classApi';
 import { useToast } from '../context/ToastContext';
 
-// Emoji phổ biến để chọn nhanh
-const COMMON_EMOJIS = ['😊', '👍', '❤️', '👏', '🙏', '💡', '✅', '📝', '📚', '🎯', '✨', '🙋‍♂️', '🙋‍♀️', '🤔', '💪', '💯'];
-
 export default function StudentInquiriesManager({ onNavigateToClass }) {
   const { toast } = useToast();
 
@@ -29,7 +26,6 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
   const [inputText, setInputText] = useState('');
   const [selectedFiles, setSelectedFiles] = useState([]); // Tối đa 3 files/lần
   const [uploadingFiles, setUploadingFiles] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Mobile navigation: khi chọn thread trên màn hình nhỏ, chuyển sang view chat
   const [mobileChatView, setMobileChatView] = useState(false);
@@ -67,8 +63,11 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
         }
       }
     } catch (err) {
-      console.error('Lỗi khi tải danh sách câu hỏi thắc mắc:', err);
-      if (!quiet) toast.error('Không thể tải danh sách câu hỏi: ' + (err.response?.data?.message || err.message));
+      console.warn('Lỗi khi tải danh sách câu hỏi thắc mắc:', err);
+      // Không báo lỗi toast nếu là 404 (endpoint đang khởi động hoặc chưa sẵn sàng)
+      if (!quiet && err.response?.status !== 404) {
+        toast.error('Không thể tải danh sách câu hỏi: ' + (err.response?.data?.message || err.message));
+      }
     } finally {
       if (!quiet) setLoadingThreads(false);
     }
@@ -97,8 +96,10 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
       const msgs = await inquiryApi.getThreadMessages(threadId);
       setMessages(Array.isArray(msgs) ? msgs : []);
     } catch (err) {
-      console.error('Lỗi tải tin nhắn:', err);
-      if (!quiet) toast.error('Không thể tải nội dung tin nhắn.');
+      console.warn('Lỗi tải tin nhắn:', err);
+      if (!quiet && err.response?.status !== 404) {
+        toast.error('Không thể tải nội dung tin nhắn.');
+      }
     } finally {
       if (!quiet) setLoadingMessages(false);
     }
@@ -173,13 +174,6 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
   // Xóa tệp đã chọn trước khi gửi
   const handleRemoveFile = (index) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Thêm emoji vào vị trí con trỏ
-  const handleAddEmoji = (emoji) => {
-    setInputText((prev) => prev + emoji);
-    setShowEmojiPicker(false);
-    inputRef.current?.focus();
   };
 
   // Gửi tin nhắn phản hồi của giáo viên
@@ -291,8 +285,10 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
       {/* HEADER: TIÊU ĐỀ & BỘ LỌC */}
       <div className="p-4 bg-slate-900 text-white border-b border-slate-800 flex flex-col md:flex-row md:items-center md:justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-lg font-bold text-white shadow-xs">
-            💬
+          <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-200 shrink-0">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -369,7 +365,9 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
             title="Làm mới danh sách"
             className="p-1.5 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition cursor-pointer text-xs"
           >
-            🔄
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
           </button>
         </div>
       </div>
@@ -392,7 +390,11 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                 placeholder="Tìm tên học sinh, email, nội dung..."
                 className="w-full text-xs pl-8 pr-7 py-2 bg-slate-100 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition"
               />
-              <span className="absolute left-2.5 top-2.5 text-slate-400 text-xs">🔍</span>
+              <span className="absolute left-2.5 top-2.5 text-slate-400">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </span>
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
@@ -408,12 +410,16 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
             {loadingThreads ? (
               <div className="p-8 text-center text-xs text-slate-500 space-y-2">
-                <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                <div className="animate-spin w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full mx-auto" />
                 <p>Đang tải danh sách câu hỏi...</p>
               </div>
             ) : filteredThreads.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-400 space-y-2">
-                <span className="text-3xl block">📭</span>
+                <div className="w-10 h-10 rounded-full bg-slate-100 mx-auto flex items-center justify-center text-slate-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                </div>
                 <p className="font-medium text-slate-600">Không có cuộc hội thoại nào</p>
                 <p className="text-[11px] text-slate-400">
                   {searchQuery
@@ -522,7 +528,10 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
 
                           {thread.totalFilesCount > 0 && (
                             <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
-                              📎 {thread.totalFilesCount}/15
+                              <svg className="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                              </svg>
+                              <span>{thread.totalFilesCount}/15</span>
                             </span>
                           )}
                         </div>
@@ -605,14 +614,17 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                   {onNavigateToClass && selectedThread.classId && (
                     <button
                       onClick={() => onNavigateToClass(selectedThread.classId)}
-                      className="hidden sm:inline-flex items-center gap-1 text-xs px-2.5 py-1 text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 font-medium transition cursor-pointer"
+                      className="hidden sm:inline-flex items-center gap-1 text-xs px-2.5 py-1 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 font-medium transition cursor-pointer"
                     >
                       <span>Xem lớp học</span>
                       <span>→</span>
                     </button>
                   )}
-                  <span className="text-[11px] text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                    📎 {selectedThread.totalFilesCount}/15 tệp
+                  <span className="text-[11px] text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-200 flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                    <span>{selectedThread.totalFilesCount}/15</span>
                   </span>
                 </div>
               </div>
@@ -621,7 +633,7 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {loadingMessages ? (
                   <div className="py-12 text-center text-xs text-slate-400 space-y-2">
-                    <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full mx-auto" />
+                    <div className="animate-spin w-5 h-5 border-2 border-slate-400 border-t-transparent rounded-full mx-auto" />
                     <p>Đang tải tin nhắn...</p>
                   </div>
                 ) : messages.length === 0 ? (
@@ -639,13 +651,12 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                     if (isSystem) {
                       return (
                         <div key={msg.id} className="flex justify-start my-2">
-                          <div className="max-w-[85%] sm:max-w-[70%] bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl p-3 shadow-2xs text-xs">
-                            <div className="flex items-center gap-1.5 font-bold mb-1 text-[11px] text-amber-800">
-                              <span>🤖</span>
-                              <span>Tin nhắn trả lời tự động của hệ thống</span>
+                          <div className="max-w-[85%] sm:max-w-[70%] bg-slate-100 border border-slate-200 text-slate-800 rounded-2xl p-3 shadow-2xs text-xs">
+                            <div className="font-semibold mb-1 text-[11px] text-slate-500 uppercase tracking-wider">
+                              Thông báo tự động
                             </div>
                             <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                            <span className="block text-[10px] text-amber-600/80 mt-1 text-right">
+                            <span className="block text-[10px] text-slate-400 mt-1 text-right font-mono">
                               {formatTime(msg.createdAt)}
                             </span>
                           </div>
@@ -689,13 +700,6 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                           {attachments.length > 0 && (
                             <div className="space-y-1 pt-1">
                               {attachments.map((file, idx) => {
-                                const isImg =
-                                  file.url &&
-                                  (file.url.endsWith('.png') ||
-                                    file.url.endsWith('.jpg') ||
-                                    file.url.endsWith('.jpeg') ||
-                                    file.url.endsWith('.webp'));
-
                                 return (
                                   <div
                                     key={idx}
@@ -706,7 +710,9 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                                     }`}
                                   >
                                     <div className="flex items-center gap-2 truncate">
-                                      <span>{isImg ? '🖼️' : '📎'}</span>
+                                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                      </svg>
                                       <span className="truncate font-medium">
                                         {file.name || 'Tệp đính kèm'}
                                       </span>
@@ -718,10 +724,10 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                                       className={`text-[11px] font-bold px-2 py-0.5 rounded transition shrink-0 ${
                                         isStudent
                                           ? 'bg-white text-blue-700 hover:bg-blue-50'
-                                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                                          : 'bg-slate-800 text-white hover:bg-slate-900'
                                       }`}
                                     >
-                                      Xem / Tải
+                                      Tải về
                                     </a>
                                   </div>
                                 );
@@ -738,35 +744,22 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
 
               {/* VÙNG SOẠN THẢO VÀ GỬI PHẢN HỒI (GIÁO VIÊN TRẢ LỜI HỌC VIÊN) */}
               <div className="p-3 bg-white border-t border-slate-200 relative">
-                {/* POPUP CHỌN EMOJI */}
-                {showEmojiPicker && (
-                  <div className="absolute bottom-16 left-4 bg-white border border-slate-200 rounded-xl shadow-lg p-2.5 z-20 grid grid-cols-8 gap-1.5 animate-fade-in">
-                    {COMMON_EMOJIS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => handleAddEmoji(emoji)}
-                        className="text-lg p-1 hover:bg-slate-100 rounded cursor-pointer transition"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
                 {/* DANH SÁCH TỆP ĐÃ CHỌN TRƯỚC KHI GỬI */}
                 {selectedFiles.length > 0 && (
                   <div className="mb-2 flex flex-wrap gap-1.5">
                     {selectedFiles.map((file, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-lg text-xs"
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-800 border border-slate-300 rounded-lg text-xs"
                       >
+                        <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                        </svg>
                         <span className="truncate max-w-[150px]">{file.name}</span>
                         <button
                           type="button"
                           onClick={() => handleRemoveFile(idx)}
-                          className="text-blue-500 hover:text-blue-800 font-bold cursor-pointer"
+                          className="text-slate-400 hover:text-slate-700 font-bold cursor-pointer"
                         >
                           ✕
                         </button>
@@ -776,25 +769,17 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                 )}
 
                 <form onSubmit={handleSendMessage} className="flex items-end gap-2">
-                  {/* Nút chọn emoji */}
-                  <button
-                    type="button"
-                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                    className="p-2 text-slate-500 hover:text-amber-500 hover:bg-slate-100 rounded-lg transition cursor-pointer text-base shrink-0"
-                    title="Chèn biểu tượng cảm xúc (Emoji)"
-                  >
-                    😊
-                  </button>
-
                   {/* Nút đính kèm tệp */}
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={selectedFiles.length >= 3 || selectedThread.totalFilesCount >= 15}
-                    className="p-2 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition cursor-pointer text-base shrink-0 disabled:opacity-40"
+                    className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition cursor-pointer text-base shrink-0 disabled:opacity-40"
                     title="Đính kèm tệp (Tối đa 3 tệp/lần, tối đa 15 tệp/hội thoại)"
                   >
-                    📎
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
                   </button>
                   <input
                     ref={fileInputRef}
@@ -818,7 +803,7 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                         }
                       }}
                       placeholder="Nhập câu trả lời cho học sinh... (Nhấn Enter để gửi, Shift+Enter xuống dòng)"
-                      className="w-full text-xs p-2.5 max-h-32 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white resize-none transition"
+                      className="w-full text-xs p-2.5 max-h-32 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-400 focus:bg-white resize-none transition"
                     />
                   </div>
 
@@ -826,15 +811,14 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                   <button
                     type="submit"
                     disabled={(!inputText.trim() && selectedFiles.length === 0) || sending}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs disabled:opacity-40 transition cursor-pointer flex items-center gap-1 shrink-0 shadow-xs"
+                    className="px-4 py-2 bg-slate-900 hover:bg-blue-600 text-white font-bold rounded-xl text-xs disabled:opacity-40 transition cursor-pointer flex items-center gap-1 shrink-0 shadow-xs"
                   >
                     {sending ? (
-                      <span className="inline-block animate-spin">⏳</span>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      <>
-                        <span>Gửi</span>
-                        <span>➤</span>
-                      </>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
                     )}
                   </button>
                 </form>
@@ -848,8 +832,10 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
           ) : (
             // TRẠNG THÁI CHƯA CHỌN THREAD NÀO
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-3">
-              <div className="w-16 h-16 rounded-full bg-slate-200/80 flex items-center justify-center text-3xl">
-                💬
+              <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
               </div>
               <h3 className="text-base font-bold text-slate-700">Chưa chọn cuộc hội thoại</h3>
               <p className="text-xs text-slate-500 max-w-sm">

@@ -20,6 +20,9 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
   const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL' | 'INCOMPLETE' | 'LOW_SCORE' | 'PERFECT'
   const [sortBy, setSortBy] = useState('NAME_ASC'); // 'NAME_ASC' | 'SCORE_DESC' | 'SCORE_ASC' | 'COMPLETION_DESC'
 
+  // Modal xem chi tiết & chấm điểm bài nộp của ô được chọn
+  const [selectedCell, setSelectedCell] = useState(null);
+
   // State cho chấm điểm nhanh trong modal
   const [quickScore, setQuickScore] = useState('');
   const [quickFeedback, setQuickFeedback] = useState('');

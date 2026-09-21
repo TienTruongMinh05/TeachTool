@@ -115,21 +115,30 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
       weekMap.get(weekIndex).sessions.push(sess);
     });
 
-    // Phân bổ bài tập vào từng tuần theo dueDate hoặc sessionId
+    // Phân bổ bài tập vào từng tuần theo sessionId hoặc dueDate/createdAt
     assignments.forEach(asgn => {
-      let targetWeek = 1;
-      if (asgn.session?.id || asgn.sessionId) {
-        const sId = asgn.session?.id || asgn.sessionId;
+      let targetWeek = null;
+      const sId = asgn.session?.id || asgn.sessionId;
+      if (sId) {
         for (const [wIdx, wData] of weekMap.entries()) {
-          if (wData.sessions.some(s => s.id === sId)) {
+          if (wData.sessions.some(s => String(s.id) === String(sId))) {
             targetWeek = wIdx;
             break;
           }
         }
-      } else if (asgn.dueDate) {
+      }
+      if (!targetWeek && asgn.dueDate) {
         const dDate = new Date(asgn.dueDate);
         const diffDays = Math.floor((dDate - firstDate) / (1000 * 60 * 60 * 24));
         targetWeek = Math.max(1, Math.floor(diffDays / 7) + 1);
+      }
+      if (!targetWeek && asgn.createdAt) {
+        const cDate = new Date(asgn.createdAt);
+        const diffDays = Math.floor((cDate - firstDate) / (1000 * 60 * 60 * 24));
+        targetWeek = Math.max(1, Math.floor(diffDays / 7) + 1);
+      }
+      if (!targetWeek) {
+        targetWeek = 1;
       }
 
       if (!weekMap.has(targetWeek)) {
@@ -147,13 +156,45 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
     return result.length > 0 ? result : [{ weekNum: 1, title: 'Tuần 1', sessions: [], assignments: [] }];
   }, [sessions, assignments]);
 
-  // Lọc các tuần hiển thị theo phạm vi 2 tuần gần nhất (14 ngày)
+  // Lọc các tuần hiển thị theo phạm vi 2 tuần gần nhất (14 ngày thực tế)
   const weeks = useMemo(() => {
     if (scopeMode === 'ALL' || allWeeks.length <= 2) {
       return allWeeks;
     }
-    // Lấy 2 tuần gần nhất đồng bộ chu kỳ lưu trữ bài làm 14 ngày
-    return allWeeks.slice(-2);
+    const now = new Date();
+    // 1. Tìm tuần chứa buổi học hoặc bài tập gần ngày hôm nay nhất (trong vòng 7 ngày)
+    let currentWeekIdx = allWeeks.findIndex(w =>
+      w.sessions.some(s => {
+        const d = new Date(s.startTime);
+        return Math.abs(now - d) <= 7 * 24 * 60 * 60 * 1000;
+      }) ||
+      w.assignments.some(a => {
+        const d = new Date(a.dueDate || a.createdAt);
+        return Math.abs(now - d) <= 7 * 24 * 60 * 60 * 1000;
+      })
+    );
+
+    // 2. Nếu không tìm thấy tuần gần hôm nay, tìm tuần gần nhất trong quá khứ (<= now)
+    if (currentWeekIdx === -1) {
+      for (let i = allWeeks.length - 1; i >= 0; i--) {
+        const w = allWeeks[i];
+        if (w.sessions.some(s => new Date(s.startTime) <= now) ||
+            w.assignments.some(a => new Date(a.dueDate || a.createdAt) <= now)) {
+          currentWeekIdx = i;
+          break;
+        }
+      }
+    }
+
+    // 3. Nếu toàn bộ tuần đều trong tương lai, lấy 2 tuần đầu tiên
+    if (currentWeekIdx === -1) {
+      return allWeeks.slice(0, 2);
+    }
+
+    // Lấy tuần hiện tại và tuần trước đó (đúng 2 tuần gần nhất có dữ liệu thực tế)
+    const startIdx = Math.max(0, currentWeekIdx - 1);
+    const candidateWeeks = allWeeks.slice(startIdx, startIdx + 2);
+    return candidateWeeks.length > 0 ? candidateWeeks : allWeeks.slice(-2);
   }, [allWeeks, scopeMode]);
 
   // Tính toán chỉ số sức khỏe học tập (Health Index) cho từng học sinh theo từng tuần
