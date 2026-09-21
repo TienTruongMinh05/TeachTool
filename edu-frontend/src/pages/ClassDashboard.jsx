@@ -187,7 +187,8 @@ export default function ClassDashboard({ initialView }) {
         sessions
           .filter((s) => {
             const time = new Date(s.endTime || s.startTime).getTime();
-            return !isNaN(time) && time >= now;
+            const hasLink = Boolean(s.announcement && s.announcement.trim());
+            return !isNaN(time) && time >= now && !hasLink;
           })
           .map((s) => s.id)
       );

@@ -151,7 +151,8 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
             sessionList
               .filter(s => {
                 const time = new Date(s.endTime || s.startTime).getTime();
-                return !isNaN(time) && time >= now;
+                const hasLink = Boolean(s.announcement && s.announcement.trim());
+                return !isNaN(time) && time >= now && !hasLink;
               })
               .map(s => s.id)
           );
@@ -952,16 +953,11 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
               </div>
 
               {/* DANH SÁCH HỌC VIÊN XIN HỌC ONLINE (NẾU CÓ) */}
-              {onlineStudents.length > 0 && (
+              {onlineStudents.length > 0 && (!session.announcement || !session.announcement.trim()) && (
                 <div className="mt-2.5 p-3 bg-sky-50 border border-sky-300 rounded-lg text-xs text-sky-950 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-xs">
-                  <div className="space-y-0.5 flex-1">
-                    <div className="font-bold text-sky-700 flex items-center gap-1.5 uppercase tracking-wide text-[11px]">
-                      <GlobeIcon className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                      <span>Có {onlineStudents.length} bạn xin học Online:</span>
-                    </div>
-                    <p className="text-slate-800 font-semibold">
-                      {onlineStudents.map(s => s.studentName).join(', ')}
-                    </p>
+                  <div className="flex-1 font-bold text-sky-700 flex items-center gap-1.5 uppercase tracking-wide text-[11px]">
+                    <GlobeIcon className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                    <span>Có {onlineStudents.length} bạn xin học Online</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
