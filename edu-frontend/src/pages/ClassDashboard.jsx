@@ -15,6 +15,8 @@ import TeacherManager from '../Components/TeacherManager';
 import ClassMaterialsManager from '../Components/ClassMaterialsManager';
 import AssignmentGradeMatrix from '../Components/AssignmentGradeMatrix';
 import LearningAnalyticsHeatmap from '../Components/LearningAnalyticsHeatmap';
+import StudentInquiriesManager from '../Components/StudentInquiriesManager';
+import { inquiryApi } from '../api/inquiryApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 
@@ -48,11 +50,13 @@ export default function ClassDashboard({ initialView }) {
   // 'classes' (Trang chủ danh sách lớp)
   // 'all_students' (Danh sách học sinh tất cả các lớp)
   // 'timetable' (Thời khóa biểu tất cả các lớp)
+  // 'student_inquiries' (Câu hỏi từ học viên)
   // 'class_detail' (Đang trong 1 lớp cụ thể)
   // 'guide' (Hướng dẫn sử dụng)
   const determineView = () => {
     if (location.pathname === '/students') return 'all_students';
     if (location.pathname === '/timetable') return 'timetable';
+    if (location.pathname === '/inquiries') return 'student_inquiries';
     if (location.pathname === '/guide') return 'guide';
     if (id) return 'class_detail';
     if (initialView) return initialView;
@@ -136,6 +140,27 @@ export default function ClassDashboard({ initialView }) {
     }
   }, []);
 
+  // Đếm số lượng thắc mắc chưa trả lời của học viên
+  const [unansweredInquiriesCount, setUnansweredInquiriesCount] = useState(0);
+
+  const fetchUnansweredInquiriesCount = useCallback(async () => {
+    try {
+      const threads = await inquiryApi.getTeacherThreads();
+      if (Array.isArray(threads)) {
+        const count = threads.filter((t) => t.status === 'UNANSWERED').length;
+        setUnansweredInquiriesCount(count);
+      }
+    } catch {
+      // Bỏ qua lỗi ngầm
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUnansweredInquiriesCount();
+    const interval = setInterval(fetchUnansweredInquiriesCount, 30000);
+    return () => clearInterval(interval);
+  }, [fetchUnansweredInquiriesCount]);
+
   // Đồng bộ view khi URL thay đổi
   useEffect(() => {
     if (id) {
@@ -147,6 +172,8 @@ export default function ClassDashboard({ initialView }) {
     } else if (location.pathname === '/timetable') {
       setCurrentView('timetable');
       fetchTimetable(null);
+    } else if (location.pathname === '/inquiries') {
+      setCurrentView('student_inquiries');
     } else if (location.pathname === '/guide') {
       setCurrentView('guide');
     } else {
@@ -211,6 +238,7 @@ export default function ClassDashboard({ initialView }) {
       navigate('/timetable');
       fetchTimetable(null);
     }
+    else if (viewName === 'student_inquiries') navigate('/inquiries');
     else if (viewName === 'guide') navigate('/guide');
   };
 
@@ -240,6 +268,7 @@ export default function ClassDashboard({ initialView }) {
   const getMobileHeaderTitle = () => {
     if (currentView === 'all_students') return 'Học Sinh (Tất Cả Các Lớp)';
     if (currentView === 'timetable') return 'Thời Khóa Biểu';
+    if (currentView === 'student_inquiries') return 'Câu Hỏi Từ Học Viên';
     if (currentView === 'guide') return 'Hướng Dẫn Sử Dụng';
     if (currentView === 'classes') return 'Danh Sách Lớp Học';
     if (currentView === 'class_detail') return classInfo ? `${classInfo.name}` : `Lớp #${selectedClassId}`;
@@ -250,6 +279,10 @@ export default function ClassDashboard({ initialView }) {
   const renderMainContent = () => {
     if (currentView === 'all_students') {
       return <AllStudentsList onSelectClass={handleSelectClass} />;
+    }
+
+    if (currentView === 'student_inquiries') {
+      return <StudentInquiriesManager onNavigateToClass={handleSelectClass} />;
     }
 
     if (currentView === 'guide') {
@@ -345,6 +378,7 @@ export default function ClassDashboard({ initialView }) {
             <AssignmentGradeMatrix
               classId={selectedClassId}
               classInfo={classInfo}
+              onNavigateToGrading={() => setActiveClassTab('assignments')}
             />
           );
         case 'analytics_heatmap':
@@ -521,6 +555,26 @@ export default function ClassDashboard({ initialView }) {
               }`}>
               <span>Thời khóa biểu</span>
             </button>
+
+            {/* 1.4: CÂU HỎI TỪ HỌC VIÊN */}
+            <button
+              onClick={() => handleNavigateView('student_inquiries')}
+              className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium transition cursor-pointer flex items-center justify-between ${
+                currentView === 'student_inquiries'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-300 hover:bg-slate-700/80'
+              }`}>
+              <span>Câu hỏi từ học viên</span>
+              {unansweredInquiriesCount > 0 ? (
+                <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-500 text-white rounded-full animate-pulse shadow-xs">
+                  {unansweredInquiriesCount}
+                </span>
+              ) : (
+                <span className="text-[10px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">
+                  Hỗ trợ
+                </span>
+              )}
+            </button>
           </div>
 
           {/* ================= KHỐI 2: MENU LỚP ĐANG CHỌN (NẾU ĐANG TRONG 1 LỚP CỤ THỂ) ================= */}
@@ -665,6 +719,19 @@ export default function ClassDashboard({ initialView }) {
                           : 'text-slate-300 hover:bg-slate-700/80'
                       }`}>
                       Điểm danh & Chuyên cần
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        handleNavigateView('student_inquiries');
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer text-slate-300 hover:bg-slate-700/80 flex items-center justify-between">
+                      <span>Câu hỏi từ học viên</span>
+                      {unansweredInquiriesCount > 0 && (
+                        <span className="px-1.5 py-0.2 text-[9px] font-bold bg-rose-500 text-white rounded-full">
+                          {unansweredInquiriesCount}
+                        </span>
+                      )}
                     </button>
                   </div>
                 </div>

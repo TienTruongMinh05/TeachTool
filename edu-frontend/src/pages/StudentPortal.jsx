@@ -11,6 +11,7 @@ import TimetableGrid from '../Components/TimetableGrid';
 import AccountSettingsModal from '../Components/AccountSettingsModal';
 import CollapsibleDescription from '../Components/CollapsibleDescription';
 import StudentGuide from '../Components/StudentGuide';
+import StudentInquiryWidget from '../Components/StudentInquiryWidget';
 
 export default function StudentPortal() {
   const { user, logout, updateUser } = useAuth();
@@ -1888,6 +1889,9 @@ export default function StudentPortal() {
         }}
         onLogout={logout}
       />
+
+      {/* Nút tròn & Hội thoại Thắc mắc học viên */}
+      <StudentInquiryWidget user={user} classes={enrolledClasses} />
     </div>
   );
 }

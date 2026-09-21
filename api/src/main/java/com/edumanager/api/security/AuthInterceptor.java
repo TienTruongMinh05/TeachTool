@@ -147,6 +147,9 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (path.matches("^/api/submissions/assignment/\\d+$") && "GET".equals(method)) {
             return true;
         }
+        if (path.matches("^/api/submissions/class/\\d+$") && "GET".equals(method)) {
+            return true;
+        }
 
         // Điểm danh cả lớp theo buổi
         if (path.contains("/attendance") && ("POST".equals(method) || "PUT".equals(method))) {
@@ -155,6 +158,11 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         // Quản lý thư viện hoạt động mẫu (Tạo, sửa, xóa hoạt động)
         if (path.startsWith("/api/activities") && ("POST".equals(method) || "PUT".equals(method) || "DELETE".equals(method))) {
+            return true;
+        }
+
+        // Quản lý câu hỏi thắc mắc của học viên phía giáo viên
+        if (path.startsWith("/api/inquiries/teacher")) {
             return true;
         }
 

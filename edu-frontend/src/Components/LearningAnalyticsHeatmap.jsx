@@ -28,15 +28,16 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
   const loadAnalyticsData = async () => {
     try {
       setLoading(true);
-      const [studRes, sessRes, attRes, asgnRes, subRes] = await Promise.all([
+      const [studRes, sessRes, attRes, asgnRes] = await Promise.all([
         studentApi.getByClass(classId),
         sessionApi.getByClass(classId),
         attendanceApi.getByClass(classId).catch(() => []),
-        assignmentApi.getByClass(classId).catch(() => []),
-        submissionApi.getByClass(classId).catch(() => [])
+        assignmentApi.getByClass(classId).catch(() => [])
       ]);
 
       const rawStudents = Array.isArray(studRes) ? studRes : [];
+      const rawAssignments = Array.isArray(asgnRes) ? asgnRes : [];
+
       // Chuẩn hóa dữ liệu học sinh từ EnrollmentResponseDTO
       const normalizedStudents = rawStudents.map(st => ({
         ...st,
@@ -47,6 +48,29 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
         email: st.email || st.studentEmail || ''
       }));
 
+      // Lấy danh sách bài nộp: Thử lấy theo lớp trước
+      let allSubmissions = [];
+      try {
+        const classSubs = await submissionApi.getByClass(classId);
+        if (Array.isArray(classSubs) && classSubs.length > 0) {
+          allSubmissions = classSubs;
+        }
+      } catch (err) {
+        console.warn('getByClass không khả dụng trong heatmap, fallback theo từng bài tập:', err);
+      }
+
+      // Fallback: Nếu getByClass không có bài nộp hoặc lỗi 404, lấy theo từng bài tập
+      if (allSubmissions.length === 0 && rawAssignments.length > 0) {
+        try {
+          const perAsgnSubs = await Promise.all(
+            rawAssignments.map(a => submissionApi.getByAssignment(a.id).catch(() => []))
+          );
+          allSubmissions = perAsgnSubs.flat().filter(Boolean);
+        } catch (perAsgnErr) {
+          console.error('Lỗi khi fallback tải bài nộp trong heatmap:', perAsgnErr);
+        }
+      }
+
       setStudents(normalizedStudents);
       // Sắp xếp buổi học theo thời gian tăng dần
       const sortedSessions = (Array.isArray(sessRes) ? sessRes : []).sort(
@@ -54,8 +78,8 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
       );
       setSessions(sortedSessions);
       setAttendances(Array.isArray(attRes) ? attRes : []);
-      setAssignments(Array.isArray(asgnRes) ? asgnRes : []);
-      setSubmissions(Array.isArray(subRes) ? subRes : []);
+      setAssignments(rawAssignments);
+      setSubmissions(allSubmissions);
     } catch (err) {
       console.error('Lỗi tải dữ liệu phân tích học tập:', err);
       toast.error('Không thể tải dữ liệu phân tích: ' + (err.message || 'Lỗi mạng'));
@@ -144,13 +168,18 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
       }
     });
 
-    // Map nhanh submission theo `${studentId}_${assignmentId}`
+    // Map nhanh submission theo cả `${studentId}_${assignmentId}` và `${email}_${assignmentId}`
     const subMap = new Map();
     submissions.forEach(sub => {
       const sId = sub.studentId || sub.student?.id;
       const asgnId = sub.assignmentId || sub.assignment?.id;
+      const email = (sub.studentEmail || sub.student?.email || '').toLowerCase().trim();
+
       if (sId && asgnId) {
         subMap.set(`${sId}_${asgnId}`, sub);
+      }
+      if (email && asgnId) {
+        subMap.set(`${email}_${asgnId}`, sub);
       }
     });
 
@@ -180,7 +209,9 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
           }
 
           evaluatedSessionsCount++;
-          const rec = attMap.get(`${st.studentId || st.id}_${sess.id}`);
+          const studentKey = `${st.studentId || st.id}_${sess.id}`;
+          const emailKey = st.email ? `${st.email.toLowerCase().trim()}_${sess.id}` : null;
+          const rec = attMap.get(studentKey) || (emailKey ? attMap.get(emailKey) : null);
           if (rec) {
             if (rec.status === 'PRESENT') {
               presentCount++;
@@ -220,7 +251,9 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
         const weekScores = [];
 
         activeAsgns.forEach(asgn => {
-          const sub = subMap.get(`${st.studentId || st.id}_${asgn.id}`);
+          const studentKey = `${st.studentId || st.id}_${asgn.id}`;
+          const emailKey = st.email ? `${st.email.toLowerCase().trim()}_${asgn.id}` : null;
+          const sub = subMap.get(studentKey) || (emailKey ? subMap.get(emailKey) : null);
           if (sub) {
             asgnSubmitted++;
             const numScore = parseFloat(sub.score);
@@ -415,18 +448,6 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
         </div>
       </div>
 
-      {/* THÔNG BÁO QUY TẮC LƯU TRỮ 14 NGÀY */}
-      <div className="bg-indigo-50/70 border border-indigo-200/80 rounded-xl p-3 text-xs text-indigo-900 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base">💡</span>
-          <div>
-            <b>Quy tắc phân tích học tập:</b> Dữ liệu bài làm học sinh được lưu giữ trong vòng <b>14 ngày (2 tuần)</b>. Heatmap và hệ thống cảnh báo sớm tập trung phân tích 2 tuần gần nhất để đảm bảo kết quả chính xác, tránh cảnh báo nhầm từ các bài tập cũ đã hết hạn lưu trữ.
-          </div>
-        </div>
-        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 shrink-0">
-          {scopeMode === '2_WEEKS' ? 'Phạm vi: 2 tuần' : 'Phạm vi: Toàn bộ'}
-        </span>
-      </div>
 
       {/* 4 THẺ CẢNH BÁO TỔNG QUAN */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

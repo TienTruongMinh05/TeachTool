@@ -64,6 +64,7 @@ function AppContent() {
         <Route path="/class/:id" element={<ClassDashboard initialView="class_detail" />} />
         <Route path="/students" element={<ClassDashboard initialView="all_students" />} />
         <Route path="/timetable" element={<ClassDashboard initialView="timetable" />} />
+        <Route path="/inquiries" element={<ClassDashboard initialView="student_inquiries" />} />
         <Route path="/guide" element={<ClassDashboard initialView="guide" />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

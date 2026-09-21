@@ -20,8 +20,20 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
   const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL' | 'INCOMPLETE' | 'LOW_SCORE' | 'PERFECT'
   const [sortBy, setSortBy] = useState('NAME_ASC'); // 'NAME_ASC' | 'SCORE_DESC' | 'SCORE_ASC' | 'COMPLETION_DESC'
 
-  // Modal xem nhanh chi tiết bài nộp
-  const [selectedCell, setSelectedCell] = useState(null);
+  // State cho chấm điểm nhanh trong modal
+  const [quickScore, setQuickScore] = useState('');
+  const [quickFeedback, setQuickFeedback] = useState('');
+  const [savingGrade, setSavingGrade] = useState(false);
+
+  useEffect(() => {
+    if (selectedCell?.submission) {
+      setQuickScore(selectedCell.submission.score || '');
+      setQuickFeedback(selectedCell.submission.feedback || '');
+    } else {
+      setQuickScore('');
+      setQuickFeedback('');
+    }
+  }, [selectedCell]);
 
   useEffect(() => {
     loadMatrixData();
@@ -30,13 +42,14 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
   const loadMatrixData = async () => {
     try {
       setLoading(true);
-      const [studRes, asgnRes, subRes] = await Promise.all([
+      const [studRes, asgnRes] = await Promise.all([
         studentApi.getByClass(classId),
-        assignmentApi.getByClass(classId),
-        submissionApi.getByClass(classId).catch(() => [])
+        assignmentApi.getByClass(classId)
       ]);
 
       const rawStudents = Array.isArray(studRes) ? studRes : [];
+      const rawAssignments = Array.isArray(asgnRes) ? asgnRes : [];
+
       // Chuẩn hóa dữ liệu học sinh từ EnrollmentResponseDTO
       const normalizedStudents = rawStudents.map(st => ({
         ...st,
@@ -47,9 +60,33 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
         email: st.email || st.studentEmail || ''
       }));
 
+      // Lấy danh sách bài nộp: Thử lấy theo lớp trước (1 request nhanh)
+      let allSubmissions = [];
+      try {
+        const classSubs = await submissionApi.getByClass(classId);
+        if (Array.isArray(classSubs) && classSubs.length > 0) {
+          allSubmissions = classSubs;
+        }
+      } catch (err) {
+        console.warn('getByClass không khả dụng hoặc lỗi 404, sẽ tự động fallback theo từng bài tập:', err);
+      }
+
+      // Fallback: Nếu getByClass không trả về bài nộp hoặc backend chưa hỗ trợ (404),
+      // tự động gọi getByAssignment cho từng bài tập của lớp để đảm bảo 100% dữ liệu luôn hiển thị
+      if (allSubmissions.length === 0 && rawAssignments.length > 0) {
+        try {
+          const perAsgnSubs = await Promise.all(
+            rawAssignments.map(a => submissionApi.getByAssignment(a.id).catch(() => []))
+          );
+          allSubmissions = perAsgnSubs.flat().filter(Boolean);
+        } catch (perAsgnErr) {
+          console.error('Lỗi khi fallback tải bài nộp theo bài tập:', perAsgnErr);
+        }
+      }
+
       setStudents(normalizedStudents);
-      setAssignments(Array.isArray(asgnRes) ? asgnRes : []);
-      setSubmissions(Array.isArray(subRes) ? subRes : []);
+      setAssignments(rawAssignments);
+      setSubmissions(allSubmissions);
     } catch (err) {
       console.error('Lỗi khi tải ma trận điểm số:', err);
       toast.error('Không thể tải dữ liệu ma trận điểm: ' + (err.message || 'Lỗi mạng'));
@@ -58,14 +95,19 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
     }
   };
 
-  // Map submissions theo key `${studentId}_${assignmentId}` để tra cứu O(1)
+  // Map submissions theo cả key `${studentId}_${assignmentId}` và `${email}_${assignmentId}` để tra cứu O(1) tuyệt đối chính xác
   const submissionMap = useMemo(() => {
     const map = new Map();
     submissions.forEach(sub => {
       const studentId = sub.studentId || sub.student?.id;
       const assignmentId = sub.assignmentId || sub.assignment?.id;
+      const email = (sub.studentEmail || sub.student?.email || '').toLowerCase().trim();
+
       if (studentId && assignmentId) {
         map.set(`${studentId}_${assignmentId}`, sub);
+      }
+      if (email && assignmentId) {
+        map.set(`${email}_${assignmentId}`, sub);
       }
     });
     return map;
@@ -100,7 +142,9 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
       const studentSubmissions = [];
 
       activeAssignments.forEach(asgn => {
-        const sub = submissionMap.get(`${student.studentId || student.id}_${asgn.id}`);
+        const studentKey = `${student.studentId || student.id}_${asgn.id}`;
+        const emailKey = student.email ? `${student.email.toLowerCase().trim()}_${asgn.id}` : null;
+        const sub = submissionMap.get(studentKey) || (emailKey ? submissionMap.get(emailKey) : null);
         if (sub) {
           submittedCount++;
           studentSubmissions.push(sub);
@@ -202,7 +246,9 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
 
     const rows = filteredStudents.map((st, idx) => {
       const assignmentScores = activeAssignments.map(a => {
-        const sub = submissionMap.get(`${st.studentId || st.id}_${a.id}`);
+        const studentKey = `${st.studentId || st.id}_${a.id}`;
+        const emailKey = st.email ? `${st.email.toLowerCase().trim()}_${a.id}` : null;
+        const sub = submissionMap.get(studentKey) || (emailKey ? submissionMap.get(emailKey) : null);
         if (!sub) return '"Chưa nộp"';
         if (sub.score !== null && sub.score !== undefined && sub.score !== '') return `"${sub.score}"`;
         return '"Đã nộp (Chưa chấm)"';
@@ -318,18 +364,6 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
         </div>
       </div>
 
-      {/* THÔNG BÁO QUY TẮC LƯU TRỮ 14 NGÀY */}
-      <div className="bg-blue-50/70 border border-blue-200/80 rounded-xl p-3 text-xs text-blue-900 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base">💡</span>
-          <div>
-            <b>Quy tắc lưu trữ hệ thống:</b> Dữ liệu bài làm và file nộp của học sinh được lưu giữ an toàn trong vòng <b>14 ngày (2 tuần)</b>. Ma trận bảng điểm tự động hiển thị trong phạm vi 2 tuần gần nhất để đảm bảo dữ liệu luôn chính xác và đồng bộ.
-          </div>
-        </div>
-        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 shrink-0">
-          {scopeMode === '2_WEEKS' ? 'Phạm vi: 2 tuần' : 'Phạm vi: Toàn bộ'}
-        </span>
-      </div>
 
       {/* 4 THẺ CHỈ SỐ KPI */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -494,7 +528,9 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
 
                     {/* CÁC Ô ĐIỂM BÀI TẬP */}
                     {activeAssignments.map(asgn => {
-                      const sub = submissionMap.get(`${st.studentId || st.id}_${asgn.id}`);
+                      const studentKey = `${st.studentId || st.id}_${asgn.id}`;
+                      const emailKey = st.email ? `${st.email.toLowerCase().trim()}_${asgn.id}` : null;
+                      const sub = submissionMap.get(studentKey) || (emailKey ? submissionMap.get(emailKey) : null);
                       const isScheduled = asgn.scheduledPublishAt && new Date(asgn.scheduledPublishAt) > new Date();
                       const overdue = !isScheduled && isPastDue(asgn.dueDate);
 
@@ -655,6 +691,41 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
                       <p className="text-emerald-900">{selectedCell.submission.feedback}</p>
                     </div>
                   )}
+
+                  {/* FORM CHẤM ĐIỂM / CẬP NHẬT ĐIỂM TRỰC TIẾP TẠI MA TRẬN */}
+                  <form onSubmit={handleQuickGrade} className="p-3 bg-amber-50/60 border border-amber-200 rounded-xl space-y-2.5">
+                    <span className="text-[11px] font-bold text-amber-900 block">Chấm điểm / Cập nhật điểm:</span>
+                    <div className="flex items-center gap-2">
+                      <label className="text-slate-600 font-medium text-[11px] whitespace-nowrap">Điểm số:</label>
+                      <input
+                        type="text"
+                        value={quickScore}
+                        onChange={(e) => setQuickScore(e.target.value)}
+                        placeholder="Ví dụ: 8.5"
+                        className="w-24 px-2.5 py-1 text-xs font-bold bg-white border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-[10px] text-slate-400">/ 10</span>
+                    </div>
+                    <div>
+                      <label className="text-slate-600 font-medium text-[11px] block mb-1">Nhận xét:</label>
+                      <textarea
+                        rows={2}
+                        value={quickFeedback}
+                        onChange={(e) => setQuickFeedback(e.target.value)}
+                        placeholder="Nhận xét cho học sinh..."
+                        className="w-full p-2 text-xs bg-white border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={savingGrade}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold rounded text-xs transition cursor-pointer shadow-xs"
+                      >
+                        {savingGrade ? 'Đang lưu...' : 'Lưu Điểm & Cập Nhật'}
+                      </button>
+                    </div>
+                  </form>
                 </div>
               ) : (
                 <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
@@ -668,11 +739,23 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
               )}
             </div>
 
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-between items-center gap-2">
+              {onNavigateToGrading && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCell(null);
+                    onNavigateToGrading();
+                  }}
+                  className="px-3 py-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                >
+                  Chuyển sang trang Chấm bài (Ghi âm) →
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setSelectedCell(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-lg transition cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 rounded-lg transition cursor-pointer ml-auto"
               >
                 Đóng
               </button>

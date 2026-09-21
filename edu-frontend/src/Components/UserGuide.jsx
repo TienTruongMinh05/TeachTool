@@ -14,6 +14,7 @@ export default function UserGuide() {
     { id: 'students', title: '8. Cổng Học Sinh & Nộp bài' },
     { id: 'attendance', title: '9. Điểm danh & Bảng chuyên cần' },
     { id: 'account', title: '10. Tài khoản, Tối ưu & Bảo mật' },
+    { id: 'inquiries', title: '11. Thắc Mắc & Trò Chuyện 2 Chiều (AES-256)' },
   ];
 
   return (
@@ -504,6 +505,76 @@ export default function UserGuide() {
                 <p>
                   Mọi thao tác quản lý lớp học, sửa kế hoạch, tạo bài tập và chấm điểm đều được kiểm tra phân quyền nghiêm ngặt ở cả giao diện lẫn API máy chủ. Học sinh bị chặn hoàn toàn khi cố gắng truy cập dữ liệu của giáo viên hoặc bài nộp của bạn học khác, đảm bảo tính riêng tư tuyệt đối cho môi trường giáo dục.
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PHẦN 11: THẮC MẮC & KÊNH TRÒ CHUYỆN 2 CHIỀU (MÃ HÓA AES-256) */}
+        {activeSection === 'inquiries' && (
+          <div className="space-y-5 animate-fade-in">
+            <h4 className="text-lg font-bold text-gray-800">
+              11. Kênh Thắc Mắc & Trò Chuyện 2 Chiều Giữa Học Sinh Và Giáo Viên
+            </h4>
+            <p className="text-xs text-gray-600">
+              Tính năng <b>"Thắc mắc"</b> thiết lập kênh trao đổi trực tiếp, độc lập và bảo mật tuyệt đối giữa từng học sinh với giáo viên chủ nhiệm và giáo viên phụ trách bộ môn.
+            </p>
+
+            <div className="space-y-4">
+              <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                <h5 className="font-bold text-gray-800 text-sm">1. Phía Học Sinh (Student Portal)</h5>
+                <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
+                  <li>
+                    <b>Nút tròn mở hội thoại:</b> Nằm ở góc dưới bên phải màn hình với biểu tượng chat. Khi học sinh bấm vào, một cửa sổ trò chuyện độc lập dạng Messenger sẽ mở ra.
+                  </li>
+                  <li>
+                    <b>Hỗ trợ đa lớp học:</b> Nếu học sinh tham gia nhiều lớp, học sinh có thể chọn lớp cần hỏi ngay trên thanh tiêu đề của hộp chat.
+                  </li>
+                  <li>
+                    <b>Tin nhắn trả lời tự động (Auto-reply):</b> Ngay sau khi học sinh gửi tin nhắn đầu tiên, hệ thống sẽ tự động phản hồi thông báo: <i>"Thời gian phản hồi thường là dưới 1h, nhưng có thể lâu hơn, các em vui lòng đợi."</i> để học sinh yên tâm.
+                  </li>
+                  <li>
+                    <b>Bố cục chuẩn Messenger:</b> Tin nhắn của học sinh hiển thị bên phải (màu xanh dương), tin nhắn phản hồi của giáo viên và hệ thống hiển thị bên trái (màu xám/vàng). Tự động cuộn xuống tin nhắn mới nhất, tối ưu bàn phím ảo trên thiết bị di động.
+                  </li>
+                  <li>
+                    <b>Đính kèm tệp & Thả Emoji:</b> Hỗ trợ chọn nhanh các biểu tượng cảm xúc và tải lên tối đa <b>3 tệp/lần gửi</b> (giới hạn <b>15 tệp/cuộc hội thoại</b>).
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                <h5 className="font-bold text-gray-800 text-sm">2. Phía Giáo Viên (Class Dashboard)</h5>
+                <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
+                  <li>
+                    <b>Mục "Câu hỏi từ học viên" trong Sidebar:</b> Tích hợp sẵn số lượng thắc mắc chưa trả lời với huy hiệu đỏ nổi bật.
+                  </li>
+                  <li>
+                    <b>Danh sách câu hỏi trực quan:</b> Hiển thị tên học sinh, Gmail và dòng tin nhắn gần nhất dạng 1-line giống Messenger.
+                  </li>
+                  <li>
+                    <b>Quy tắc viền trạng thái (Status Borders):</b>
+                    <ul className="list-circle pl-5 mt-1 space-y-1">
+                      <li><span className="inline-block w-2.5 h-2.5 rounded-full bg-rose-500 mr-1.5"></span><b>Viền đỏ (Chưa trả lời):</b> Học sinh vừa gửi câu hỏi và đang đợi giáo viên giải đáp.</li>
+                      <li><span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 mr-1.5"></span><b>Viền xanh lá (Đã trả lời):</b> Giáo viên đã gửi phản hồi thành công.</li>
+                      <li><span className="inline-block w-2.5 h-2.5 rounded-full bg-rose-500 mr-1.5"></span><b>Tự động đảo trạng thái:</b> Nếu học sinh nhắn lại tin mới, thẻ hội thoại lập tức chuyển lại <b>Viền đỏ</b> để giáo viên không bao giờ bỏ sót thắc mắc.</li>
+                    </ul>
+                  </li>
+                  <li>
+                    <b>Bộ lọc & Tìm kiếm:</b> Giáo viên có thể lọc theo lớp học, lọc theo trạng thái (Tất cả / Chưa trả lời / Đã trả lời), hoặc tìm nhanh theo tên học sinh, email, nội dung.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                <h5 className="font-bold text-gray-800 text-sm">3. Cơ Chế Bảo Mật & Mã Hóa Dữ Liệu (AES-256)</h5>
+                <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
+                  <li>
+                    <b>Mã hóa AES-256 cơ sở dữ liệu:</b> Nội dung tin nhắn được mã hóa bằng thuật toán đối xứng chuẩn quân đội AES-256-CBC với vector khởi tạo (IV) ngẫu nhiên 16 bytes trước khi lưu xuống bảng `inquiry_messages` trong cơ sở dữ liệu. Ngay cả khi bị truy cập trực tiếp vào DB, dữ liệu tin nhắn vẫn được bảo vệ an toàn.
+                  </li>
+                  <li>
+                    <b>Chống lỗ hổng BOLA/IDOR (OWASP Top 10):</b> Mỗi yêu cầu đọc/gửi tin nhắn đều được máy chủ xác thực danh tính: Học sinh chỉ có thể truy cập cuộc hội thoại của chính mình trong lớp đã tham gia; Giáo viên chỉ có quyền truy cập các cuộc hội thoại thuộc những lớp mình giảng dạy hoặc chủ nhiệm.
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
