@@ -3,17 +3,20 @@ import { sessionApi } from '../api/sessionApi';
 import { teachingPlanApi } from '../api/teachingPlanApi';
 import { activityApi } from '../api/activityApi';
 import { fileApi } from '../api/fileApi';
+import { attendanceApi } from '../api/attendanceApi';
 import ActivityLibraryModal from './ActivityLibraryModal';
 import BookPagePickerModal from './BookPagePickerModal';
 import { getStoredClassMaterials, saveStoredClassMaterials } from './ClassMaterialsManager';
 import { materialApi } from '../api/materialApi';
 import { useToast } from '../context/ToastContext';
+import { MegaphoneIcon, BookOpenIcon, GlobeIcon } from './Icons';
 
 export default function SessionList({ classId, classInfo, onSelectSessionForAttendance, targetSessionId = null }) {
   const { toast, confirm } = useToast();
   const [sessions, setSessions] = useState([]);
   const [plans, setPlans] = useState([]);
   const [activities, setActivities] = useState([]);
+  const [allAttendances, setAllAttendances] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Accordion mở xem kế hoạch của buổi học (mặc định đóng hết)
@@ -99,14 +102,20 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
   // Modal XEM VĂN BẢN HANDOUT ĐÃ DÁN
   const [viewingHandoutText, setViewingHandoutText] = useState(null);
 
+  // Modal THÔNG BÁO ĐỘT XUẤT CHO BUỔI HỌC
+  const [announcementModalSession, setAnnouncementModalSession] = useState(null);
+  const [announcementInput, setAnnouncementInput] = useState('');
+  const [savingAnnouncement, setSavingAnnouncement] = useState(false);
+
   const loadData = async () => {
     try {
       setLoading(true);
-      const [sessionsRes, plansRes, activitiesRes, materialsRes] = await Promise.allSettled([
+      const [sessionsRes, plansRes, activitiesRes, materialsRes, attendanceRes] = await Promise.allSettled([
         sessionApi.getByClass(classId),
         teachingPlanApi.getByClass(classId),
         activityApi.getAll(),
-        materialApi.getByClass(classId)
+        materialApi.getByClass(classId),
+        attendanceApi.getByClass(classId)
       ]);
 
       let sessionList = [];
@@ -132,6 +141,12 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
       if (materialsRes.status === 'fulfilled' && Array.isArray(materialsRes.value)) {
         setClassMaterials(materialsRes.value);
         saveStoredClassMaterials(classId, materialsRes.value);
+      }
+
+      if (attendanceRes.status === 'fulfilled' && Array.isArray(attendanceRes.value)) {
+        setAllAttendances(attendanceRes.value);
+      } else {
+        setAllAttendances([]);
       }
     } catch (error) {
       console.error('Lỗi khi tải dữ liệu buổi học:', error);
@@ -554,6 +569,67 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
     }
   };
 
+  // =================== THAO TÁC THÔNG BÁO ĐỘT XUẤT CHO BUỔI HỌC ===================
+  const openAnnouncementModal = (session, initialText = null) => {
+    setAnnouncementModalSession(session);
+    if (initialText !== null) {
+      setAnnouncementInput(initialText);
+    } else {
+      setAnnouncementInput(session.announcement || '');
+    }
+  };
+
+  const openOnlineLinkAnnouncementModal = (session) => {
+    const template = 'Link học online hôm nay (Google Meet / Zoom): ';
+    let targetText = template;
+    if (session.announcement && session.announcement.trim()) {
+      if (!session.announcement.includes('Link học online')) {
+        targetText = `${session.announcement}\n\n${template}`;
+      } else {
+        targetText = session.announcement;
+      }
+    }
+    openAnnouncementModal(session, targetText);
+  };
+
+  const handleSaveAnnouncement = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!announcementModalSession) return;
+    try {
+      setSavingAnnouncement(true);
+      await sessionApi.updateAnnouncement(classId, announcementModalSession.id, announcementInput.trim());
+      toast.success('Đã lưu thông báo cho buổi học thành công!');
+      setAnnouncementModalSession(null);
+      await loadData();
+    } catch (err) {
+      toast.error('Lỗi lưu thông báo: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSavingAnnouncement(false);
+    }
+  };
+
+  const handleDeleteAnnouncement = async () => {
+    if (!announcementModalSession) return;
+    const ok = await confirm({
+      title: 'Xóa thông báo',
+      message: 'Bạn có chắc chắn muốn xóa thông báo này khỏi buổi học?',
+      confirmText: 'Xóa thông báo',
+      type: 'danger'
+    });
+    if (!ok) return;
+    try {
+      setSavingAnnouncement(true);
+      await sessionApi.updateAnnouncement(classId, announcementModalSession.id, '');
+      toast.success('Đã xóa thông báo của buổi học!');
+      setAnnouncementModalSession(null);
+      await loadData();
+    } catch (err) {
+      toast.error('Lỗi xóa thông báo: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSavingAnnouncement(false);
+    }
+  };
+
   // =================== THAO TÁC KẾ HOẠCH & HỌC PHẦN TRỰC TIẾP ===================
 
   // Mở modal Thêm học phần mới vào buổi học
@@ -791,6 +867,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
     const isSelected = selectedSessionIds.has(session.id);
     const isMenuOpen = openMenuSessionId === session.id;
     const isTarget = targetSessionId && (String(targetSessionId) === String(session.id));
+    const onlineStudents = allAttendances.filter(
+      a => (a.sessionId === session.id || a.session?.id === session.id) && a.status === 'ONLINE'
+    );
 
     return (
       <div
@@ -850,10 +929,57 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                 <span>Thời lượng: <b className="text-gray-700">{session.durationMinutes || 90} phút</b></span>
                 <span>Dự kiến kết thúc: <b className="text-gray-700">{formatDateTime(session.endTime)}</b></span>
               </div>
+
+              {/* DANH SÁCH HỌC VIÊN XIN HỌC ONLINE (NẾU CÓ) */}
+              {onlineStudents.length > 0 && (
+                <div className="mt-2.5 p-3 bg-sky-50 border border-sky-300 rounded-lg text-xs text-sky-950 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-xs">
+                  <div className="space-y-0.5 flex-1">
+                    <div className="font-bold text-sky-700 flex items-center gap-1.5 uppercase tracking-wide text-[11px]">
+                      <GlobeIcon className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                      <span>Có {onlineStudents.length} bạn xin học Online:</span>
+                    </div>
+                    <p className="text-slate-800 font-semibold">
+                      {onlineStudents.map(s => s.studentName).join(', ')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => openOnlineLinkAnnouncementModal(session)}
+                      className="px-3 py-1.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 rounded-md cursor-pointer transition shadow-xs flex items-center gap-1.5">
+                      <MegaphoneIcon className="w-3.5 h-3.5" />
+                      <span>Gửi link phòng học</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* THÔNG BÁO ĐỘT XUẤT CHO HỌC SINH (NẾU CÓ) */}
+              {session.announcement && (
+                <div className="mt-2.5 p-3 bg-amber-50 border border-amber-300 rounded-lg text-xs text-amber-950 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                  <div className="space-y-0.5 flex-1">
+                    <div className="font-bold text-red-600 flex items-center gap-1.5 uppercase tracking-wide text-[11px]">
+                      <MegaphoneIcon className="w-3.5 h-3.5 shrink-0" />
+                      <span>Thông báo đột xuất cho học sinh:</span>
+                    </div>
+                    <p className="whitespace-pre-line text-slate-800 font-medium leading-relaxed">
+                      {session.announcement}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => openAnnouncementModal(session)}
+                      className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded cursor-pointer transition">
+                      Sửa thông báo
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* NÚT THAO TÁC: GIỮ XEM KẾ HOẠCH, THÊM HỌC PHẦN, ĐIỂM DANH + GOM COPY/SỬA/XÓA VÀO DROPDOWN */}
+          {/* NÚT THAO TÁC: GIỮ XEM KẾ HOẠCH, THÊM HỌC PHẦN, ĐIỂM DANH, THÔNG BÁO + GOM COPY/SỬA/XÓA VÀO DROPDOWN */}
           <div className="flex flex-wrap items-center gap-1.5 w-full lg:w-auto justify-start lg:justify-end pt-2 lg:pt-0 border-t lg:border-t-0 border-gray-200 relative">
             <button
               onClick={() => toggleSessionExpand(session.id)}
@@ -869,6 +995,17 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
               onClick={() => onSelectSessionForAttendance && onSelectSessionForAttendance(session.id)}
               className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition cursor-pointer">
               Điểm danh
+            </button>
+            <button
+              type="button"
+              onClick={() => openAnnouncementModal(session)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                session.announcement
+                  ? 'text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300'
+                  : 'text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300'
+              }`}>
+              <MegaphoneIcon className="w-3.5 h-3.5 shrink-0" />
+              <span>{session.announcement ? 'Sửa thông báo' : 'Thông báo'}</span>
             </button>
 
             {/* NÚT DROPDOWN GOM COPY, SỬA, XÓA, COPY TUẦN SAU */}
@@ -933,6 +1070,19 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                     }}
                     className="w-full text-left px-3.5 py-2.5 hover:bg-purple-50 text-purple-700 flex items-center justify-between cursor-pointer">
                     <span>Tùy chỉnh sao chép (Copy)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenMenuSessionId(null);
+                      openAnnouncementModal(session);
+                    }}
+                    className="w-full text-left px-3.5 py-2.5 hover:bg-amber-50 text-amber-800 font-semibold flex items-center justify-between cursor-pointer">
+                    <span className="flex items-center gap-1.5">
+                      <MegaphoneIcon className="w-4 h-4 text-amber-700" />
+                      <span>{session.announcement ? 'Sửa thông báo đột xuất' : 'Thêm thông báo đột xuất'}</span>
+                    </span>
+                    {session.announcement && <span className="w-2 h-2 rounded-full bg-red-500"></span>}
                   </button>
                   <button
                     type="button"
@@ -1045,8 +1195,8 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
 
                     {(sec.bookTitle || sec.bookPage) && (
                       <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <span className="font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded flex items-center gap-1">
-                          <span>📖</span>
+                        <span className="font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded flex items-center gap-1.5">
+                          <BookOpenIcon className="w-3.5 h-3.5" />
                           <span>{sec.bookTitle || 'Sách giáo khoa'}</span>
                           {sec.bookPage && <span>- Trang {sec.bookPage}</span>}
                         </span>
@@ -1935,6 +2085,76 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
           }}
           onClose={() => setPickingMaterial(null)}
         />
+      )}
+
+      {/* MODAL THÊM / SỬA THÔNG BÁO ĐỘT XUẤT CHO BUỔI HỌC */}
+      {announcementModalSession && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-start border-b border-gray-100 pb-3">
+              <div>
+                <div className="flex items-center gap-1.5 text-red-600 font-bold text-xs uppercase tracking-wider">
+                  <MegaphoneIcon className="w-4 h-4 shrink-0" />
+                  <span>Thông báo đột xuất cho buổi học</span>
+                </div>
+                <h3 className="text-base font-bold text-gray-800 mt-1">
+                  {announcementModalSession.topic || 'Buổi học'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAnnouncementModalSession(null)}
+                className="text-gray-400 hover:text-gray-600 text-lg font-bold p-1 cursor-pointer">
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAnnouncement} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Nội dung thông báo cho học sinh:
+                </label>
+                <textarea
+                  rows={4}
+                  value={announcementInput}
+                  onChange={(e) => setAnnouncementInput(e.target.value)}
+                  placeholder="Ví dụ: Hôm nay trời mưa to, lớp chuyển sang học online qua Zoom: https://zoom.us/j/... hoặc Mang theo giấy kiểm tra A4..."
+                  className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 leading-relaxed"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Thông báo này sẽ hiển thị nổi bật với <b>viền đỏ nhấp nháy</b> và <b>nền vàng</b> ở trên cùng khi học sinh mở xem buổi học.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100">
+                {announcementModalSession.announcement ? (
+                  <button
+                    type="button"
+                    disabled={savingAnnouncement}
+                    onClick={handleDeleteAnnouncement}
+                    className="px-3.5 py-2 text-xs font-semibold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition cursor-pointer">
+                    Xóa thông báo
+                  </button>
+                ) : <div />}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAnnouncementModalSession(null)}
+                    className="px-3.5 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition cursor-pointer">
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingAnnouncement}
+                    className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition cursor-pointer shadow-xs">
+                    {savingAnnouncement ? 'Đang lưu...' : 'Lưu thông báo'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

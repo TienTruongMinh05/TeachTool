@@ -6,6 +6,7 @@ import { attendanceApi } from '../api/attendanceApi';
 import { assignmentApi } from '../api/assignmentApi';
 import { submissionApi } from '../api/submissionApi';
 import { useToast } from '../context/ToastContext';
+import { AlertTriangleIcon, StarIcon } from './Icons';
 
 export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
   const { toast } = useToast();
@@ -254,7 +255,7 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
           const emailKey = st.email ? `${st.email.toLowerCase().trim()}_${sess.id}` : null;
           const rec = attMap.get(studentKey) || (emailKey ? attMap.get(emailKey) : null);
           if (rec) {
-            if (rec.status === 'PRESENT') {
+            if (rec.status === 'PRESENT' || rec.status === 'ONLINE') {
               presentCount++;
               totalPresents++;
               consecutiveAbsents = 0;
@@ -536,7 +537,7 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Tiêu biểu & Tích cực</span>
-            <span className="text-xs">⭐</span>
+            <StarIcon className="w-4 h-4 text-emerald-600 shrink-0" />
           </div>
           <div className="text-2xl font-black text-emerald-600 mt-1">
             {excellentStudents.length} <span className="text-xs font-normal text-slate-500">học sinh</span>
@@ -563,7 +564,8 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
         <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
-              <span>⚠️ Danh Sách Cảnh Báo Sớm Cần Giáo Viên Hỗ Trợ</span>
+              <AlertTriangleIcon className="w-4 h-4 text-amber-500 shrink-0 inline" />
+              <span>Danh Sách Cảnh Báo Sớm Cần Giáo Viên Hỗ Trợ</span>
             </h3>
           </div>
 
@@ -701,18 +703,21 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
                     {/* Huy hiệu tình trạng */}
                     <td className="py-3 px-3 text-center border-r border-slate-100">
                       {st.alertLevel === 'CRITICAL' && (
-                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
-                          🔴 Nguy cơ
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                          Nguy cơ
                         </span>
                       )}
                       {st.alertLevel === 'WARNING' && (
-                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
-                          🟡 Cần chú ý
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                          Cần chú ý
                         </span>
                       )}
                       {st.alertLevel === 'EXCELLENT' && (
-                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
-                          ⭐ Xuất sắc
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                          <StarIcon className="w-3 h-3 text-emerald-600 shrink-0" />
+                          Xuất sắc
                         </span>
                       )}
                       {st.alertLevel === 'NORMAL' && (

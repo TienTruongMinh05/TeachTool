@@ -152,6 +152,33 @@ export default function StudentGuide() {
                   <li><b>Sách & Trang sách:</b> Tên giáo trình và số trang sách cần mang/chuẩn bị.</li>
                   <li><b>Dặn dò chuẩn bị:</b> Các yêu cầu đặc biệt từ thầy cô (ví dụ: xem trước video, đọc trước từ vựng Unit 3...).</li>
                   <li><b>Tài liệu phát tay (Handout):</b> Nhấp vào liên kết để tải về máy các tệp PDF/Word bổ trợ.</li>
+                  <li>
+                    <b>Thông báo đột xuất & Huy hiệu "Tin tức" nhấp nháy:</b> Nếu buổi học có thông báo đột xuất (ví dụ: hôm nay mưa học online, dời phòng học, chuẩn bị thêm đồ dùng...) hoặc có dặn dò mà bạn chưa xem, bên ngoài buổi học sẽ xuất hiện ô <b>"Tin tức" nhấp nháy chậm</b>. Khi bạn bấm mở buổi học, khung thông báo đột xuất sẽ hiển thị nổi bật ở trên cùng với <b>viền đỏ nhấp nháy và nền vàng</b>. Ô "Tin tức" bên ngoài sẽ tự động tắt sau khi bạn đã bấm vào xem.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
+                <h5 className="font-bold text-gray-800 text-sm">Quy định Báo vắng, Hạn mức 2 buổi/tháng & Tùy chọn Xin học Online</h5>
+                <p>
+                  Hệ thống thiết lập cơ chế nghiêm túc nhằm đảm bảo tiến độ học tập và chuyên cần của bạn:
+                </p>
+                <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
+                  <li>
+                    <b>Thời hạn báo trước 4 tiếng:</b> Bạn chỉ có thể gửi đơn báo vắng hoặc xin học online trước giờ buổi học bắt đầu ít nhất 4 tiếng (240 phút). Nếu sát giờ, hệ thống sẽ khóa đơn và bạn cần liên hệ trực tiếp với thầy/cô.
+                  </li>
+                  <li>
+                    <b>Hạn mức nghỉ có phép (Tối đa 2 buổi/tháng):</b> Mỗi học sinh chỉ được phép xin nghỉ tối đa 2 buổi trong một tháng dương lịch. Nếu đã đạt hạn mức 2/2 buổi, hệ thống sẽ chặn gửi đơn báo vắng.
+                  </li>
+                  <li>
+                    <b>3 Cam kết bù bài bắt buộc:</b> Khi chọn xin nghỉ hẳn buổi học, bạn phải tích chọn xác nhận đủ 3 cam kết: (1) Xem lại tài liệu yêu cầu, (2) Nộp đầy đủ bài tập đúng hạn, và (3) Ý thức về việc vắng học có thể ảnh hưởng đến khả năng tiếng Anh của bản thân.
+                  </li>
+                  <li>
+                    <b>Tùy chọn "Xin học Online" (Khuyên dùng):</b> Nếu không thể đến lớp trực tiếp do thời tiết xấu, đường xa... bạn hãy chọn <i>"Xin học Online"</i> thay vì nghỉ hẳn. Hình thức này <b>không bị tính vào hạn mức 2 buổi vắng</b> và <b>giữ nguyên 100% điểm chuyên cần</b>. Thầy/cô sẽ nhận được thông báo ngay và gửi link Google Meet / Zoom qua khung Thông báo buổi học để bạn tham gia.
+                  </li>
+                  <li>
+                    <b>Hủy học online để đi học trực tiếp:</b> Nếu bạn sắp xếp đi học trực tiếp lại được, chỉ cần bấm nút <i>"Hủy học Online"</i> trên thẻ buổi học trước giờ học.
+                  </li>
                 </ul>
               </div>
             </div>
@@ -356,16 +383,16 @@ export default function StudentGuide() {
               </div>
 
               <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-2">
-                <h5 className="font-bold text-gray-800 text-sm">Chính sách lưu trữ bài nộp 1 tháng</h5>
+                <h5 className="font-bold text-gray-800 text-sm">Chính sách lưu trữ dữ liệu hệ thống</h5>
                 <p>
-                  Để tối ưu hóa không gian lưu trữ và đảm bảo hệ thống luôn hoạt động nhanh chóng:
+                  Để tối ưu hóa không gian lưu trữ và đảm bảo hệ thống luôn hoạt động nhanh chóng, mượt mà:
                 </p>
                 <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
                   <li>
-                    Các bài làm đã nộp (file văn bản, tệp Word, file audio thu âm, ảnh chụp bài tập) được lưu giữ trong vòng <b>1 tháng</b> (30 ngày) kể từ ngày nộp lên hệ thống.
+                    <b>Dữ liệu bài nộp của học sinh:</b> Các bài làm đã nộp (file văn bản, tệp Word, file audio thu âm, ảnh chụp bài tập) được lưu giữ trong vòng <b>1 tháng</b> kể từ ngày nộp lên hệ thống. Khoảng thời gian này hoàn toàn đủ để giáo viên chấm điểm, nhận xét và học sinh xem lại kết quả.
                   </li>
                   <li>
-                    Khoảng thời gian 1 tháng hoàn toàn đủ để giáo viên chấm điểm, nhận xét và học sinh xem lại kết quả.
+                    <b>Dữ liệu lớp học:</b> Toàn bộ dữ liệu của lớp học bao gồm sách số, tài liệu phát tay, kế hoạch buổi học, giáo án, v.v. được lưu giữ trong vòng <b>6 tháng</b> hoặc cho đến khi giáo viên chủ động xóa khỏi hệ thống.
                   </li>
                   <li>
                     <b>Khuyến nghị:</b> Các tệp bài viết quan trọng bạn nên lưu giữ một bản sao lưu trên máy tính hoặc điện thoại cá nhân.

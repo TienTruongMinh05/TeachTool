@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { classApi } from '../api/classApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { CrownIcon, UsersIcon } from './Icons';
 
 export default function TeacherManager({ classId, classInfo, onClassUpdated }) {
   const { user } = useAuth();
@@ -174,11 +175,13 @@ export default function TeacherManager({ classId, classInfo, onClassUpdated }) {
                         )}
                         {isPrimary ? (
                           <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
-                            👑 Giáo Viên Chủ Nhiệm
+                            <CrownIcon className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                            Giáo Viên Chủ Nhiệm
                           </span>
                         ) : (
-                          <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 font-semibold px-2 py-0.5 rounded-full">
-                            🤝 Đồng Phụ Trách
+                          <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <UsersIcon className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            Đồng Phụ Trách
                           </span>
                         )}
                       </div>

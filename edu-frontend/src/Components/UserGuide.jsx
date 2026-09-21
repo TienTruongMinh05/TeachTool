@@ -368,13 +368,13 @@ export default function UserGuide() {
                 <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
                   <li><b>Chuyên cần công bằng:</b> Chỉ đánh giá các buổi học đã qua và đã được giáo viên ghi nhận điểm danh. Buổi học sắp tới hoặc buổi học chưa điểm danh sẽ không bị tính vắng ảo.</li>
                   <li>
-                    <b>🔴 Cảnh báo Đỏ (Nguy cơ cao):</b> Tự động phát hiện học sinh vắng $\ge 2$ buổi liên tiếp, nợ $\ge 2$ bài tập trong 2 tuần gần nhất.
+                    <b>Cảnh báo Đỏ (Nguy cơ cao):</b> Tự động phát hiện học sinh vắng $\ge 2$ buổi liên tiếp, nợ $\ge 2$ bài tập trong 2 tuần gần nhất.
                   </li>
                   <li>
-                    <b>🟡 Cảnh báo Vàng (Cần lưu ý & Động viên):</b> Học sinh có 1 buổi vắng, còn thiếu 1 bài tập hoặc điểm bài tập gần nhất có dấu hiệu tụt dốc.
+                    <b>Cảnh báo Vàng (Cần lưu ý & Động viên):</b> Học sinh có 1 buổi vắng, còn thiếu 1 bài tập hoặc điểm bài tập gần nhất có dấu hiệu tụt dốc.
                   </li>
                   <li>
-                    <b>⭐ Tuyên dương học viên tiêu biểu:</b> Học sinh có chuyên cần tốt và điểm trung bình $\ge 8.0$.
+                    <b>Tuyên dương học viên tiêu biểu:</b> Học sinh có chuyên cần tốt và điểm trung bình $\ge 8.0$.
                   </li>
                   <li>
                     <b>Nút "Sao chép tin nhắn gửi học sinh":</b> Chỉ với 1 click, hệ thống tự động soạn sẵn tin nhắn cá nhân hóa với tên riêng của học sinh, nêu rõ lý do nhắc nhở để thầy/cô dán gửi ngay qua Zalo/Facebook.
@@ -435,13 +435,16 @@ export default function UserGuide() {
                 <h5 className="font-bold text-gray-800 text-sm">2 chế độ theo dõi chuyên cần thông minh</h5>
                 <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
                   <li>
-                    <b>Điểm danh theo từng buổi:</b> Chọn buổi học trong danh sách, đánh dấu trạng thái (Có mặt, Đi muộn, Vắng mặt) kèm ghi chú lý do. Có nút bấm nhanh <i>"Tất cả có mặt"</i> giúp giáo viên điểm danh cả lớp chỉ trong 1 giây.
+                    <b>Điểm danh theo từng buổi:</b> Chọn buổi học trong danh sách, đánh dấu trạng thái (Có mặt, Học Online, Đi muộn, Vắng mặt) kèm ghi chú lý do. Có nút bấm nhanh <i>"Tất cả có mặt"</i> giúp giáo viên điểm danh cả lớp chỉ trong 1 giây.
                   </li>
                   <li>
-                    <b>Tự động đồng bộ báo vắng:</b> Nếu học sinh đã xin phép báo vắng hợp lệ trên cổng học sinh, hệ thống sẽ tự động gán trạng thái Vắng và hiển thị sẵn lý do của học sinh đó.
+                    <b>Tùy chọn Học Online & Gửi nhanh link phòng học:</b> Khi học sinh xin học online (do thời tiết xấu, đường xa...), trên Thẻ Buổi học sẽ hiển thị khung thông báo <i>"Có [X] bạn xin học Online: [Họ tên...]"</i> kèm nút nhanh <i>"Gửi link phòng học"</i>. Giáo viên chỉ cần nhấp nút, dán link Google Meet / Zoom và lưu lại. Hệ thống sẽ tự động cập nhật vào thông báo của buổi học, bật ô Tin tức nhấp nháy trên Cổng học sinh và viền đỏ nổi bật. Học sinh học online được tính 100% chuyên cần (ký hiệu O trên Ma trận).
                   </li>
                   <li>
-                    <b>Ma trận chuyên cần toàn khóa:</b> Bảng tổng hợp đối chiếu tất cả các buổi học của toàn bộ học sinh trong lớp, tự động tính tổng số buổi có mặt và tỷ lệ chuyên cần (%) phục vụ đánh giá cuối khóa.
+                    <b>Kiểm soát hạn mức nghỉ phép & Cam kết bù bài:</b> Học sinh chỉ được phép báo vắng trước tối thiểu 4 tiếng, tối đa 2 buổi/tháng và bắt buộc phải xác nhận 3 cam kết bù bài, giúp giảm thiểu triệt để tình trạng nghỉ học tùy tiện.
+                  </li>
+                  <li>
+                    <b>Ma trận chuyên cần toàn khóa:</b> Bảng tổng hợp đối chiếu tất cả các buổi học của toàn bộ học sinh trong lớp (P: Có mặt, O: Học Online, L: Đi muộn, A: Vắng), tự động tính tổng số buổi có mặt và tỷ lệ chuyên cần (%) phục vụ đánh giá cuối khóa.
                   </li>
                 </ul>
               </div>

@@ -28,4 +28,9 @@ public class Session {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private Integer durationMinutes;
+
+    @Column(columnDefinition = "TEXT")
+    private String announcement;
+
+    private LocalDateTime announcementUpdatedAt;
 }

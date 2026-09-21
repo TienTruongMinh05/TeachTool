@@ -17,6 +17,14 @@ public interface AttendanceRepository extends JpaRepository<Attendance, Long> {
     @Query("SELECT a FROM Attendance a WHERE a.student.id = :studentId")
     List<Attendance> findByStudentId(@Param("studentId") Long studentId);
 
+    @Query("SELECT COUNT(a) FROM Attendance a WHERE a.student.id = :studentId AND a.status = 'ABSENT' AND a.session.id != :excludeSessionId AND a.session.startTime >= :startOfMonth AND a.session.startTime < :startOfNextMonth")
+    long countAbsencesInMonth(
+        @Param("studentId") Long studentId,
+        @Param("excludeSessionId") Long excludeSessionId,
+        @Param("startOfMonth") java.time.LocalDateTime startOfMonth,
+        @Param("startOfNextMonth") java.time.LocalDateTime startOfNextMonth
+    );
+
     List<Attendance> findBySessionClassRoomId(Long classId);
 
     @Modifying

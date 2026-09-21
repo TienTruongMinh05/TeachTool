@@ -29,7 +29,7 @@ public class Attendance {
     private User student;
 
     @Column(nullable = false)
-    private String status; // 'PRESENT', 'ABSENT', 'LATE'
+    private String status; // 'PRESENT', 'ABSENT', 'LATE', 'ONLINE'
     
     private String note;
 }

@@ -4,6 +4,7 @@ import { assignmentApi } from '../api/assignmentApi';
 import { submissionApi } from '../api/submissionApi';
 import { studentApi } from '../api/studentApi';
 import { useToast } from '../context/ToastContext';
+import { PaperclipIcon } from './Icons';
 
 export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateToGrading }) {
   const { toast } = useToast();
@@ -680,8 +681,9 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
 
                   {selectedCell.submission.fileUrl && (
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-                      <span className="font-medium text-slate-700 truncate mr-2">
-                        📎 {selectedCell.submission.fileName || 'Tệp đính kèm'}
+                      <span className="font-medium text-slate-700 truncate mr-2 flex items-center gap-1.5">
+                        <PaperclipIcon className="w-4 h-4 shrink-0 text-slate-500" />
+                        <span className="truncate">{selectedCell.submission.fileName || 'Tệp đính kèm'}</span>
                       </span>
                       <a
                         href={selectedCell.submission.fileUrl}

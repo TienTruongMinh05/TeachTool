@@ -19,6 +19,7 @@ import StudentInquiriesManager from '../Components/StudentInquiriesManager';
 import { inquiryApi } from '../api/inquiryApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { InfoIcon, MenuIcon } from '../Components/Icons';
 
 const getTodayStr = () => {
   const d = new Date();
@@ -435,7 +436,7 @@ export default function ClassDashboard({ initialView }) {
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="p-1.5 bg-slate-800 text-slate-300 hover:text-white rounded-lg border border-slate-700 cursor-pointer">
-            <span className="text-lg leading-none">☰</span>
+            <MenuIcon className="w-5 h-5 text-slate-300" />
           </button>
           <div className="truncate">
             <h2 className="font-bold text-sm truncate">{getMobileHeaderTitle()}</h2>
@@ -916,7 +917,7 @@ export default function ClassDashboard({ initialView }) {
 
               {/* Thông báo chính sách lưu trữ */}
               <div className="p-2.5 bg-blue-50/70 border border-blue-200/60 rounded-lg text-xs text-blue-900 flex items-start gap-2">
-                <span className="text-sm">ℹ️</span>
+                <InfoIcon className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                 <div className="leading-relaxed">
                   <span className="font-semibold">Chính sách lưu trữ:</span> Dữ liệu giáo viên (lớp, lịch học, sách, buổi học, giáo án) được lưu trữ trong <b>6 tháng</b> hoặc đến khi bị xóa. Bài nộp của học viên lưu giữ <b>1 tháng</b> từ ngày nộp lên hệ thống.
                 </div>

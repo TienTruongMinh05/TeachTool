@@ -18,6 +18,8 @@ public record StudentScheduleDTO(
     String attendanceStatus,
     String attendanceNote,
     String homeworkStatus,
-    String homeworkScore
+    String homeworkScore,
+    String announcement,
+    LocalDateTime announcementUpdatedAt
 ) {
 }

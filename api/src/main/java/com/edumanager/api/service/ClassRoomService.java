@@ -160,6 +160,8 @@ public class ClassRoomService {
                     .startTime(null) // Reset thời gian về chưa xếp lịch (ngày 0 tháng 0 năm 0, 0h0p sa)
                     .endTime(null)
                     .durationMinutes(oldSess.getDurationMinutes())
+                    .announcement(null)
+                    .announcementUpdatedAt(null)
                     .build();
             Session savedSess = sessionRepository.save(newSess);
             sessionMap.put(oldSess.getId(), savedSess);
@@ -489,7 +491,9 @@ public class ClassRoomService {
                         session.getEndTime(),
                         session.getDurationMinutes(),
                         contentSummary,
-                        studentCount
+                        studentCount,
+                        session.getAnnouncement(),
+                        session.getAnnouncementUpdatedAt()
                 ));
             }
         }

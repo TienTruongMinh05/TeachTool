@@ -95,6 +95,10 @@ public class EnrollmentController {
         Long callerId = (Long) servletRequest.getAttribute("userId");
         String callerRole = (String) servletRequest.getAttribute("userRole");
 
+        if (!"TEACHER".equalsIgnoreCase(callerRole)) {
+            throw new SecurityException("Chức năng chỉ dành cho Giáo viên.");
+        }
+
         if (callerId != null && !classRoomService.canAccessClass(classId, callerId, callerRole)) {
             throw new SecurityException("Bạn không có quyền xem danh sách học sinh của lớp này.");
         }

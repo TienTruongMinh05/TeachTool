@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import ActivityLibraryModal from '../Components/ActivityLibraryModal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { InfoIcon } from '../Components/Icons';
 
 const getTodayStr = () => {
   const d = new Date();
@@ -407,7 +408,7 @@ function ClassList({ showTopBar = false, onSelectClass }) {
 
               {/* Thông báo chính sách lưu trữ */}
               <div className="p-2.5 bg-blue-50/70 border border-blue-200/60 rounded-lg text-xs text-blue-900 flex items-start gap-2">
-                <span className="text-sm">ℹ️</span>
+                <InfoIcon className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                 <div className="leading-relaxed">
                   <span className="font-semibold">Chính sách lưu trữ:</span> Dữ liệu giáo viên (lớp, lịch học, sách, buổi học, giáo án) được lưu trữ trong <b>6 tháng</b> hoặc đến khi bị xóa. Bài nộp của học viên lưu giữ <b>1 tháng</b> từ ngày nộp lên hệ thống.
                 </div>
@@ -503,7 +504,7 @@ function ClassList({ showTopBar = false, onSelectClass }) {
 
               {/* Thông báo quy tắc nhân bản & lưu trữ */}
               <div className="p-2.5 bg-purple-50/70 border border-purple-200/60 rounded-lg text-xs text-purple-900 flex items-start gap-2">
-                <span className="text-sm">ℹ️</span>
+                <InfoIcon className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
                 <div className="leading-relaxed">
                   <span className="font-semibold">Quy tắc nhân bản:</span> Sao chép toàn bộ giáo án, sách và bài tập (thời gian giáo án để mặc định). Danh sách học sinh và bài nộp sẽ không sao chép. Dữ liệu lớp học được lưu trữ trong <b>6 tháng</b> hoặc đến khi bị xóa.
                 </div>

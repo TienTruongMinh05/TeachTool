@@ -25,6 +25,7 @@ public class StudentPortalController {
     private final AttendanceRepository attendanceRepository;
     private final SubmissionRepository submissionRepository;
     private final com.edumanager.api.service.AttendanceService attendanceService;
+    private final com.edumanager.api.service.InquiryService inquiryService;
 
     @GetMapping("/{studentId}/schedule")
     public ResponseEntity<?> getStudentSchedule(
@@ -122,7 +123,9 @@ public class StudentPortalController {
                         attStatus,
                         attNote,
                         homeworkStatus,
-                        homeworkScore
+                        homeworkScore,
+                        session.getAnnouncement(),
+                        session.getAnnouncementUpdatedAt()
                 ));
             }
         }
@@ -141,7 +144,7 @@ public class StudentPortalController {
     public ResponseEntity<?> reportAbsence(
             @PathVariable Long studentId,
             @PathVariable Long sessionId,
-            @RequestBody(required = false) Map<String, String> body,
+            @RequestBody(required = false) Map<String, Object> body,
             HttpServletRequest servletRequest) {
         
         // Chống IDOR: Học sinh chỉ được báo vắng cho chính mình
@@ -172,22 +175,79 @@ public class StudentPortalController {
         java.time.LocalDateTime now = java.time.ZonedDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDateTime();
         long minutesUntilStart = java.time.Duration.between(now, session.getStartTime()).toMinutes();
 
-        if (minutesUntilStart < 120) {
+        // 1. Tăng thời hạn báo trước lên ít nhất 4 tiếng (240 phút)
+        if (minutesUntilStart < 240) {
+            long hoursLeft = Math.max(0, minutesUntilStart / 60);
+            long minsLeft = Math.max(0, minutesUntilStart % 60);
             return ResponseEntity.badRequest().body(
-                Map.of("message", "Chỉ được phép báo vắng trước giờ học ít nhất 2 tiếng! (Còn " + Math.max(0, minutesUntilStart) + " phút nữa là vào học)")
+                Map.of("message", "Chỉ được phép báo vắng hoặc xin học online trước giờ học ít nhất 4 tiếng! (Còn " + hoursLeft + " giờ " + minsLeft + " phút nữa là vào học)")
             );
         }
 
-        String reason = (body != null && body.containsKey("reason") && !body.get("reason").trim().isEmpty())
-                ? body.get("reason").trim()
-                : "Học sinh xin phép vắng";
+        boolean isOnline = body != null && (
+            Boolean.TRUE.equals(body.get("isOnline")) ||
+            "true".equalsIgnoreCase(String.valueOf(body.get("isOnline")))
+        );
 
-        Attendance attendance = attendanceService.markAttendance(sessionId, studentId, "ABSENT", reason);
+        boolean commitmentsConfirmed = body != null && (
+            Boolean.TRUE.equals(body.get("commitmentsConfirmed")) ||
+            "true".equalsIgnoreCase(String.valueOf(body.get("commitmentsConfirmed")))
+        );
+
+        String rawReason = (body != null && body.containsKey("reason") && body.get("reason") != null)
+                ? String.valueOf(body.get("reason")).trim()
+                : "";
+
+        String finalStatus;
+        String finalNote;
+
+        if (isOnline) {
+            finalStatus = "ONLINE";
+            finalNote = rawReason.isEmpty() ? "[Xin học Online]" : "[Xin học Online] " + rawReason;
+
+            // Tự động gửi tin nhắn thông báo vào kênh Thắc mắc tới Giáo viên
+            try {
+                if (session.getClassRoom() != null) {
+                    InquiryThread thread = inquiryService.getOrCreateStudentThread(session.getClassRoom().getId(), studentId);
+                    String msgContent = "[Xin học Online] Em xin phép tham gia học online buổi \"" 
+                            + (session.getTopic() != null ? session.getTopic() : "Buổi học") 
+                            + "\" (" + session.getStartTime().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")) + ")"
+                            + (rawReason.isEmpty() ? "." : " do: " + rawReason + ".")
+                            + " Nhờ Thầy/Cô gửi link phòng học qua thông báo buổi học giúp em với ạ!";
+                    inquiryService.sendMessage(thread.getId(), studentId, "STUDENT", new com.edumanager.api.dto.SendInquiryMessageRequest(msgContent, null));
+                }
+            } catch (Exception ignored) {
+                // Tiếp tục xử lý nếu chat gặp sự cố
+            }
+        } else {
+            // Kiểm tra 3 cam kết bù bài bắt buộc
+            if (!commitmentsConfirmed) {
+                return ResponseEntity.badRequest().body(
+                    Map.of("message", "Vui lòng tick xác nhận đầy đủ 3 cam kết bù bài trước khi gửi báo vắng!")
+                );
+            }
+
+            // Kiểm tra hạn mức nghỉ phép 2 buổi / tháng
+            java.time.LocalDateTime startOfMonth = session.getStartTime().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+            java.time.LocalDateTime startOfNextMonth = startOfMonth.plusMonths(1);
+            long absentCountThisMonth = attendanceRepository.countAbsencesInMonth(studentId, sessionId, startOfMonth, startOfNextMonth);
+
+            if (absentCountThisMonth >= 2) {
+                return ResponseEntity.badRequest().body(
+                    Map.of("message", "Bạn đã sử dụng hết hạn mức 2 buổi nghỉ có phép trong tháng " + session.getStartTime().getMonthValue() + "/" + session.getStartTime().getYear() + "! Vui lòng liên hệ trực tiếp với Thầy/Cô để xin phép.")
+                );
+            }
+
+            finalStatus = "ABSENT";
+            finalNote = rawReason.isEmpty() ? "Học sinh xin phép vắng" : rawReason;
+        }
+
+        Attendance attendance = attendanceService.markAttendance(sessionId, studentId, finalStatus, finalNote);
 
         return ResponseEntity.ok(Map.of(
-                "message", "Báo vắng thành công!",
+                "message", isOnline ? "Đã gửi yêu cầu xin học Online thành công! Thầy/Cô sẽ gửi link phòng học qua thông báo buổi học." : "Báo vắng thành công!",
                 "status", attendance.getStatus(),
-                "note", attendance.getNote()
+                "note", attendance.getNote() != null ? attendance.getNote() : ""
         ));
     }
 

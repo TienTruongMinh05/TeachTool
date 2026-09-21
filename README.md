@@ -41,7 +41,9 @@
   - Nghe bài nói của học sinh ở nhiều tốc độ (0.8x, 1.0x, 1.2x, 1.5x).
   - Thu âm nhận xét và sửa phát âm mẫu tại từng mốc thời gian (timestamp).
   - Ghép nối âm thanh tự động (Audio Splicer): Tự động kết hợp bài nói của học sinh với các đoạn nhận xét của thầy cô thành 1 file âm thanh hoàn chỉnh liền mạch.
-* **Điểm Danh Tự Động & Ma Trận Chuyên Cần:** Điểm danh theo buổi học, tự động đồng bộ lý do khi học sinh báo vắng trước giờ học. Bảng ma trận đối chiếu toàn khóa tính toán tỷ lệ chuyên cần (%).
+* **Điểm Danh Tự Động & Ma Trận Chuyên Cần 4 Trạng Thái:** Điểm danh theo buổi học với 4 trạng thái linh hoạt (Có mặt, Học Online, Đi muộn, Vắng mặt), tự động đồng bộ lý do khi học sinh báo vắng trước giờ học. Bảng ma trận đối chiếu toàn khóa (ký hiệu P, O, L, A) tính toán tỷ lệ chuyên cần (%) chính xác.
+* **Quản Lý Học Online & Gửi Nhanh Link Phòng Học:** Khi học sinh xin học online, Thẻ Buổi học tự động hiển thị khung thông báo danh sách học viên xin học online kèm nút thao tác nhanh **"Gửi link phòng học"** (mở modal điền sẵn mẫu link Google Meet / Zoom).
+* **Thông Báo Đột Xuất Cho Từng Buổi Học:** Giáo viên có thể đăng thông báo đột xuất (dời phòng học, đổi sang học online, dặn dò phát sinh...) cho từng buổi học độc lập, kích hoạt ô Tin tức nhấp nháy trên Cổng học sinh.
 * **Ma Trận Theo Dõi Điểm Số Bài Tập (Gradebook Matrix):** Bảng tổng hợp điểm số dạng Excel/Sheet, trực quan hóa toàn bộ học sinh và bài tập. Mã màu điểm số trực quan, tự động tính tỷ lệ nộp bài, điểm trung bình theo phạm vi 2 tuần gần nhất (14 ngày) đồng bộ với chu kỳ lưu trữ bài nộp. Hỗ trợ chuyển đổi xem toàn bộ và xuất bảng điểm CSV/Excel tiếng Việt chuẩn UTF-8 BOM chỉ với 1 click.
 * **Phân Tích Xu Hướng Học Tập & Heatmap Cảnh Báo Sớm (Learning Analytics):**
   - Biểu đồ nhiệt (Heatmap) thể hiện mức độ tích cực kết hợp giữa **Chuyên cần (50%)** và **Điểm bài tập (50%)** trong phạm vi 2 tuần gần nhất (14 ngày), loại trừ buổi học tương lai hoặc chưa điểm danh để đảm bảo đánh giá chuẩn xác.
@@ -69,10 +71,12 @@
 * **Lưu Bản Nháp (Draft):** Cho phép lưu bài làm nháp trước khi quyết định nộp chính thức.
 * **Xóa Bài Đã Nộp Để Nộp Lại:** Khi chưa được giáo viên chấm điểm, học sinh có thể xóa bài nộp cũ để cập nhật bài làm mới nếu phát hiện lỗi sai.
 * **Xem Điểm & Trình Phát Nhận Xét Âm Thanh Timestamped:** Xem điểm số, đọc nhận xét chi tiết, nhấp vào từng mốc thời gian (timestamp) để nghe giáo viên sửa phát âm mẫu.
-* **Quy Trình Báo Vắng & Hủy Báo Vắng Thông Minh:**
-  - Báo vắng trước giờ học tối thiểu 2 tiếng theo chuẩn múi giờ Việt Nam (`Asia/Ho_Chi_Minh`), kèm nhập lý do vắng.
-  - Tự động đồng bộ sang danh sách điểm danh của giáo viên.
-  - **Hủy báo vắng:** Học sinh có thể tự hủy báo vắng nếu sắp xếp đi học lại được, hệ thống tự động hoàn trả trạng thái đi học bình thường.
+* **Quy Trình Kiểm Soát Báo Vắng, Hạn Mức 2 Buổi/Tháng & Tùy Chọn Học Online:**
+  - **Thời hạn báo trước 4 tiếng:** Học sinh chỉ có thể gửi đơn báo vắng hoặc xin học online trước giờ bắt đầu tối thiểu 4 tiếng (240 phút). Quá thời hạn trên, hệ thống khóa đơn và yêu cầu liên hệ trực tiếp với giáo viên.
+  - **Hạn mức 2 buổi/tháng:** Mỗi học sinh chỉ được phép xin nghỉ phép tối đa 2 buổi trong một tháng dương lịch. Nếu đã đạt 2/2 buổi, hệ thống tự động chặn gửi đơn báo vắng.
+  - **3 Cam kết bù bài bắt buộc:** Bắt buộc tích chọn xác nhận đủ 3 cam kết bù bài khi xin nghỉ hẳn.
+  - **Tùy chọn "Xin học Online" (Khuyên dùng):** Không tính vào hạn mức 2 buổi vắng và giữ nguyên 100% điểm chuyên cần. Tự động thông báo tới Giáo viên trên Thẻ Buổi học và gửi tin nhắn qua Kênh hỗ trợ học viên. Giáo viên có nút bấm nhanh **"Gửi link phòng học"** mở modal thông báo dán link Google Meet / Zoom. Phía học sinh nhận ô **"Tin tức" nhấp nháy chậm** và khung thông báo **viền đỏ nhấp nháy nền vàng**.
+  - **Hủy báo vắng / Hủy học online:** Học sinh có thể chủ động hủy để đi học trực tiếp trước khi buổi học bắt đầu.
 * **Trang Hướng Dẫn Học Sinh Tích Hợp:** Tab hướng dẫn sử dụng chuyên dụng ngay trên Cổng học sinh.
 
 ---
@@ -99,8 +103,8 @@ Hệ thống được thiết kế và kiểm thử toàn diện theo các tiêu
 9. **Bảo Vệ Tính Toàn Vẹn Hệ Thống & Che Giấu Thông Tin Máy Chủ:**
    - Endpoint `/api/files/system-diag` được bảo vệ nghiêm ngặt bằng quyền `TEACHER`, loại bỏ hoàn toàn việc hiển thị biến môi trường `JAVA_OPTS`.
    - Kho hoạt động mẫu hệ thống (`ActivityTemplate`) được gắn cờ `is_system_default` bất biến, ngăn chặn việc xóa hoặc sửa trái phép tài nguyên chung.
-   - `GlobalExceptionHandler` che giấu toàn bộ cấu trúc cơ sở dữ liệu và stack trace hệ thống khi có lỗi không mong muốn.
-10. **Chính Sách Vòng Đời & Lưu Trữ Tự Động (`DataRetentionService`):** Dữ liệu giáo viên (lớp, lịch học, sách, giáo án) được lưu trữ an toàn trong vòng **6 tháng**. Bài nộp của học sinh (file, audio, ảnh chụp) được lưu giữ trong vòng **2 tuần (tuần trước & tuần này)** để tối ưu tài nguyên lưu trữ đám mây và bảo vệ hiệu năng hệ thống.
+10. **Chính Sách Vòng Đời & Lưu Trữ Toàn Dữ Liệu (`DataRetentionService`):** Dữ liệu của lớp học (buổi học, sách giáo khoa, giáo án, tài liệu phát tay) được lưu trữ an toàn trong vòng **6 tháng** hoặc đến khi giáo viên chủ động xóa. Dữ liệu bài nộp của học sinh (file văn bản, Word, audio ghi âm, ảnh chụp) được lưu giữ trong vòng **1 tháng** kể từ ngày nộp lên hệ thống.
+11. **Gia Cố Phân Quyền RBAC & Chống Rò Rỉ Dữ Liệu Cá Nhân (OWASP A01):** Khóa chặt các endpoint `GET /api/sessions/{sessionId}/attendance`, `GET /api/classes/{classId}/students` và `ActivityTemplateController` chỉ cho phép vai trò `TEACHER`, ngăn chặn triệt để nguy cơ học sinh thu thập thông tin cá nhân (email, SĐT, lý do vắng) của bạn học hoặc can thiệp kho hoạt động mẫu.
 
 ---
 

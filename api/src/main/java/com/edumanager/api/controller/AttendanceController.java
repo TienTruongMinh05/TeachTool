@@ -44,6 +44,10 @@ public class AttendanceController {
         Long callerId = (Long) request.getAttribute("userId");
         String callerRole = (String) request.getAttribute("userRole");
 
+        if (!"TEACHER".equalsIgnoreCase(callerRole)) {
+            throw new SecurityException("Bạn không có quyền truy cập thông tin điểm danh của cả buổi học. Thao tác chỉ dành cho Giáo viên.");
+        }
+
         com.edumanager.api.entity.Session session = sessionRepo.findById(sessionId).orElse(null);
         if (session != null && session.getClassRoom() != null && callerId != null) {
             if (!classRoomService.canAccessClass(session.getClassRoom().getId(), callerId, callerRole)) {

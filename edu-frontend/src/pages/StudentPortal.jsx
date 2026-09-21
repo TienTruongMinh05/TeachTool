@@ -12,6 +12,7 @@ import AccountSettingsModal from '../Components/AccountSettingsModal';
 import CollapsibleDescription from '../Components/CollapsibleDescription';
 import StudentGuide from '../Components/StudentGuide';
 import StudentInquiryWidget from '../Components/StudentInquiryWidget';
+import { MegaphoneIcon, PaperclipIcon, GlobeIcon, XCircleIcon } from '../Components/Icons';
 
 export default function StudentPortal() {
   const { user, logout, updateUser } = useAuth();
@@ -57,11 +58,17 @@ export default function StudentPortal() {
     }
   });
 
-  // Báo vắng states
+  // Báo vắng & Xin học Online states
   const [selectedSessionForAbsence, setSelectedSessionForAbsence] = useState(null);
+  const [absenceType, setAbsenceType] = useState('ONLINE'); // 'ONLINE' | 'ABSENT'
   const [absenceReason, setAbsenceReason] = useState('');
   const [absenceError, setAbsenceError] = useState('');
   const [isSubmittingAbsence, setIsSubmittingAbsence] = useState(false);
+  const [commitments, setCommitments] = useState({
+    docReviewed: false,
+    homeworkCompleted: false,
+    learningImpactUnderstood: false
+  });
 
   // Modal tham gia lớp học bằng mã
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
@@ -80,6 +87,55 @@ export default function StudentPortal() {
 
   // Modal xem nội dung Handout Text
   const [viewingHandoutText, setViewingHandoutText] = useState(null);
+
+  // Theo dõi các buổi học đã được học sinh xem tin tức (thông báo đột xuất hoặc dặn dò)
+  const [viewedNewsKeys, setViewedNewsKeys] = useState(() => {
+    try {
+      const saved = localStorage.getItem('viewed_session_news_keys');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const getSessionNewsKey = (session) => {
+    if (!session) return '';
+    const sId = session.sessionId || session.id;
+    const ann = session.announcement ? session.announcement.trim() : '';
+    const annTime = session.announcementUpdatedAt ? new Date(session.announcementUpdatedAt).getTime() : '';
+    const hasPrep = Boolean(
+      (session.sections && session.sections.some(s => s.studentPreparation && s.studentPreparation.trim())) ||
+      (session.studentPreparation && session.studentPreparation.trim())
+    );
+    const prep = hasPrep ? 'prep' : '';
+    return `${sId}_${ann}_${annTime}_${prep}`;
+  };
+
+  const markNewsAsViewed = (session) => {
+    if (!session) return;
+    const key = getSessionNewsKey(session);
+    setViewedNewsKeys(prev => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      try {
+        localStorage.setItem('viewed_session_news_keys', JSON.stringify([...next]));
+      } catch {}
+      return next;
+    });
+  };
+
+  const isNewsUnviewed = (session) => {
+    if (!session) return false;
+    const hasAnnouncement = Boolean(session.announcement && session.announcement.trim());
+    const hasPrep = Boolean(
+      (session.sections && session.sections.some(s => s.studentPreparation && s.studentPreparation.trim())) ||
+      (session.studentPreparation && session.studentPreparation.trim())
+    );
+    if (!hasAnnouncement && !hasPrep) return false;
+    const key = getSessionNewsKey(session);
+    return !viewedNewsKeys.has(key);
+  };
 
   const loadData = async () => {
     if (!user || !user.id) return;
@@ -481,7 +537,7 @@ export default function StudentPortal() {
     const start = new Date(session.startTime);
     const now = new Date();
     const diffMinutes = (start.getTime() - now.getTime()) / (1000 * 60);
-    return diffMinutes >= 120;
+    return diffMinutes >= 240; // 4 tiếng
   };
 
   const getAbsenceRemainingNotice = (session) => {
@@ -490,35 +546,85 @@ export default function StudentPortal() {
     const now = new Date();
     const diffMinutes = Math.floor((start.getTime() - now.getTime()) / (1000 * 60));
     if (diffMinutes < 0) return 'Buổi học đã qua';
-    if (diffMinutes < 120) return `Còn ${diffMinutes} phút nữa là vào học (quá hạn báo trước 2 giờ)`;
+    if (diffMinutes < 240) {
+      const hours = Math.floor(Math.max(0, diffMinutes) / 60);
+      const mins = Math.max(0, diffMinutes) % 60;
+      return `Còn ${hours} giờ ${mins} phút nữa là vào học (quá hạn báo trước 4 giờ)`;
+    }
     const hours = Math.floor(diffMinutes / 60);
     const mins = diffMinutes % 60;
-    return `Còn ${hours} giờ ${mins} phút trước giờ học (hợp lệ để báo vắng)`;
+    return `Còn ${hours} giờ ${mins} phút trước giờ học (hợp lệ để gửi yêu cầu)`;
   };
 
   const handleOpenAbsenceModal = (session) => {
     setSelectedSessionForAbsence(session);
     setAbsenceReason('');
     setAbsenceError('');
+    setAbsenceType('ONLINE');
+    setCommitments({
+      docReviewed: false,
+      homeworkCompleted: false,
+      learningImpactUnderstood: false
+    });
   };
+
+  // Tính số buổi đã báo vắng trong tháng của buổi học đang chọn (tối đa 2 buổi/tháng)
+  const monthlyAbsenceCount = useMemo(() => {
+    if (!selectedSessionForAbsence || !schedule) return 0;
+    const sDate = new Date(selectedSessionForAbsence.startTime);
+    const targetYear = sDate.getFullYear();
+    const targetMonth = sDate.getMonth();
+    const currentSessionId = selectedSessionForAbsence.sessionId || selectedSessionForAbsence.id;
+
+    return schedule.filter(s => {
+      const id = s.sessionId || s.id;
+      if (id === currentSessionId) return false;
+      if (s.attendanceStatus !== 'ABSENT') return false;
+      if (!s.startTime) return false;
+      const d = new Date(s.startTime);
+      return d.getFullYear() === targetYear && d.getMonth() === targetMonth;
+    }).length;
+  }, [selectedSessionForAbsence, schedule]);
 
   const handleSubmitAbsence = async (e) => {
     e.preventDefault();
     if (!selectedSessionForAbsence || !user?.id) return;
     if (!canReportAbsence(selectedSessionForAbsence)) {
-      setAbsenceError('Chỉ được phép báo vắng trước giờ học ít nhất 2 tiếng!');
+      setAbsenceError('Chỉ được phép báo vắng hoặc xin học online trước giờ học ít nhất 4 tiếng!');
       return;
     }
+
+    const isOnline = absenceType === 'ONLINE';
+    const allCommitmentsConfirmed = commitments.docReviewed && commitments.homeworkCompleted && commitments.learningImpactUnderstood;
+
+    if (!isOnline && !allCommitmentsConfirmed) {
+      setAbsenceError('Vui lòng tick xác nhận đầy đủ 3 cam kết bù bài trước khi gửi báo vắng!');
+      return;
+    }
+
+    if (!isOnline && monthlyAbsenceCount >= 2) {
+      setAbsenceError('Bạn đã sử dụng hết hạn mức 2 buổi nghỉ có phép trong tháng này! Vui lòng liên hệ trực tiếp với Thầy/Cô để xin phép.');
+      return;
+    }
+
     try {
       setIsSubmittingAbsence(true);
       setAbsenceError('');
-      await studentPortalApi.reportAbsence(user.id, selectedSessionForAbsence.sessionId || selectedSessionForAbsence.id, absenceReason);
-      toast.success('Đã gửi báo vắng thành công!');
+      const res = await studentPortalApi.reportAbsence(
+        user.id,
+        selectedSessionForAbsence.sessionId || selectedSessionForAbsence.id,
+        {
+          reason: absenceReason,
+          isOnline: isOnline,
+          commitmentsConfirmed: allCommitmentsConfirmed
+        }
+      );
+      toast.success(res.data?.message || (isOnline ? 'Đã gửi yêu cầu học Online thành công!' : 'Đã gửi báo vắng thành công!'));
       setSelectedSessionForAbsence(null);
       setAbsenceReason('');
       await loadData();
     } catch (err) {
-      setAbsenceError(err.response?.data?.message || err.message || 'Lỗi khi gửi báo vắng.');
+      setAbsenceError(err.response?.data?.message || err.message || 'Lỗi khi gửi yêu cầu.');
     } finally {
       setIsSubmittingAbsence(false);
     }
@@ -592,6 +698,9 @@ export default function StudentPortal() {
   };
 
   const handleGoToAssignment = (session, specificAssignment = null) => {
+    if (session) {
+      markNewsAsViewed(session);
+    }
     if (specificAssignment) {
       const fullAss = assignments.find(a => a.id === specificAssignment.id) || specificAssignment;
       openSubmitModal(fullAss);
@@ -762,10 +871,15 @@ export default function StudentPortal() {
                     <div className="space-y-4">
                       {upcomingStudentSessions.map((item, idx) => {
                         const isAbsent = item.attendanceStatus === 'ABSENT';
+                        const isOnline = item.attendanceStatus === 'ONLINE';
                         const canAbsent = canReportAbsence(item);
 
                         return (
-                          <div key={item.sessionId || idx} className="bg-white border border-gray-200 rounded-xl shadow-xs overflow-hidden">
+                          <div
+                            key={item.sessionId || idx}
+                            onClick={() => markNewsAsViewed(item)}
+                            className="bg-white border border-gray-200 rounded-xl shadow-xs overflow-hidden"
+                          >
                             {/* Header của Buổi học */}
                             <div className="p-4 bg-slate-50 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                               <div>
@@ -781,9 +895,20 @@ export default function StudentPortal() {
                                   <h3 className="font-bold text-gray-800 text-base">
                                     {item.topic || 'Buổi học'}
                                   </h3>
+                                  {isNewsUnviewed(item) && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-900 rounded border border-amber-300 animate-[pulse_2.5s_ease-in-out_infinite] shadow-2xs">
+                                      Tin tức
+                                    </span>
+                                  )}
                                   {isAbsent && (
                                     <span className="text-xs font-bold px-2 py-0.5 bg-rose-100 text-rose-700 border border-rose-200 rounded">
                                       Đã báo vắng
+                                    </span>
+                                  )}
+                                  {isOnline && (
+                                    <span className="text-xs font-bold px-2 py-0.5 bg-sky-100 text-sky-700 border border-sky-200 rounded flex items-center gap-1">
+                                      <GlobeIcon className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                                      <span>Đã xin học Online</span>
                                     </span>
                                   )}
                                 </div>
@@ -792,7 +917,7 @@ export default function StudentPortal() {
                                   <span>Thời lượng: <b className="text-gray-700">{item.durationMinutes ? `${item.durationMinutes} phút` : '90 phút'}</b></span>
                                 </div>
                                 {item.attendanceNote && (
-                                  <div className="text-xs text-rose-600 mt-1">
+                                  <div className={`text-xs mt-1 ${isOnline ? 'text-sky-700' : 'text-rose-600'}`}>
                                     Lý do: {item.attendanceNote}
                                   </div>
                                 )}
@@ -816,18 +941,18 @@ export default function StudentPortal() {
                                   </span>
                                 )}
 
-                                {isAbsent ? (
+                                {isAbsent || isOnline ? (
                                   !isSessionEnded(item) ? (
                                     <button
                                       type="button"
                                       onClick={() => handleCancelAbsence(item)}
                                       disabled={cancellingAbsenceId === (item.sessionId || item.id)}
                                       className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition cursor-pointer shadow-xs">
-                                      {cancellingAbsenceId === (item.sessionId || item.id) ? 'Đang hủy...' : 'Hủy báo vắng (Đi học lại)'}
+                                      {cancellingAbsenceId === (item.sessionId || item.id) ? 'Đang xử lý...' : (isOnline ? 'Hủy học Online (Đi học trực tiếp)' : 'Hủy báo vắng (Đi học lại)')}
                                     </button>
                                   ) : (
                                     <span className="px-3 py-1.5 text-xs font-medium text-slate-500 bg-slate-100 rounded-lg border border-slate-200">
-                                      Đã vắng
+                                      {isOnline ? 'Đã học Online' : 'Đã vắng'}
                                     </span>
                                   )
                                 ) : (
@@ -841,7 +966,7 @@ export default function StudentPortal() {
                                         ? 'text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200'
                                         : 'text-slate-400 bg-slate-100 cursor-not-allowed border border-slate-200'
                                     }`}>
-                                    Báo vắng
+                                    {canAbsent ? 'Xin nghỉ / Học Online' : 'Báo vắng'}
                                   </button>
                                 )}
                               </div>
@@ -849,6 +974,23 @@ export default function StudentPortal() {
 
                             {/* Chi tiết học phần (Nội dung, Sách, Chuẩn bị gì) */}
                             <div className="p-4 space-y-4">
+                              {/* THÔNG BÁO TỪ GIÁO VIÊN (NẾU CÓ) - VIỀN ĐỎ KHÁC BIỆT NHẤP NHÁY, NỀN VÀNG GIỐNG DẶN DÒ */}
+                              {item.announcement && (
+                                <div className="p-3.5 sm:p-4 bg-amber-50 border-2 border-red-500 rounded-xl shadow-xs space-y-1.5 animate-pulse">
+                                  <div className="flex items-center gap-1.5 text-red-600 font-bold text-xs uppercase tracking-wider">
+                                    <MegaphoneIcon className="w-4 h-4 shrink-0" />
+                                    <span>Thông báo từ giáo viên</span>
+                                    {item.announcementUpdatedAt && (
+                                      <span className="text-[10px] font-normal text-amber-700 ml-auto">
+                                        {formatDateTime(item.announcementUpdatedAt)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm font-medium text-amber-950 leading-relaxed whitespace-pre-line">
+                                    {item.announcement}
+                                  </p>
+                                </div>
+                              )}
                               {item.sections && item.sections.length > 0 ? (
                                 <div className="space-y-3">
                                   <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
@@ -995,7 +1137,7 @@ export default function StudentPortal() {
                                                   rel="noreferrer"
                                                   className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-white hover:bg-blue-50 border border-blue-200 px-2 py-0.5 rounded transition"
                                                 >
-                                                  <span>📎</span>
+                                                  <PaperclipIcon className="w-3.5 h-3.5 shrink-0" />
                                                   <span className="truncate max-w-[180px]">{att.fileName || `Tệp ${aIdx + 1}`}</span>
                                                 </a>
                                               ))}
@@ -1028,7 +1170,11 @@ export default function StudentPortal() {
                         const isAbsent = item.attendanceStatus === 'ABSENT';
 
                         return (
-                          <div key={item.sessionId || idx} className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden opacity-90">
+                          <div
+                            key={item.sessionId || idx}
+                            onClick={() => markNewsAsViewed(item)}
+                            className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden opacity-90"
+                          >
                             {/* Header của Buổi học */}
                             <div className="p-4 bg-slate-100/70 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
                               <div>
@@ -1044,6 +1190,11 @@ export default function StudentPortal() {
                                   <h3 className="font-bold text-gray-800 text-base">
                                     {item.topic || 'Buổi học'}
                                   </h3>
+                                  {isNewsUnviewed(item) && (
+                                    <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-900 rounded border border-amber-300 animate-[pulse_2.5s_ease-in-out_infinite] shadow-2xs">
+                                      Tin tức
+                                    </span>
+                                  )}
                                   <span className="text-xs font-medium px-2 py-0.5 bg-slate-200 text-slate-700 rounded">
                                     Đã học
                                   </span>
@@ -1085,6 +1236,23 @@ export default function StudentPortal() {
 
                             {/* Chi tiết học phần (Nội dung, Sách, Chuẩn bị gì) */}
                             <div className="p-4 space-y-4">
+                              {/* THÔNG BÁO TỪ GIÁO VIÊN (NẾU CÓ) - VIỀN ĐỎ KHÁC BIỆT NHẤP NHÁY, NỀN VÀNG GIỐNG DẶN DÒ */}
+                              {item.announcement && (
+                                <div className="p-3.5 sm:p-4 bg-amber-50 border-2 border-red-500 rounded-xl shadow-xs space-y-1.5 animate-pulse">
+                                  <div className="flex items-center gap-1.5 text-red-600 font-bold text-xs uppercase tracking-wider">
+                                    <MegaphoneIcon className="w-4 h-4 shrink-0" />
+                                    <span>Thông báo từ giáo viên</span>
+                                    {item.announcementUpdatedAt && (
+                                      <span className="text-[10px] font-normal text-amber-700 ml-auto">
+                                        {formatDateTime(item.announcementUpdatedAt)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm font-medium text-amber-950 leading-relaxed whitespace-pre-line">
+                                    {item.announcement}
+                                  </p>
+                                </div>
+                              )}
                               {item.sections && item.sections.length > 0 ? (
                                 <div className="space-y-3">
                                   <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
@@ -1227,7 +1395,7 @@ export default function StudentPortal() {
                                                   rel="noreferrer"
                                                   className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-white hover:bg-blue-50 border border-blue-200 px-2 py-0.5 rounded transition"
                                                 >
-                                                  <span>📎</span>
+                                                  <PaperclipIcon className="w-3.5 h-3.5 shrink-0" />
                                                   <span className="truncate max-w-[180px]">{att.fileName || `Tệp ${aIdx + 1}`}</span>
                                                 </a>
                                               ))}
@@ -1807,67 +1975,218 @@ export default function StudentPortal() {
         </div>
       )}
 
-      {/* MODAL BÁO VẮNG */}
+      {/* MODAL BÁO VẮNG / XIN HỌC ONLINE */}
       {selectedSessionForAbsence && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-4 border-b border-slate-200 bg-rose-50 flex items-center justify-between">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150 border border-slate-200">
+            {/* Header */}
+            <div className={`p-4 border-b flex items-center justify-between ${
+              absenceType === 'ONLINE' ? 'bg-sky-50 border-sky-200' : 'bg-rose-50 border-rose-200'
+            }`}>
               <div>
-                <h3 className="text-base font-bold text-rose-800">Xác nhận báo vắng buổi học</h3>
-                <p className="text-xs text-rose-600 mt-0.5">
+                <h3 className={`text-base font-bold flex items-center gap-1.5 ${absenceType === 'ONLINE' ? 'text-sky-900' : 'text-rose-900'}`}>
+                  {absenceType === 'ONLINE' ? (
+                    <>
+                      <GlobeIcon className="w-4 h-4 text-sky-600 shrink-0" />
+                      <span>Đăng ký tham gia học Online</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircleIcon className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>Xác nhận báo vắng buổi học</span>
+                    </>
+                  )}
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
                   {selectedSessionForAbsence.className} - {selectedSessionForAbsence.topic}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedSessionForAbsence(null)}
-                className="text-slate-400 hover:text-slate-600 text-xl font-bold p-1"
+                className="text-slate-400 hover:text-slate-600 text-xl font-bold p-1 cursor-pointer"
               >
                 &times;
               </button>
             </div>
 
             <form onSubmit={handleSubmitAbsence} className="p-5 space-y-4">
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-                <p className="font-semibold mb-1">Quy định báo vắng:</p>
-                <p>Học sinh phải báo vắng trước giờ bắt đầu buổi học ít nhất 2 tiếng. Lý do xin phép vắng sẽ được tự động chuyển đến giáo viên phụ trách.</p>
-                <p className="mt-1.5 font-bold text-amber-900">{getAbsenceRemainingNotice(selectedSessionForAbsence)}</p>
+              {/* Lựa chọn hình thức: Học Online vs Nghỉ hẳn */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  Chọn hình thức tham gia:
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setAbsenceType('ONLINE')}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                      absenceType === 'ONLINE'
+                        ? 'bg-sky-50/80 border-sky-400 ring-2 ring-sky-300'
+                        : 'bg-white border-slate-200 hover:border-sky-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-sky-800">
+                      <GlobeIcon className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                      <span>Xin học Online</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 mt-1">
+                      Học qua Meet/Zoom, giữ vững 100% chuyên cần
+                    </span>
+                    <span className="mt-2 text-[10px] font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full self-start">
+                      Khuyên dùng
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAbsenceType('ABSENT')}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                      absenceType === 'ABSENT'
+                        ? 'bg-rose-50/80 border-rose-400 ring-2 ring-rose-300'
+                        : 'bg-white border-slate-200 hover:border-rose-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-rose-800">
+                      <XCircleIcon className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                      <span>Nghỉ hẳn buổi học</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 mt-1">
+                      Vắng mặt, trừ 1 lượt trong hạn mức tháng
+                    </span>
+                    <span className="mt-2 text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full self-start">
+                      Hạn mức 2 buổi/tháng
+                    </span>
+                  </button>
+                </div>
               </div>
 
+              {/* Thông tin quy định & Hạn mức */}
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold">Quy định thời gian:</span>
+                  <span className="font-semibold text-amber-800">Trước giờ học ít nhất 4 tiếng</span>
+                </div>
+                <p className="text-[11px] text-amber-800">{getAbsenceRemainingNotice(selectedSessionForAbsence)}</p>
+
+                {absenceType === 'ABSENT' && (
+                  <div className="pt-2 border-t border-amber-200/80 flex items-center justify-between text-xs">
+                    <span>Hạn mức nghỉ phép tháng này:</span>
+                    <span className={`font-bold px-2 py-0.5 rounded-full ${
+                      monthlyAbsenceCount >= 2 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      Đã dùng {monthlyAbsenceCount}/2 buổi
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Hướng dẫn khi xin học Online */}
+              {absenceType === 'ONLINE' && (
+                <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-800 space-y-1">
+                  <p className="font-semibold">Cách thức nhận link phòng học:</p>
+                  <p className="text-[11px] text-sky-700">
+                    Sau khi bạn gửi yêu cầu, Thầy/Cô sẽ nhận được thông báo và đăng link Google Meet/Zoom lên mục <b>Thông báo của buổi học</b>. Bạn chỉ cần chú ý ô <b>"Tin tức"</b> nhấp nháy trên lịch để bấm vào link vào học nhé!
+                  </p>
+                </div>
+              )}
+
+              {/* 3 Cam kết bù bài bắt buộc khi Nghỉ hẳn */}
+              {absenceType === 'ABSENT' && (
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Cam kết bù bài bắt buộc <span className="text-rose-500">*</span>:
+                  </label>
+                  <div className="space-y-2 text-xs text-slate-700">
+                    <label className="flex items-start gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={commitments.docReviewed}
+                        onChange={(e) => setCommitments(prev => ({ ...prev, docReviewed: e.target.checked }))}
+                        className="mt-0.5 rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
+                      />
+                      <span>Tôi cam kết sẽ xem lại tài liệu được yêu cầu trong buổi học</span>
+                    </label>
+
+                    <label className="flex items-start gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={commitments.homeworkCompleted}
+                        onChange={(e) => setCommitments(prev => ({ ...prev, homeworkCompleted: e.target.checked }))}
+                        className="mt-0.5 rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
+                      />
+                      <span>Tôi cam kết nộp đầy đủ bài tập được giao đúng thời hạn</span>
+                    </label>
+
+                    <label className="flex items-start gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={commitments.learningImpactUnderstood}
+                        onChange={(e) => setCommitments(prev => ({ ...prev, learningImpactUnderstood: e.target.checked }))}
+                        className="mt-0.5 rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
+                      />
+                      <span>Tôi hiểu rằng việc vắng học có thể ảnh hưởng tới khả năng tiếng anh của bản thân</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
               {absenceError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700 font-medium">
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold">
                   {absenceError}
                 </div>
               )}
 
+              {/* Lý do */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Lý do xin phép vắng <span className="text-rose-500">*</span>
+                  Lý do {absenceType === 'ONLINE' ? 'xin học Online' : 'xin phép vắng'} <span className="text-rose-500">*</span>
                 </label>
                 <textarea
                   required
-                  rows={3}
+                  rows={2}
                   value={absenceReason}
                   onChange={(e) => setAbsenceReason(e.target.value)}
-                  placeholder="Ví dụ: Em bị ốm, gia đình có việc bận đột xuất..."
-                  className="w-full text-sm p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-rose-500 focus:border-rose-500 outline-none"
+                  placeholder={
+                    absenceType === 'ONLINE'
+                      ? 'Ví dụ: Trời mưa to, bị cảm nhẹ, gia đình không kịp đưa đón...'
+                      : 'Ví dụ: Em bị ốm sốt, gia đình có việc bận đột xuất...'
+                  }
+                  className="w-full text-xs p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
               </div>
 
+              {/* Action buttons */}
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setSelectedSessionForAbsence(null)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 cursor-pointer"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingAbsence}
-                  className="px-4 py-2 text-sm font-semibold text-white bg-rose-600 rounded-lg hover:bg-rose-700 disabled:opacity-50 transition-colors shadow-sm"
+                  disabled={
+                    isSubmittingAbsence ||
+                    (absenceType === 'ABSENT' && (
+                      !commitments.docReviewed ||
+                      !commitments.homeworkCompleted ||
+                      !commitments.learningImpactUnderstood ||
+                      monthlyAbsenceCount >= 2
+                    ))
+                  }
+                  className={`px-5 py-2 text-xs font-bold text-white rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                    absenceType === 'ONLINE'
+                      ? 'bg-sky-600 hover:bg-sky-700'
+                      : 'bg-rose-600 hover:bg-rose-700'
+                  }`}
                 >
-                  {isSubmittingAbsence ? 'Đang gửi...' : 'Xác nhận báo vắng'}
+                  {isSubmittingAbsence
+                    ? 'Đang gửi...'
+                    : absenceType === 'ONLINE'
+                    ? 'Xác nhận xin học Online'
+                    : 'Xác nhận báo vắng'}
                 </button>
               </div>
             </form>

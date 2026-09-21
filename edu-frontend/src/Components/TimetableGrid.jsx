@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { studentPortalApi } from '../api/studentPortalApi';
 import { useToast } from '../context/ToastContext';
 import CollapsibleDescription from './CollapsibleDescription';
+import { MegaphoneIcon, PaperclipIcon, GlobeIcon, XCircleIcon } from './Icons';
 
 // Color palette for classes (accessible, modern pastel tones)
 const CLASS_COLORS = [
@@ -73,26 +74,45 @@ export default function TimetableGrid({
   const [isSubmittingAbsence, setIsSubmittingAbsence] = useState(false);
   const [absenceError, setAbsenceError] = useState('');
 
-  // Theo dõi các buổi học đã được học sinh xem dặn dò chuẩn bị bài
-  const [viewedPrepIds, setViewedPrepIds] = useState(() => {
+  // Theo dõi các buổi học đã được học sinh xem tin tức (thông báo đột xuất hoặc dặn dò)
+  const [viewedNewsKeys, setViewedNewsKeys] = useState(() => {
     try {
-      const saved = localStorage.getItem('viewed_prep_session_ids');
+      const saved = localStorage.getItem('viewed_session_news_keys');
       return saved ? new Set(JSON.parse(saved)) : new Set();
     } catch {
       return new Set();
     }
   });
 
-  const markPrepAsViewed = (sessionId) => {
-    if (!sessionId) return;
-    setViewedPrepIds(prev => {
+  const getSessionNewsKey = (session) => {
+    if (!session) return '';
+    const sId = session.sessionId || session.id;
+    const ann = session.announcement ? session.announcement.trim() : '';
+    const annTime = session.announcementUpdatedAt ? new Date(session.announcementUpdatedAt).getTime() : '';
+    const prep = session.hasPreparation ? 'prep' : '';
+    return `${sId}_${ann}_${annTime}_${prep}`;
+  };
+
+  const markNewsAsViewed = (session) => {
+    if (!session) return;
+    const key = getSessionNewsKey(session);
+    setViewedNewsKeys(prev => {
       const next = new Set(prev);
-      next.add(sessionId);
+      next.add(key);
       try {
-        localStorage.setItem('viewed_prep_session_ids', JSON.stringify([...next]));
+        localStorage.setItem('viewed_session_news_keys', JSON.stringify([...next]));
       } catch {}
       return next;
     });
+  };
+
+  const isNewsUnviewed = (session) => {
+    if (!isStudent) return false;
+    const hasAnnouncement = Boolean(session.announcement && session.announcement.trim());
+    const hasPrep = Boolean(session.hasPreparation);
+    if (!hasAnnouncement && !hasPrep) return false;
+    const key = getSessionNewsKey(session);
+    return !viewedNewsKeys.has(key);
   };
 
   // Calculate dates for Monday through Sunday of current week
@@ -189,7 +209,7 @@ export default function TimetableGrid({
     const start = new Date(session.startTime);
     const now = new Date();
     const diffMinutes = (start.getTime() - now.getTime()) / (1000 * 60);
-    return diffMinutes >= 120;
+    return diffMinutes >= 240; // 4 tiếng
   };
 
   const isSessionEnded = (session) => {
@@ -206,30 +226,68 @@ export default function TimetableGrid({
     const now = new Date();
     const diffMinutes = Math.floor((start.getTime() - now.getTime()) / (1000 * 60));
     if (diffMinutes < 0) return 'Buổi học đã diễn ra';
-    if (diffMinutes < 120) return `Còn ${diffMinutes} phút nữa là vào học (quá hạn báo trước 2 giờ)`;
+    if (diffMinutes < 240) {
+      const hours = Math.floor(Math.max(0, diffMinutes) / 60);
+      const mins = Math.max(0, diffMinutes) % 60;
+      return `Còn ${hours} giờ ${mins} phút nữa là vào học (quá hạn báo trước 4 giờ)`;
+    }
     const hours = Math.floor(diffMinutes / 60);
     const mins = diffMinutes % 60;
-    return `Còn ${hours} giờ ${mins} phút trước giờ học (hợp lệ để báo vắng)`;
+    return `Còn ${hours} giờ ${mins} phút trước giờ học (hợp lệ để gửi yêu cầu)`;
   };
+
+  const [absenceType, setAbsenceType] = useState('ONLINE'); // 'ONLINE' | 'ABSENT'
+  const [commitments, setCommitments] = useState({
+    docReviewed: false,
+    homeworkCompleted: false,
+    learningImpactUnderstood: false
+  });
 
   const handleOpenAbsence = (e, session) => {
     e.stopPropagation();
     setSelectedSession(session);
     setAbsenceReason('');
     setAbsenceError('');
+    setAbsenceType('ONLINE');
+    setCommitments({
+      docReviewed: false,
+      homeworkCompleted: false,
+      learningImpactUnderstood: false
+    });
     setShowAbsenceModal(true);
   };
+
+  // Tính số buổi đã báo vắng trong tháng của buổi học đang chọn (tối đa 2 buổi/tháng)
+  const monthlyAbsenceCount = useMemo(() => {
+    if (!selectedSession || !sessions) return 0;
+    const sDate = new Date(selectedSession.startTime);
+    const targetYear = sDate.getFullYear();
+    const targetMonth = sDate.getMonth();
+    const currentSessionId = selectedSession.sessionId || selectedSession.id;
+
+    return sessions.filter(s => {
+      const id = s.sessionId || s.id;
+      if (id === currentSessionId) return false;
+      if (s.attendanceStatus !== 'ABSENT') return false;
+      if (!s.startTime) return false;
+      const d = new Date(s.startTime);
+      return d.getFullYear() === targetYear && d.getMonth() === targetMonth;
+    }).length;
+  }, [selectedSession, sessions]);
 
   const [isCancellingAbsence, setIsCancellingAbsence] = useState(false);
 
   const handleCancelAbsence = async (e, session) => {
     if (e && e.stopPropagation) e.stopPropagation();
     if (!studentId || !session) return;
+    const isOnline = session.attendanceStatus === 'ONLINE';
     const ok = await confirm({
-      title: 'Hủy báo vắng',
-      message: 'Bạn có chắc chắn muốn hủy báo vắng để đi học lại buổi học này không?',
-      confirmText: 'Xác nhận đi học',
-      cancelText: 'Giữ báo vắng',
+      title: isOnline ? 'Hủy học Online' : 'Hủy báo vắng',
+      message: isOnline
+        ? 'Bạn có chắc chắn muốn hủy đăng ký học Online để đi học trực tiếp tại lớp không?'
+        : 'Bạn có chắc chắn muốn hủy báo vắng để đi học lại buổi học này không?',
+      confirmText: 'Xác nhận đi học trực tiếp',
+      cancelText: 'Giữ nguyên',
       type: 'info'
     });
     if (!ok) return;
@@ -241,13 +299,13 @@ export default function TimetableGrid({
         session.sessionId || session.id
       );
 
-      toast.success('Đã hủy báo vắng thành công! Bạn có thể tham gia buổi học.');
+      toast.success('Đã cập nhật thành công! Bạn có thể tham gia buổi học.');
       setSelectedSession(null);
       if (onReportAbsenceSuccess) {
         onReportAbsenceSuccess();
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'Có lỗi xảy ra khi hủy báo vắng.');
+      toast.error(err.response?.data?.message || err.message || 'Có lỗi xảy ra khi hủy yêu cầu.');
     } finally {
       setIsCancellingAbsence(false);
     }
@@ -257,7 +315,20 @@ export default function TimetableGrid({
     e.preventDefault();
     if (!studentId || !selectedSession) return;
     if (!canReportAbsence(selectedSession)) {
-      setAbsenceError('Chỉ được phép báo vắng trước giờ học ít nhất 2 tiếng!');
+      setAbsenceError('Chỉ được phép báo vắng hoặc xin học online trước giờ học ít nhất 4 tiếng!');
+      return;
+    }
+
+    const isOnline = absenceType === 'ONLINE';
+    const allCommitmentsConfirmed = commitments.docReviewed && commitments.homeworkCompleted && commitments.learningImpactUnderstood;
+
+    if (!isOnline && !allCommitmentsConfirmed) {
+      setAbsenceError('Vui lòng tick xác nhận đầy đủ 3 cam kết bù bài trước khi gửi báo vắng!');
+      return;
+    }
+
+    if (!isOnline && monthlyAbsenceCount >= 2) {
+      setAbsenceError('Bạn đã sử dụng hết hạn mức 2 buổi nghỉ có phép trong tháng này! Vui lòng liên hệ trực tiếp với Thầy/Cô để xin phép.');
       return;
     }
 
@@ -265,20 +336,24 @@ export default function TimetableGrid({
     setAbsenceError('');
 
     try {
-      await studentPortalApi.reportAbsence(
+      const res = await studentPortalApi.reportAbsence(
         studentId,
         selectedSession.sessionId || selectedSession.id,
-        absenceReason.trim() || 'Học sinh xin phép vắng'
+        {
+          reason: absenceReason,
+          isOnline: isOnline,
+          commitmentsConfirmed: allCommitmentsConfirmed
+        }
       );
 
-      toast.success('Đã gửi báo vắng thành công!');
+      toast.success(res.data?.message || (isOnline ? 'Đã gửi yêu cầu học Online thành công!' : 'Đã gửi báo vắng thành công!'));
       setShowAbsenceModal(false);
       setSelectedSession(null);
       if (onReportAbsenceSuccess) {
         onReportAbsenceSuccess();
       }
     } catch (err) {
-      setAbsenceError(err.response?.data?.message || err.message || 'Có lỗi xảy ra khi gửi báo vắng.');
+      setAbsenceError(err.response?.data?.message || err.message || 'Có lỗi xảy ra khi gửi yêu cầu.');
     } finally {
       setIsSubmittingAbsence(false);
     }
@@ -304,8 +379,7 @@ export default function TimetableGrid({
   }, [sessions, classes]);
 
   const handleSelectSession = (session) => {
-    const sId = session.sessionId || session.id;
-    markPrepAsViewed(sId);
+    markNewsAsViewed(session);
     if (!isStudent && onNavigateToSession) {
       onNavigateToSession(session);
       return;
@@ -460,7 +534,7 @@ export default function TimetableGrid({
                     const color = getClassColor(classId);
                     const sId = session.sessionId || session.id;
                     const hasAbsentReport = session.attendanceStatus === 'ABSENT';
-                    const isPrepUnviewed = session.hasPreparation && !viewedPrepIds.has(sId);
+                    const unviewedNews = isNewsUnviewed(session);
 
                     // Xử lý viền theo trạng thái bài tập
                     let homeworkBorderClass = `${color.border} border`;
@@ -559,10 +633,10 @@ export default function TimetableGrid({
                           <div className="flex flex-wrap items-center gap-1">
                             {homeworkStatusBadge}
 
-                            {/* Thông báo dặn dò chuẩn bị bài (tự mất khi bấm xem) */}
-                            {isPrepUnviewed && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-blue-100 text-blue-800 rounded border border-blue-300 animate-pulse">
-                                Có dặn dò
+                            {/* Ô Tin tức nhấp nháy chậm nếu có thông báo hoặc dặn dò chưa xem */}
+                            {unviewedNews && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-900 rounded border border-amber-300 animate-[pulse_2.5s_ease-in-out_infinite] shadow-2xs">
+                                Tin tức
                               </span>
                             )}
 
@@ -605,6 +679,24 @@ export default function TimetableGrid({
                 ✕
               </button>
             </div>
+
+            {/* THÔNG BÁO TỪ GIÁO VIÊN (NẾU CÓ) - VIỀN ĐỎ KHÁC BIỆT NHẤP NHÁY, NỀN VÀNG GIỐNG DẶN DÒ */}
+            {selectedSession.announcement && (
+              <div className="p-3.5 sm:p-4 bg-amber-50 border-2 border-red-500 rounded-xl shadow-xs space-y-1.5 animate-pulse">
+                <div className="flex items-center gap-1.5 text-red-600 font-bold text-xs uppercase tracking-wider">
+                  <MegaphoneIcon className="w-4 h-4 shrink-0" />
+                  <span>Thông báo từ giáo viên</span>
+                  {selectedSession.announcementUpdatedAt && (
+                    <span className="text-[10px] font-normal text-amber-700 ml-auto">
+                      {new Date(selectedSession.announcementUpdatedAt).toLocaleString('vi-VN')}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm font-medium text-amber-950 leading-relaxed whitespace-pre-line">
+                  {selectedSession.announcement}
+                </p>
+              </div>
+            )}
 
             {/* Thông tin thời gian */}
             <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3 rounded-xl border border-slate-100">
@@ -679,7 +771,7 @@ export default function TimetableGrid({
                                   rel="noreferrer"
                                   className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded transition"
                                 >
-                                  <span>📎</span>
+                                  <PaperclipIcon className="w-3.5 h-3.5 shrink-0" />
                                   <span className="truncate max-w-[180px]">{att.fileName || `Tệp ${attIdx + 1}`}</span>
                                 </a>
                               ))}
@@ -759,23 +851,23 @@ export default function TimetableGrid({
 
             {/* Footer modal */}
             <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-              {isStudent && canReportAbsence(selectedSession) && selectedSession.attendanceStatus !== 'ABSENT' && (
+              {isStudent && canReportAbsence(selectedSession) && selectedSession.attendanceStatus !== 'ABSENT' && selectedSession.attendanceStatus !== 'ONLINE' && (
                 <button
                   type="button"
                   onClick={(e) => handleOpenAbsence(e, selectedSession)}
                   className="px-3.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50 border border-rose-200 rounded-lg transition cursor-pointer"
                 >
-                  Báo vắng buổi này
+                  Xin nghỉ / Học Online
                 </button>
               )}
-              {isStudent && selectedSession.attendanceStatus === 'ABSENT' && !isSessionEnded(selectedSession) && (
+              {isStudent && (selectedSession.attendanceStatus === 'ABSENT' || selectedSession.attendanceStatus === 'ONLINE') && !isSessionEnded(selectedSession) && (
                 <button
                   type="button"
                   onClick={(e) => handleCancelAbsence(e, selectedSession)}
                   disabled={isCancellingAbsence}
                   className="px-3.5 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg transition cursor-pointer flex items-center gap-1.5"
                 >
-                  {isCancellingAbsence ? 'Đang hủy...' : 'Hủy báo vắng (Đi học lại)'}
+                  {isCancellingAbsence ? 'Đang xử lý...' : (selectedSession.attendanceStatus === 'ONLINE' ? 'Hủy học Online (Đi học trực tiếp)' : 'Hủy báo vắng (Đi học lại)')}
                 </button>
               )}
               <button
@@ -790,13 +882,25 @@ export default function TimetableGrid({
         </div>
       )}
 
-      {/* MODAL XÁC NHẬN BÁO VẮNG */}
+      {/* MODAL XÁC NHẬN BÁO VẮNG / XIN HỌC ONLINE */}
       {showAbsenceModal && selectedSession && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-2xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 border border-rose-100 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl space-y-4 border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-base font-bold text-rose-800">Xác nhận báo vắng buổi học</h3>
+                <h3 className={`text-base font-bold flex items-center gap-1.5 ${absenceType === 'ONLINE' ? 'text-sky-900' : 'text-rose-800'}`}>
+                  {absenceType === 'ONLINE' ? (
+                    <>
+                      <GlobeIcon className="w-4 h-4 text-sky-600 shrink-0" />
+                      <span>Đăng ký tham gia học Online</span>
+                    </>
+                  ) : (
+                    <>
+                      <XCircleIcon className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>Xác nhận báo vắng buổi học</span>
+                    </>
+                  )}
+                </h3>
                 <p className="text-xs text-slate-500 mt-0.5 font-medium">
                   {selectedSession.className} - {selectedSession.topic || selectedSession.contentSummary}
                 </p>
@@ -810,34 +914,154 @@ export default function TimetableGrid({
               </button>
             </div>
 
-            <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
-              <p className="font-semibold mb-1">Quy định báo vắng:</p>
-              <p>Học sinh phải báo vắng trước giờ bắt đầu buổi học ít nhất 2 tiếng. Lý do báo vắng sẽ được tự động chuyển đến giáo viên phụ trách.</p>
-              <p className="font-bold text-amber-800 pt-1">{getAbsenceTimeRemaining(selectedSession)}</p>
-            </div>
+            <form onSubmit={handleSubmitAbsence} className="space-y-3.5">
+              {/* Lựa chọn hình thức: Học Online vs Nghỉ hẳn */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                  Chọn hình thức tham gia:
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setAbsenceType('ONLINE')}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                      absenceType === 'ONLINE'
+                        ? 'bg-sky-50/80 border-sky-400 ring-2 ring-sky-300'
+                        : 'bg-white border-slate-200 hover:border-sky-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-sky-800">
+                      <GlobeIcon className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                      <span>Xin học Online</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 mt-1">
+                      Học qua Meet/Zoom, giữ vững 100% chuyên cần
+                    </span>
+                    <span className="mt-2 text-[10px] font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full self-start">
+                      Khuyên dùng
+                    </span>
+                  </button>
 
-            {absenceError && (
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-700">
-                {absenceError}
+                  <button
+                    type="button"
+                    onClick={() => setAbsenceType('ABSENT')}
+                    className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                      absenceType === 'ABSENT'
+                        ? 'bg-rose-50/80 border-rose-400 ring-2 ring-rose-300'
+                        : 'bg-white border-slate-200 hover:border-rose-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-rose-800">
+                      <XCircleIcon className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                      <span>Nghỉ hẳn buổi học</span>
+                    </div>
+                    <span className="text-[11px] text-slate-500 mt-1">
+                      Vắng mặt, trừ 1 lượt trong hạn mức tháng
+                    </span>
+                    <span className="mt-2 text-[10px] font-bold text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full self-start">
+                      Hạn mức 2 buổi/tháng
+                    </span>
+                  </button>
+                </div>
               </div>
-            )}
 
-            <form onSubmit={handleSubmitAbsence} className="space-y-3">
+              {/* Thông tin quy định & Hạn mức */}
+              <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold">Quy định thời gian:</span>
+                  <span className="font-semibold text-amber-800">Trước giờ học ít nhất 4 tiếng</span>
+                </div>
+                <p className="text-[11px] text-amber-800">{getAbsenceTimeRemaining(selectedSession)}</p>
+
+                {absenceType === 'ABSENT' && (
+                  <div className="pt-2 border-t border-amber-200/80 flex items-center justify-between text-xs">
+                    <span>Hạn mức nghỉ phép tháng này:</span>
+                    <span className={`font-bold px-2 py-0.5 rounded-full ${
+                      monthlyAbsenceCount >= 2 ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      Đã dùng {monthlyAbsenceCount}/2 buổi
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Hướng dẫn khi xin học Online */}
+              {absenceType === 'ONLINE' && (
+                <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl text-xs text-sky-800 space-y-1">
+                  <p className="font-semibold">Cách thức nhận link phòng học:</p>
+                  <p className="text-[11px] text-sky-700">
+                    Sau khi bạn gửi yêu cầu, Thầy/Cô sẽ nhận được thông báo và đăng link Google Meet/Zoom lên mục <b>Thông báo của buổi học</b>. Bạn chỉ cần chú ý ô <b>"Tin tức"</b> nhấp nháy trên lịch để bấm vào link vào học nhé!
+                  </p>
+                </div>
+              )}
+
+              {/* 3 Cam kết bù bài bắt buộc khi Nghỉ hẳn */}
+              {absenceType === 'ABSENT' && (
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Cam kết bù bài bắt buộc <span className="text-rose-500">*</span>:
+                  </label>
+                  <div className="space-y-2 text-xs text-slate-700">
+                    <label className="flex items-start gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={commitments.docReviewed}
+                        onChange={(e) => setCommitments(prev => ({ ...prev, docReviewed: e.target.checked }))}
+                        className="mt-0.5 rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
+                      />
+                      <span>Tôi cam kết sẽ xem lại tài liệu được yêu cầu trong buổi học</span>
+                    </label>
+
+                    <label className="flex items-start gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={commitments.homeworkCompleted}
+                        onChange={(e) => setCommitments(prev => ({ ...prev, homeworkCompleted: e.target.checked }))}
+                        className="mt-0.5 rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
+                      />
+                      <span>Tôi cam kết nộp đầy đủ bài tập được giao đúng thời hạn</span>
+                    </label>
+
+                    <label className="flex items-start gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={commitments.learningImpactUnderstood}
+                        onChange={(e) => setCommitments(prev => ({ ...prev, learningImpactUnderstood: e.target.checked }))}
+                        className="mt-0.5 rounded text-rose-600 focus:ring-rose-500 cursor-pointer"
+                      />
+                      <span>Tôi hiểu rằng việc vắng học có thể ảnh hưởng tới khả năng tiếng anh của bản thân</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {absenceError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-700">
+                  {absenceError}
+                </div>
+              )}
+
+              {/* Lý do */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Lý do xin phép vắng <span className="text-red-500">*</span>
+                  Lý do {absenceType === 'ONLINE' ? 'xin học Online' : 'xin phép vắng'} <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   required
-                  rows={3}
+                  rows={2}
                   value={absenceReason}
                   onChange={(e) => setAbsenceReason(e.target.value)}
-                  placeholder="Ví dụ: Em bị sốt / gia đình có việc đột xuất..."
-                  className="w-full border border-gray-300 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                  placeholder={
+                    absenceType === 'ONLINE'
+                      ? 'Ví dụ: Trời mưa to, bị cảm nhẹ, gia đình không kịp đưa đón...'
+                      : 'Ví dụ: Em bị sốt / gia đình có việc đột xuất...'
+                  }
+                  className="w-full border border-gray-300 rounded-xl p-2.5 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              {/* Action buttons */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowAbsenceModal(false)}
@@ -847,10 +1071,26 @@ export default function TimetableGrid({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingAbsence}
-                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white text-xs font-bold rounded-lg transition shadow-xs cursor-pointer"
+                  disabled={
+                    isSubmittingAbsence ||
+                    (absenceType === 'ABSENT' && (
+                      !commitments.docReviewed ||
+                      !commitments.homeworkCompleted ||
+                      !commitments.learningImpactUnderstood ||
+                      monthlyAbsenceCount >= 2
+                    ))
+                  }
+                  className={`px-5 py-2 text-xs font-bold text-white rounded-xl transition-all shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                    absenceType === 'ONLINE'
+                      ? 'bg-sky-600 hover:bg-sky-700'
+                      : 'bg-rose-600 hover:bg-rose-700'
+                  }`}
                 >
-                  {isSubmittingAbsence ? 'Đang gửi...' : 'Xác nhận báo vắng'}
+                  {isSubmittingAbsence
+                    ? 'Đang gửi...'
+                    : absenceType === 'ONLINE'
+                    ? 'Xác nhận xin học Online'
+                    : 'Xác nhận báo vắng'}
                 </button>
               </div>
             </form>

@@ -12,5 +12,6 @@ export const sessionApi = {
         return axiosClient.post(`/classes/${classIdOrData}/sessions`, data);
     },
     update: (classId, sessionId, data) => axiosClient.put(`/classes/${classId}/sessions/${sessionId}`, data),
+    updateAnnouncement: (classId, sessionId, announcement) => axiosClient.patch(`/classes/${classId}/sessions/${sessionId}/announcement`, { announcement }),
     delete: (classId, sessionId) => axiosClient.delete(`/classes/${classId}/sessions/${sessionId}`),
 };

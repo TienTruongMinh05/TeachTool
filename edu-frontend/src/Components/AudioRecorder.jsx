@@ -5,6 +5,7 @@ import {
   createOptimizedMediaRecorder, 
   formatAudioFileSize 
 } from '../utils/audioOptimizer';
+import { BoltIcon } from './Icons';
 
 export default function AudioRecorder({ onRecordingUploaded }) {
   const [isRecording, setIsRecording] = useState(false);
@@ -156,7 +157,8 @@ export default function AudioRecorder({ onRecordingUploaded }) {
               </span>
               {audioBlob && (
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                  ⚡ Nén tối ưu: {formatAudioFileSize(audioBlob.size)}
+                  <BoltIcon className="w-3 h-3 text-emerald-600 shrink-0" />
+                  Nén tối ưu: {formatAudioFileSize(audioBlob.size)}
                 </span>
               )}
             </div>

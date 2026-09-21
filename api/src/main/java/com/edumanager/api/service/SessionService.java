@@ -38,6 +38,11 @@ public class SessionService {
             sessionInfo.setDurationMinutes((int) minutes);
         }
 
+        if (sessionInfo.getAnnouncement() != null && !sessionInfo.getAnnouncement().isBlank()) {
+            sessionInfo.setAnnouncement(sessionInfo.getAnnouncement().trim());
+            sessionInfo.setAnnouncementUpdatedAt(java.time.LocalDateTime.now());
+        }
+
         return sessionRepo.save(sessionInfo);
     }
 
@@ -60,10 +65,36 @@ public class SessionService {
         session.setStartTime(sessionInfo.getStartTime());
         session.setDurationMinutes(sessionInfo.getDurationMinutes());
 
+        if (sessionInfo.getAnnouncement() != null) {
+            String trimmed = sessionInfo.getAnnouncement().trim();
+            if (!trimmed.equals(session.getAnnouncement())) {
+                session.setAnnouncement(trimmed.isEmpty() ? null : trimmed);
+                session.setAnnouncementUpdatedAt(trimmed.isEmpty() ? null : java.time.LocalDateTime.now());
+            }
+        }
+
         if (sessionInfo.getDurationMinutes() != null && sessionInfo.getDurationMinutes() > 0 && sessionInfo.getStartTime() != null) {
             session.setEndTime(sessionInfo.getStartTime().plusMinutes(sessionInfo.getDurationMinutes()));
         } else if (sessionInfo.getEndTime() != null) {
             session.setEndTime(sessionInfo.getEndTime());
+        }
+
+        return sessionRepo.save(session);
+    }
+
+    public Session updateAnnouncement(Long sessionId, String announcement, Long callerId) {
+        Session session = getSessionById(sessionId);
+        if (callerId != null && session.getClassRoom() != null && !classRoomService.isTeacherOfClass(session.getClassRoom(), callerId)) {
+            throw new SecurityException("Bạn không phải là giáo viên phụ trách lớp học của buổi học này.");
+        }
+
+        String trimmed = announcement != null ? announcement.trim() : null;
+        if (trimmed == null || trimmed.isEmpty()) {
+            session.setAnnouncement(null);
+            session.setAnnouncementUpdatedAt(null);
+        } else {
+            session.setAnnouncement(trimmed);
+            session.setAnnouncementUpdatedAt(java.time.LocalDateTime.now());
         }
 
         return sessionRepo.save(session);

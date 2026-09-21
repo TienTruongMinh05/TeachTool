@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { loadBookWithCache, clearBookCache } from '../utils/bookCacheService';
+import { BoltIcon } from './Icons';
 
 // Cấu hình CDN worker cho pdf.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
@@ -355,8 +356,9 @@ export default function PdfCanvasViewer({
         {/* Chỉ báo trạng thái Bộ nhớ đệm Sách số */}
         <div className="flex items-center gap-2">
           {isCached ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-950/70 border border-emerald-700/60 px-2.5 py-1 rounded-md shadow-xs">
-              ⚡ Bộ nhớ đệm (Mở tức thì)
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400 bg-emerald-950/70 border border-emerald-700/60 px-2.5 py-1 rounded-md shadow-xs">
+              <BoltIcon className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              Bộ nhớ đệm (Mở tức thì)
             </span>
           ) : (
             <span className="hidden sm:inline-flex items-center text-[11px] text-slate-400">

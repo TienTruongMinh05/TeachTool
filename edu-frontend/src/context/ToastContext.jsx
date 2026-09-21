@@ -1,5 +1,13 @@
-// File: src/context/ToastContext.jsx
 import React, { createContext, useContext, useState, useCallback } from 'react';
+import {
+  CheckCircleIcon,
+  XCircleIcon,
+  AlertTriangleIcon,
+  InfoIcon,
+  TrashIcon,
+  HelpCircleIcon,
+  XIcon
+} from '../Components/Icons';
 
 const ToastContext = createContext(null);
 
@@ -99,11 +107,11 @@ export const ToastProvider = ({ children }) => {
                 : 'bg-slate-900/95 border-slate-700 text-slate-100 shadow-slate-950/40'
             }`}>
             <div className="flex items-start gap-2.5 flex-1 min-w-0">
-              <span className="text-base shrink-0 mt-0.5">
-                {t.type === 'success' && '✅'}
-                {t.type === 'error' && '❌'}
-                {t.type === 'warning' && '⚠️'}
-                {t.type === 'info' && 'ℹ️'}
+              <span className="shrink-0 mt-0.5">
+                {t.type === 'success' && <CheckCircleIcon className="w-4 h-4 text-emerald-400" />}
+                {t.type === 'error' && <XCircleIcon className="w-4 h-4 text-rose-400" />}
+                {t.type === 'warning' && <AlertTriangleIcon className="w-4 h-4 text-amber-400" />}
+                {t.type === 'info' && <InfoIcon className="w-4 h-4 text-blue-400" />}
               </span>
               <p className="text-xs sm:text-sm font-medium leading-relaxed break-words">
                 {t.message}
@@ -113,7 +121,7 @@ export const ToastProvider = ({ children }) => {
               type="button"
               onClick={() => removeToast(t.id)}
               className="text-xs opacity-60 hover:opacity-100 p-1 rounded transition cursor-pointer shrink-0">
-              ✕
+              <XIcon className="w-3.5 h-3.5" />
             </button>
           </div>
         ))}
@@ -124,14 +132,14 @@ export const ToastProvider = ({ children }) => {
         <div className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-start gap-3.5">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 ${
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                 confirmDialog.type === 'danger'
                   ? 'bg-rose-100 text-rose-600'
                   : confirmDialog.type === 'warning'
                   ? 'bg-amber-100 text-amber-600'
                   : 'bg-blue-100 text-blue-600'
               }`}>
-                {confirmDialog.type === 'danger' ? '🗑️' : confirmDialog.type === 'warning' ? '⚠️' : '❓'}
+                {confirmDialog.type === 'danger' ? <TrashIcon className="w-5 h-5" /> : confirmDialog.type === 'warning' ? <AlertTriangleIcon className="w-5 h-5" /> : <HelpCircleIcon className="w-5 h-5" />}
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-base font-bold text-slate-900 leading-snug">
@@ -172,7 +180,7 @@ export const ToastProvider = ({ children }) => {
         <div className="fixed inset-0 z-[99999] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-start gap-3.5">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 ${
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                 alertDialog.type === 'error'
                   ? 'bg-rose-100 text-rose-600'
                   : alertDialog.type === 'success'
@@ -181,7 +189,7 @@ export const ToastProvider = ({ children }) => {
                   ? 'bg-amber-100 text-amber-600'
                   : 'bg-blue-100 text-blue-600'
               }`}>
-                {alertDialog.type === 'error' ? '❌' : alertDialog.type === 'success' ? '✅' : alertDialog.type === 'warning' ? '⚠️' : 'ℹ️'}
+                {alertDialog.type === 'error' ? <XCircleIcon className="w-5 h-5" /> : alertDialog.type === 'success' ? <CheckCircleIcon className="w-5 h-5" /> : alertDialog.type === 'warning' ? <AlertTriangleIcon className="w-5 h-5" /> : <InfoIcon className="w-5 h-5" />}
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="text-base font-bold text-slate-900 leading-snug">

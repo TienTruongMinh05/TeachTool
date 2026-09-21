@@ -7,6 +7,7 @@ import { fileApi } from '../api/fileApi';
 import AudioGradingWorkbench from './AudioGradingWorkbench';
 import CollapsibleDescription from './CollapsibleDescription';
 import { useToast } from '../context/ToastContext';
+import { PaperclipIcon } from './Icons';
 
 export default function AssignmentManager({ classId, initialAssignmentId = null }) {
   const { toast, confirm } = useToast();
@@ -944,7 +945,7 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
                     {formData.attachments.map((att, idx) => (
                       <div key={idx} className="flex items-center justify-between bg-white border border-gray-200 px-2.5 py-1.5 rounded-md text-xs">
                         <div className="flex items-center gap-1.5 truncate max-w-[85%]">
-                          <span className="text-slate-400">📎</span>
+                          <PaperclipIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <a href={att.fileUrl} target="_blank" rel="noreferrer" className="text-blue-600 font-medium hover:underline truncate">
                             {att.fileName || `Tệp ${idx + 1}`}
                           </a>

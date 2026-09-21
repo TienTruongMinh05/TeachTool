@@ -12,6 +12,8 @@ public record TimetableSessionDTO(
     LocalDateTime endTime,
     Integer durationMinutes,
     String contentSummary,
-    Integer studentCount
+    Integer studentCount,
+    String announcement,
+    LocalDateTime announcementUpdatedAt
 ) {
 }

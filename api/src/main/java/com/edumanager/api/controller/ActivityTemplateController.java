@@ -22,12 +22,20 @@ public class ActivityTemplateController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createActivity(@RequestBody ActivityTemplate activity) {
+    public ResponseEntity<?> createActivity(@RequestBody ActivityTemplate activity, jakarta.servlet.http.HttpServletRequest request) {
+        String callerRole = (String) request.getAttribute("userRole");
+        if (!"TEACHER".equalsIgnoreCase(callerRole)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Chức năng chỉ dành cho Giáo viên."));
+        }
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createActivity(activity));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateActivity(@PathVariable Long id, @RequestBody ActivityTemplate activity) {
+    public ResponseEntity<?> updateActivity(@PathVariable Long id, @RequestBody ActivityTemplate activity, jakarta.servlet.http.HttpServletRequest request) {
+        String callerRole = (String) request.getAttribute("userRole");
+        if (!"TEACHER".equalsIgnoreCase(callerRole)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Chức năng chỉ dành cho Giáo viên."));
+        }
         try {
             return ResponseEntity.ok(service.updateActivity(id, activity));
         } catch (SecurityException e) {
@@ -38,7 +46,11 @@ public class ActivityTemplateController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteActivity(@PathVariable Long id) {
+    public ResponseEntity<?> deleteActivity(@PathVariable Long id, jakarta.servlet.http.HttpServletRequest request) {
+        String callerRole = (String) request.getAttribute("userRole");
+        if (!"TEACHER".equalsIgnoreCase(callerRole)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Chức năng chỉ dành cho Giáo viên."));
+        }
         try {
             service.deleteActivity(id);
             return ResponseEntity.ok(Map.of("message", "Đã xóa hoạt động thành công."));
