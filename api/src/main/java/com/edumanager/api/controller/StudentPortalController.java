@@ -186,7 +186,10 @@ public class StudentPortalController {
 
         boolean isOnline = body != null && (
             Boolean.TRUE.equals(body.get("isOnline")) ||
-            "true".equalsIgnoreCase(String.valueOf(body.get("isOnline")))
+            "true".equalsIgnoreCase(String.valueOf(body.get("isOnline"))) ||
+            "ONLINE".equalsIgnoreCase(String.valueOf(body.get("status"))) ||
+            "ONLINE".equalsIgnoreCase(String.valueOf(body.get("absenceType"))) ||
+            (body.containsKey("reason") && body.get("reason") != null && String.valueOf(body.get("reason")).toLowerCase().contains("online"))
         );
 
         boolean commitmentsConfirmed = body != null && (
@@ -203,7 +206,9 @@ public class StudentPortalController {
 
         if (isOnline) {
             finalStatus = "ONLINE";
-            finalNote = rawReason.isEmpty() ? "[Xin học Online]" : "[Xin học Online] " + rawReason;
+            finalNote = rawReason.isEmpty()
+                    ? "[Xin học Online]"
+                    : (rawReason.startsWith("[Xin học Online]") ? rawReason : "[Xin học Online] " + rawReason);
         } else {
             // Kiểm tra 3 cam kết bù bài bắt buộc
             if (!commitmentsConfirmed) {

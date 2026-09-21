@@ -420,7 +420,7 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
       <div className="flex-1 flex overflow-hidden relative">
         {/* ================= CỘT TRÁI: DANH SÁCH CUỘC HỘI THOẠI ================= */}
         <div
-          className={`w-full md:w-80 lg:w-96 border-r border-slate-200 flex flex-col bg-slate-50/50 shrink-0 ${
+          className={`w-full md:w-72 lg:w-80 border-r border-slate-200 flex flex-col bg-slate-50/50 shrink-0 ${
             mobileChatView ? 'hidden md:flex' : 'flex'
           }`}
         >
@@ -590,15 +590,15 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
 
         {/* ================= CỘT PHẢI: GIAO DIỆN CHAT TRỰC TIẾP ================= */}
         <div
-          className={`flex-1 flex flex-col bg-slate-100/60 ${
+          className={`flex-1 min-w-0 flex flex-col bg-slate-100/60 ${
             mobileChatView ? 'flex' : 'hidden md:flex'
           }`}
         >
           {selectedThread ? (
             <>
               {/* HEADER KHUNG CHAT */}
-              <div className="px-4 py-3 bg-white border-b border-slate-200 flex items-center justify-between gap-3 shadow-2xs">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="px-3 sm:px-4 py-2.5 sm:py-3 bg-white border-b border-slate-200 flex items-center justify-between gap-2 sm:gap-3 shadow-2xs min-w-0">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                   {/* Nút quay lại trên Mobile */}
                   <button
                     onClick={() => setMobileChatView(false)}
@@ -632,12 +632,12 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <h3 className="text-sm font-bold text-slate-800 truncate" title={selectedThread.studentName}>
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                      <h3 className="text-xs sm:text-sm font-bold text-slate-800 truncate" title={selectedThread.studentName}>
                         {selectedThread.studentName}
                       </h3>
                       <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 ${
+                        className={`text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap shrink-0 ${
                           selectedThread.status === 'UNANSWERED'
                             ? 'bg-rose-100 text-rose-700 border border-rose-200'
                             : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
@@ -647,31 +647,32 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 text-[11px] text-slate-500 min-w-0 mt-0.5">
-                      <span className="truncate max-w-[140px] sm:max-w-[200px]" title={selectedThread.studentEmail}>
+                      <span className="truncate max-w-[120px] sm:max-w-[180px]" title={selectedThread.studentEmail}>
                         {selectedThread.studentEmail}
                       </span>
                       <span className="shrink-0 text-slate-400">•</span>
-                      <span className="font-medium text-slate-700 truncate shrink-0 max-w-[140px] sm:max-w-[180px]" title={selectedThread.className}>
+                      <span className="font-medium text-slate-700 truncate shrink-0 max-w-[100px] sm:max-w-[140px]" title={selectedThread.className}>
                         {selectedThread.className}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 whitespace-nowrap">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 whitespace-nowrap">
                   {onNavigateToClass && selectedThread.classId && (
                     <button
                       onClick={() => onNavigateToClass(selectedThread.classId)}
-                      className="hidden sm:inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 font-medium transition cursor-pointer shrink-0 whitespace-nowrap"
+                      className="hidden md:inline-flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1.5 text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 font-medium transition cursor-pointer shrink-0 whitespace-nowrap"
                     >
-                      <span>Xem lớp học</span>
+                      <span className="hidden lg:inline">Xem lớp học</span>
+                      <span className="lg:hidden">Lớp</span>
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                       </svg>
                     </button>
                   )}
                   <span
-                    className="text-xs text-slate-500 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5 shrink-0 whitespace-nowrap"
+                    className="text-xs text-slate-500 bg-slate-50 px-2 sm:px-2.5 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1 shrink-0 whitespace-nowrap"
                     title={`Đã tải lên ${selectedThread.totalFilesCount}/15 tệp tin đính kèm`}
                   >
                     <PaperclipIcon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -682,11 +683,11 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteThread(selectedThread)}
-                    className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 rounded-lg border border-rose-200 font-medium transition cursor-pointer shrink-0 whitespace-nowrap"
+                    className="inline-flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1.5 text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 rounded-lg border border-rose-200 font-medium transition cursor-pointer shrink-0 whitespace-nowrap"
                     title="Xóa cuộc trò chuyện khi đã hoàn tất để nhẹ hệ thống"
                   >
                     <TrashIcon className="w-3.5 h-3.5 shrink-0" />
-                    <span>Xóa chat</span>
+                    <span className="hidden sm:inline">Xóa chat</span>
                   </button>
                 </div>
               </div>
@@ -852,7 +853,7 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
                   />
 
                   {/* Ô nhập tin nhắn hỗ trợ gõ bàn phím ảo điện thoại */}
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <textarea
                       ref={inputRef}
                       rows={1}

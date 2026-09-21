@@ -342,6 +342,8 @@ export default function TimetableGrid({
         {
           reason: absenceReason,
           isOnline: isOnline,
+          status: isOnline ? 'ONLINE' : 'ABSENT',
+          absenceType: absenceType,
           commitmentsConfirmed: allCommitmentsConfirmed
         }
       );
@@ -533,8 +535,8 @@ export default function TimetableGrid({
                     const classId = session.classId || (session.classRoom && session.classRoom.id);
                     const color = getClassColor(classId);
                     const sId = session.sessionId || session.id;
-                    const hasAbsentReport = session.attendanceStatus === 'ABSENT';
-                    const isOnlineReport = session.attendanceStatus === 'ONLINE';
+                    const isOnlineReport = session.attendanceStatus === 'ONLINE' || (session.attendanceNote && session.attendanceNote.includes('[Xin học Online]'));
+                    const hasAbsentReport = session.attendanceStatus === 'ABSENT' && !isOnlineReport;
                     const hasAnyReport = hasAbsentReport || isOnlineReport;
                     const unviewedNews = isNewsUnviewed(session);
 
@@ -629,7 +631,7 @@ export default function TimetableGrid({
                             {isOnlineReport && (
                               <span className="text-[9px] font-bold px-1.5 py-0.5 bg-sky-100 text-sky-800 border border-sky-300 rounded flex items-center gap-0.5">
                                 <GlobeIcon className="w-2.5 h-2.5 text-sky-600 shrink-0" />
-                                <span>Đã chọn học online</span>
+                                <span>Xin học online</span>
                               </span>
                             )}
                           </div>
@@ -641,7 +643,7 @@ export default function TimetableGrid({
                               onClick={(e) => handleOpenAbsence(e, session)}
                               className="w-full text-center px-1.5 py-0.5 text-[9px] font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 rounded border border-rose-300 transition cursor-pointer block"
                             >
-                              Báo vắng
+                              Báo vắng / Online
                             </button>
                           )}
 
@@ -929,7 +931,7 @@ export default function TimetableGrid({
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                   Chọn hình thức tham gia:
                 </label>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <button
                     type="button"
                     onClick={() => setAbsenceType('ONLINE')}

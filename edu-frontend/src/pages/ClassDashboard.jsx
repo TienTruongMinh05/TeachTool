@@ -894,8 +894,14 @@ export default function ClassDashboard({ initialView }) {
       </div>
 
       {/* VÙNG NỘI DUNG CHÍNH (CARD TRẮNG TRÊN NỀN XÁM NHẸ) */}
-      <div className="flex-1 p-3 sm:p-5 md:p-8 overflow-y-auto w-full">
-        <div className="bg-white rounded-xl shadow-xs border border-gray-200 p-4 sm:p-6 md:p-7 min-h-full">
+      <div className={`flex-1 min-w-0 overflow-y-auto w-full ${
+        currentView === 'student_inquiries' ? 'p-2 sm:p-4' : 'p-2.5 sm:p-5 md:p-8'
+      }`}>
+        <div className={`min-h-full ${
+          currentView === 'student_inquiries'
+            ? 'p-0 border-0 bg-transparent shadow-none'
+            : 'bg-white rounded-xl shadow-xs border border-gray-200 p-3.5 sm:p-6 md:p-7'
+        }`}>
           {renderMainContent()}
         </div>
       </div>

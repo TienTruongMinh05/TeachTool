@@ -3,6 +3,7 @@ import { attendanceApi } from '../api/attendanceApi';
 import { sessionApi } from '../api/sessionApi';
 import { studentApi } from '../api/studentApi';
 import { useToast } from '../context/ToastContext';
+import { GlobeIcon } from './Icons';
 
 export default function AttendanceManager({ classId, initialSessionId = null }) {
   const { toast } = useToast();
@@ -53,9 +54,14 @@ export default function AttendanceManager({ classId, initialSessionId = null }) 
       const records = await attendanceApi.getBySession(sessionId);
       const map = {};
       records.forEach(rec => {
+        let recStatus = rec.status;
+        const note = rec.note || '';
+        if (recStatus === 'ONLINE' || (note.includes('[Xin học Online]') && recStatus !== 'PRESENT' && recStatus !== 'LATE')) {
+          recStatus = 'ONLINE';
+        }
         map[rec.studentId] = {
-          status: rec.status,
-          note: rec.note || ''
+          status: recStatus,
+          note: note
         };
       });
       setAttendanceRecords(map);
@@ -283,7 +289,15 @@ export default function AttendanceManager({ classId, initialSessionId = null }) 
                     <tr key={st.id} className="hover:bg-gray-50/70 transition">
                       <td className="px-5 py-3.5 font-medium text-gray-900 whitespace-nowrap">#{st.studentId}</td>
                       <td className="px-5 py-3.5">
-                        <div className="font-semibold text-gray-800">{st.studentName}</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-gray-800">{st.studentName}</span>
+                          {status === 'ONLINE' && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-300 flex items-center gap-0.5">
+                              <GlobeIcon className="w-2.5 h-2.5 text-sky-600 shrink-0" />
+                              <span>Xin học Online</span>
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-gray-500">{st.studentEmail}</div>
                       </td>
                       <td className="px-5 py-3.5 w-[340px] min-w-[340px] whitespace-nowrap text-center">

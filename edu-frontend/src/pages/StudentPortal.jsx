@@ -616,6 +616,8 @@ export default function StudentPortal() {
         {
           reason: absenceReason,
           isOnline: isOnline,
+          status: isOnline ? 'ONLINE' : 'ABSENT',
+          absenceType: absenceType,
           commitmentsConfirmed: allCommitmentsConfirmed
         }
       );
@@ -778,14 +780,16 @@ export default function StudentPortal() {
             className={`py-2 px-1 text-center text-xs font-semibold rounded-lg transition cursor-pointer truncate ${
               activeTab === 'schedule' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-700 hover:text-gray-900'
             }`}>
-            Thời Khóa Biểu ({upcomingSessionsCount})
+            <span className="hidden sm:inline">Thời Khóa Biểu</span>
+            <span className="sm:hidden">Lịch học</span> ({upcomingSessionsCount})
           </button>
           <button
             onClick={() => setActiveTab('classes')}
             className={`py-2 px-1 text-center text-xs font-semibold rounded-lg transition cursor-pointer truncate ${
               activeTab === 'classes' ? 'bg-blue-600 text-white shadow-xs' : 'text-gray-700 hover:text-gray-900'
             }`}>
-            Lớp Của Tôi ({enrolledClasses.length})
+            <span className="hidden sm:inline">Lớp Của Tôi</span>
+            <span className="sm:hidden">Lớp học</span> ({enrolledClasses.length})
           </button>
           <button
             onClick={() => setActiveTab('guide')}
@@ -873,8 +877,8 @@ export default function StudentPortal() {
                   ) : (
                     <div className="space-y-4">
                       {upcomingStudentSessions.map((item, idx) => {
-                        const isAbsent = item.attendanceStatus === 'ABSENT';
-                        const isOnline = item.attendanceStatus === 'ONLINE';
+                        const isOnline = item.attendanceStatus === 'ONLINE' || (item.attendanceNote && item.attendanceNote.includes('[Xin học Online]'));
+                        const isAbsent = item.attendanceStatus === 'ABSENT' && !isOnline;
                         const canAbsent = canReportAbsence(item);
 
                         return (
@@ -911,7 +915,7 @@ export default function StudentPortal() {
                                   {isOnline && (
                                     <span className="text-xs font-bold px-2 py-0.5 bg-sky-100 text-sky-700 border border-sky-200 rounded flex items-center gap-1">
                                       <GlobeIcon className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                                      <span>Đã chọn học online</span>
+                                      <span>Xin học online</span>
                                     </span>
                                   )}
                                 </div>
@@ -1170,7 +1174,8 @@ export default function StudentPortal() {
 
                     <div className="space-y-4">
                       {pastStudentSessions.map((item, idx) => {
-                        const isAbsent = item.attendanceStatus === 'ABSENT';
+                        const isOnline = item.attendanceStatus === 'ONLINE' || (item.attendanceNote && item.attendanceNote.includes('[Xin học Online]'));
+                        const isAbsent = item.attendanceStatus === 'ABSENT' && !isOnline;
 
                         return (
                           <div
@@ -1204,6 +1209,12 @@ export default function StudentPortal() {
                                   {isAbsent && (
                                     <span className="text-xs font-bold px-2 py-0.5 bg-rose-100 text-rose-700 border border-rose-200 rounded">
                                       Đã báo vắng
+                                    </span>
+                                  )}
+                                  {isOnline && (
+                                    <span className="text-xs font-bold px-2 py-0.5 bg-sky-100 text-sky-700 border border-sky-200 rounded flex items-center gap-1">
+                                      <GlobeIcon className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                                      <span>Đã học Online</span>
                                     </span>
                                   )}
                                 </div>
@@ -2024,7 +2035,7 @@ export default function StudentPortal() {
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                   Chọn hình thức tham gia:
                 </label>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   <button
                     type="button"
                     onClick={() => setAbsenceType('ONLINE')}
