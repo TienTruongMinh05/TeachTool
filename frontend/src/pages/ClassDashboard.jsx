@@ -111,11 +111,46 @@ export default function ClassDashboard({ initialView }) {
     try {
       setExportingReport(true);
       toast.info(t('exportingReport') || 'Đang kết xuất báo cáo tuần theo chuẩn Word (.docx)...');
-      await reportApi.downloadWeeklyReport(selectedClassId);
+      const responseData = await reportApi.downloadWeeklyReport(selectedClassId);
+      
+      const blob = responseData instanceof Blob ? responseData : new Blob([responseData]);
+      
+      // Kiểm tra nếu backend trả về JSON lỗi trong Blob
+      if (blob.type === 'application/json') {
+        const text = await blob.text();
+        let errMsg = 'Lỗi khi xuất báo cáo tuần';
+        try {
+          const json = JSON.parse(text);
+          errMsg = json.message || errMsg;
+        } catch (_) {}
+        throw new Error(errMsg);
+      }
+
+      // Kích hoạt trình duyệt tải tệp .docx về máy tính
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const safeClassName = (classInfo?.name || `Lop_${selectedClassId}`).replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]/g, '_');
+      link.setAttribute('download', `Bao_Cao_Tuan_${safeClassName}.docx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
       toast.success(t('exportSuccess') || 'Đã xuất và tải xuống báo cáo tuần thành công!');
     } catch (err) {
       console.error('Lỗi khi xuất báo cáo tuần:', err);
-      toast.error(err.response?.data?.message || err.message || 'Lỗi khi xuất báo cáo tuần');
+      let errMsg = err.message || 'Lỗi khi xuất báo cáo tuần';
+      if (err.response?.data instanceof Blob && err.response.data.type === 'application/json') {
+        try {
+          const errText = await err.response.data.text();
+          const parsed = JSON.parse(errText);
+          errMsg = parsed.message || errMsg;
+        } catch (_) {}
+      } else if (err.response?.data?.message) {
+        errMsg = err.response.data.message;
+      }
+      toast.error(errMsg);
     } finally {
       setExportingReport(false);
     }
