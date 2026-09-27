@@ -17,6 +17,7 @@ import AssignmentGradeMatrix from '../Components/AssignmentGradeMatrix';
 import LearningAnalyticsHeatmap from '../Components/LearningAnalyticsHeatmap';
 import StudentInquiriesManager from '../Components/StudentInquiriesManager';
 import ClassAnnouncementBoard from '../Components/ClassAnnouncementBoard';
+import WeeklyReportModal from '../Components/WeeklyReportModal';
 import { reportApi } from '../api/reportApi';
 import { ThemeLanguageToggle, useThemeLanguage } from '../context/ThemeLanguageContext';
 import { sessionApi } from '../api/sessionApi';
@@ -104,56 +105,11 @@ export default function ClassDashboard({ initialView }) {
   const { toast } = useToast();
   const { t, lang } = useThemeLanguage();
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [exportingReport, setExportingReport] = useState(false);
+  const [isWeeklyReportModalOpen, setIsWeeklyReportModalOpen] = useState(false);
 
-  const handleExportWeeklyReport = async () => {
+  const handleExportWeeklyReport = () => {
     if (!selectedClassId) return;
-    try {
-      setExportingReport(true);
-      toast.info(t('exportingReport') || 'Đang kết xuất báo cáo tuần theo chuẩn Word (.docx)...');
-      const responseData = await reportApi.downloadWeeklyReport(selectedClassId);
-      
-      const blob = responseData instanceof Blob ? responseData : new Blob([responseData]);
-      
-      // Kiểm tra nếu backend trả về JSON lỗi trong Blob
-      if (blob.type === 'application/json') {
-        const text = await blob.text();
-        let errMsg = 'Lỗi khi xuất báo cáo tuần';
-        try {
-          const json = JSON.parse(text);
-          errMsg = json.message || errMsg;
-        } catch (_) {}
-        throw new Error(errMsg);
-      }
-
-      // Kích hoạt trình duyệt tải tệp .docx về máy tính
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      const safeClassName = (classInfo?.name || `Lop_${selectedClassId}`).replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]/g, '_');
-      link.setAttribute('download', `Bao_Cao_Tuan_${safeClassName}.docx`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast.success(t('exportSuccess') || 'Đã xuất và tải xuống báo cáo tuần thành công!');
-    } catch (err) {
-      console.error('Lỗi khi xuất báo cáo tuần:', err);
-      let errMsg = err.message || 'Lỗi khi xuất báo cáo tuần';
-      if (err.response?.data instanceof Blob && err.response.data.type === 'application/json') {
-        try {
-          const errText = await err.response.data.text();
-          const parsed = JSON.parse(errText);
-          errMsg = parsed.message || errMsg;
-        } catch (_) {}
-      } else if (err.response?.data?.message) {
-        errMsg = err.response.data.message;
-      }
-      toast.error(errMsg);
-    } finally {
-      setExportingReport(false);
-    }
+    setIsWeeklyReportModalOpen(true);
   };
   
   // State quản lý view hiện tại:
@@ -1020,15 +976,10 @@ export default function ClassDashboard({ initialView }) {
                   <button
                     type="button"
                     onClick={handleExportWeeklyReport}
-                    disabled={exportingReport}
                     title="Xuất Báo Cáo Tuần theo định dạng mẫu Word (.docx)"
-                    className="w-full mt-2 text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-between cursor-pointer transition disabled:opacity-50">
+                    className="w-full mt-2 text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-between cursor-pointer transition">
                     <span>{t('exportWeeklyReport') || 'Xuất Báo Cáo Tuần (Word)'}</span>
-                    {exportingReport ? (
-                      <span className="text-[10px] text-blue-400 font-mono animate-pulse">{lang === 'en' ? 'Exporting...' : 'Đang xuất...'}</span>
-                    ) : (
-                      <span className="text-[10px] text-blue-400 font-mono font-bold">.DOCX</span>
-                    )}
+                    <span className="text-[10px] text-blue-400 font-mono font-bold">.DOCX</span>
                   </button>
                 </div>
 
@@ -1142,10 +1093,9 @@ export default function ClassDashboard({ initialView }) {
                 <button
                   type="button"
                   onClick={handleExportWeeklyReport}
-                  disabled={exportingReport}
                   title="Xuất Báo Cáo Tuần (.docx)"
-                  className="px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-sm transition cursor-pointer shadow-2xs flex items-center gap-1 disabled:opacity-50">
-                  <span>{exportingReport ? (lang === 'en' ? 'Exporting...' : 'Đang xuất...') : (t('exportWeeklyReport') || 'Báo Cáo Tuần')}</span>
+                  className="px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-sm transition cursor-pointer shadow-2xs flex items-center gap-1">
+                  <span>{t('exportWeeklyReport') || 'Báo Cáo Tuần'}</span>
                   <span className="text-[10px] text-blue-600 dark:text-blue-400 font-mono font-bold">.DOCX</span>
                 </button>
               </div>
@@ -1293,6 +1243,14 @@ export default function ClassDashboard({ initialView }) {
           if (updateUser) updateUser(updated);
         }}
         onLogout={logout}
+      />
+
+      {/* MODAL XUẤT BÁO CÁO TUẦN (.DOCX) THEO MẪU MỚI */}
+      <WeeklyReportModal
+        isOpen={isWeeklyReportModalOpen}
+        onClose={() => setIsWeeklyReportModalOpen(false)}
+        classId={selectedClassId}
+        classInfo={classInfo}
       />
     </div>
   );

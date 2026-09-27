@@ -721,7 +721,6 @@
 * **Mục tiêu**: Xử lý triệt để lỗi `ReferenceError: lang is not defined` gây treo trang học sinh, cập nhật toàn bộ tài liệu hướng dẫn và rà soát bảo mật toàn hệ thống.
 * **Kết quả thực hiện**:
   1. **Khắc Phục Lỗi Treo Cổng Học Sinh (ReferenceError)**:
-     - Phát hiện nguyên nhân: `StudentPortal.jsx` gọi `useThemeLanguage()` nhưng chỉ bóc tách `{ t }` mà không bóc tách `{ lang }`, khiến việc truy cập danh sách buổi học (`scheduleViewMode === 'list'`) hoặc mở chi tiết bài tập gọi `lang === 'en'` bị crash ứng dụng.
      - Sửa thành: `const { t, lang } = useThemeLanguage();`.
      - Build kiểm thử `npm run build` hoàn thành trong 1.15s, 0 lỗi.
   2. **Cập Nhật Toàn Diện Cẩm Nang Hướng Dẫn & Tài Liệu**:
@@ -729,12 +728,30 @@
      - Bổ sung Phần 9 trong `StudentGuide.jsx` (Bảng tin lớp, Sổ tay lỗi sai).
      - Cập nhật đầy đủ các tính năng mới trong `README.md`.
   3. **Kiểm Thử Bảo Mật & An Ninh Mạng Toàn Hệ Thống (OWASP Hardening)**:
-     - *XSS Protection*: 0 xuất hiện `dangerouslySetInnerHTML`. React tự động escape HTML entities.
-     - *SQL Injection*: 100% truy vấn JPA/JPQL dùng parameterized queries (`:param`). 0 lỗi SQL concatenation.
-     - *Path Traversal*: `FileUploadController` xác thực nghiêm ngặt `!filePath.startsWith(uploadDir)`, tệp lưu bằng UUID ngẫu nhiên, whitelist định dạng tệp.
-     - *RBAC & IDOR*: `AuthInterceptor` áp dụng Default-Deny, chặn học sinh gọi endpoint giáo viên. Endpoint `/system-diag` chỉ mở cho Giáo viên.
-     - *Rate Limiting*: `RateLimiterService` chặn brute-force login (10req/min) và spam register (5req/min).
-     - *Mật mã hóa*: PBKDF2WithHmacSHA256 (65,536 iterations + salt) cho mật khẩu, AES-256-CBC cho tin nhắn thắc mắc.
+     - *XSS Protection*, *SQL Injection*, *Path Traversal*, *RBAC & IDOR*, *Rate Limiting*, *Mật mã hóa*.
+
+---
+
+### 📍 GIAI ĐOẠN 20: TÍCH HỢP FORM MẪU BÁO CÁO TUẦN CHUẨN DOCX & CỬA SỔ FORM TỰ HOÀN THIỆN
+* **Mục tiêu**: Cập nhật mẫu báo cáo tuần theo chuẩn `Bao_Cao_Tuan_Foundation_1.docx`. Tự động hóa các trường `(máy làm)` và mở cửa sổ modal cho giáo viên hoàn thiện các trường `(tôi làm)` trước khi chèn vào file Word tải về.
+* **Kết quả thực hiện**:
+  1. **Tích hợp mẫu Word gốc**:
+     - Thay thế mẫu `weekly_report_template.docx` bằng form chuẩn mới, hỗ trợ checkbox Unicode `☑` (`\u2611`) và `☐` (`\u2610`).
+  2. **Tự động hóa dữ liệu máy làm (`WeeklyReportService.java`)**:
+     - Tự động điền: Tên giáo viên, Tên lớp, Khoảng thời gian tuần ($T_2 \rightarrow CN$).
+     - Tự động thống kê: Bài đã dạy (chủ đề các buổi học trong tuần), Kế hoạch tuần tới.
+     - Tự động thống kê tình hình học sinh từng buổi (sĩ số, có mặt, vắng, đến muộn/online, nhận xét chung).
+     - Tự động lập bảng học sinh cần theo dõi: chuyên cần dưới 80%, điểm trung bình dưới 5.0, kèm vấn đề và đề xuất can thiệp.
+     - Tự động phân tích và tick sẵn công tác giảng dạy: Điểm danh đầy đủ, Đăng thông báo nhóm đầy đủ, Giao BTVN đầy đủ, Chấm/chữa BTVN đạt tiến độ.
+  3. **Cửa sổ Form hoàn thiện trước khi xuất (`WeeklyReportModal.jsx`)**:
+     - Modal tương tác mở ra khi bấm nút "Xuất Báo Cáo Tuần":
+       - Chọn tuần báo cáo (1 - 12) kèm preview ngày tương ứng.
+       - Tự đánh giá tiến độ (Đúng tiến độ / Nhanh hơn / Chậm hơn - có ô nhập lý do nếu chậm).
+       - Khó khăn gặp phải & Hỗ trợ cần thiết kèm đề xuất.
+       - Đánh giá tuần (chọn sao 1 - 5: Chưa tốt -> Rất tốt).
+       - Xem và điều chỉnh 4 mục công tác giảng dạy đã được máy kiểm tra và tick sẵn.
+       - Khối tóm tắt dữ liệu máy đã truy xuất (số buổi dạy, bài tập, học sinh cần lưu ý).
+     - Nhấn "Xuất File Báo Cáo (.docx)" để hệ thống chèn toàn bộ dữ liệu vào file Word và tự động tải về máy.
 
 ---
 
