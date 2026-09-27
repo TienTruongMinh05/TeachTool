@@ -453,11 +453,11 @@ export default function LearningAnalyticsHeatmap({ classId, classInfo }) {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto animate-fade-in select-none">
+    <div className="space-y-4 sm:space-y-5 animate-fade-in select-none w-full">
       {/* HEADER BẢNG PHÂN TÍCH */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl p-3.5 sm:p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100">
+          <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">
             {lang === 'en' ? 'Learning Trend Analytics & Early Warning' : 'Phân Tích Xu Hướng Học Tập & Cảnh Báo Sớm'}
           </h2>
         </div>

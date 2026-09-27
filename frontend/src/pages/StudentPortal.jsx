@@ -812,10 +812,10 @@ export default function StudentPortal() {
       {/* NỘI DUNG CHÍNH */}
       <main className="max-w-6xl mx-auto px-3 sm:px-6 pt-5 sm:pt-7">
         {/* THANH ĐIỀU HƯỚNG TAB (BẢNG TIN, THỜI KHÓA BIỂU, LỚP CỦA TÔI & HƯỚNG DẪN) */}
-        <div className="grid grid-cols-4 gap-1 bg-slate-200/80 dark:bg-slate-900 p-1 rounded-sm max-w-xl mb-6 shadow-xs border border-slate-300 dark:border-slate-800">
+        <div className="overflow-x-auto flex items-center gap-1 bg-slate-200/80 dark:bg-slate-900 p-1 rounded-sm max-w-xl mb-6 shadow-xs border border-slate-300 dark:border-slate-800 no-scrollbar">
           <button
             onClick={() => setActiveTab('announcements')}
-            className={`py-2 px-1 text-center text-xs font-semibold rounded-xs transition cursor-pointer truncate ${
+            className={`py-2 px-3 text-center text-xs font-semibold rounded-xs transition cursor-pointer whitespace-nowrap shrink-0 flex-1 sm:flex-initial ${
               activeTab === 'announcements'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -824,7 +824,7 @@ export default function StudentPortal() {
           </button>
           <button
             onClick={() => setActiveTab('schedule')}
-            className={`py-2 px-1 text-center text-xs font-semibold rounded-xs transition cursor-pointer truncate ${
+            className={`py-2 px-3 text-center text-xs font-semibold rounded-xs transition cursor-pointer whitespace-nowrap shrink-0 flex-1 sm:flex-initial ${
               activeTab === 'schedule'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -833,7 +833,7 @@ export default function StudentPortal() {
           </button>
           <button
             onClick={() => setActiveTab('classes')}
-            className={`py-2 px-1 text-center text-xs font-semibold rounded-xs transition cursor-pointer truncate ${
+            className={`py-2 px-3 text-center text-xs font-semibold rounded-xs transition cursor-pointer whitespace-nowrap shrink-0 flex-1 sm:flex-initial ${
               activeTab === 'classes'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
@@ -842,7 +842,7 @@ export default function StudentPortal() {
           </button>
           <button
             onClick={() => setActiveTab('guide')}
-            className={`py-2 px-1 text-center text-xs font-semibold rounded-xs transition cursor-pointer truncate ${
+            className={`py-2 px-3 text-center text-xs font-semibold rounded-xs transition cursor-pointer whitespace-nowrap shrink-0 flex-1 sm:flex-initial ${
               activeTab === 'guide'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'

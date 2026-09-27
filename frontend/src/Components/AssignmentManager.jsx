@@ -477,22 +477,22 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">{t('assignmentManagementTitle')}</h3>
-            <span className="px-2.5 py-0.5 text-xs font-semibold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-full">
-              {assignments.length} {t('assignmentsUnit')}
-            </span>
-          </div>
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3.5 pb-2 border-b border-gray-100 dark:border-slate-800">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <h3 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 whitespace-nowrap">
+            {t('assignmentManagementTitle')}
+          </h3>
+          <span className="px-2.5 py-0.5 text-xs font-semibold bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-full whitespace-nowrap shrink-0">
+            {assignments.length} {t('assignmentsUnit')}
+          </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full xl:w-auto">
           {/* Lọc theo buổi học */}
           <select
             value={selectedSessionFilter}
             onChange={(e) => setSelectedSessionFilter(e.target.value)}
-            className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            className="flex-1 sm:flex-initial max-w-full sm:max-w-xs bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-md px-3 py-1.5 text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none truncate">
             <option value="ALL">{t('allSessionsOption')}</option>
             {sessions.map((s) => (
               <option key={s.id} value={s.id}>
@@ -503,7 +503,7 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
 
           <button
             onClick={handleOpenCreateModal}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-md text-sm transition cursor-pointer font-medium shadow-xs">
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-1.5 rounded-md text-xs sm:text-sm transition cursor-pointer font-medium shadow-xs whitespace-nowrap shrink-0">
             {t('newAssignmentBtn')}
           </button>
         </div>

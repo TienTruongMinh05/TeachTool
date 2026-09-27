@@ -24,7 +24,21 @@ import { attendanceApi } from '../api/attendanceApi';
 import { inquiryApi } from '../api/inquiryApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { InfoIcon, MenuIcon, XIcon } from '../Components/Icons';
+import {
+  InfoIcon,
+  MenuIcon,
+  XIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  SidebarIcon,
+  UsersIcon,
+  AcademicCapIcon,
+  CalendarIcon,
+  ChatIcon,
+  MegaphoneIcon,
+  ClipboardCheckIcon,
+  CogIcon
+} from '../Components/Icons';
 
 const getTodayStr = () => {
   const d = new Date();
@@ -152,6 +166,37 @@ export default function ClassDashboard({ initialView }) {
 
   // Mobile drawer state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Desktop sidebar collapsed state (persist in localStorage)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('teachtool_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('teachtool_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Keyboard shortcut Ctrl+B / Cmd+B to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Modal Sửa thông tin lớp
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -586,281 +631,495 @@ export default function ClassDashboard({ initialView }) {
 
       {/* SIDEBAR CHÍNH (Đồng nhất từ Trang chủ đến Lớp học chi tiết) */}
       <div
-        className={`fixed md:static inset-y-0 left-0 z-50 w-72 bg-slate-900 dark:bg-slate-950 text-white flex flex-col border-r border-slate-800 shadow-2xl md:shadow-none transform transition-transform duration-200 ease-in-out ${
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        }`}>
-        {/* HEADER CỦA SIDEBAR */}
-        <div className="p-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
-          <div
-            onClick={() => handleNavigateView('classes')}
-            className="cursor-pointer group">
-            <div className="font-extrabold text-base tracking-tight text-white group-hover:text-blue-400 transition">
-              TeachTool
+        className={`fixed md:static inset-y-0 left-0 z-50 bg-slate-900 dark:bg-slate-950 text-white flex flex-col border-r border-slate-800 shadow-2xl md:shadow-none transition-all duration-200 ease-in-out ${
+          isMobileMenuOpen ? 'translate-x-0 w-72' : '-translate-x-full md:translate-x-0'
+        } ${isSidebarCollapsed ? 'md:w-16' : 'md:w-72'}`}>
+        
+        {/* ================= PHIÊN BẢN 1: SLIM SIDEBAR (PC MODE THU GỌN - TIẾT KIỆM TỐI ĐA CHIỀU NGANG) ================= */}
+        {isSidebarCollapsed ? (
+          <div className="hidden md:flex flex-col h-full justify-between items-center py-3 select-none">
+            {/* Top: Expand Toggle */}
+            <div className="space-y-3.5 flex flex-col items-center w-full">
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-sm cursor-pointer transition"
+                title={lang === 'en' ? 'Expand sidebar (Ctrl+B)' : 'Mở rộng thanh bên (Ctrl+B)'}>
+                <ChevronRightIcon className="w-5 h-5 text-blue-400" />
+              </button>
+
+              <div className="w-8 border-t border-slate-800" />
+
+              {/* Core Nav Icons */}
+              <div className="space-y-2 flex flex-col items-center w-full px-2">
+                <button
+                  type="button"
+                  onClick={() => handleNavigateView('all_students')}
+                  title={t('allStudents')}
+                  className={`w-10 h-10 rounded-sm flex items-center justify-center transition cursor-pointer ${
+                    currentView === 'all_students'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  }`}>
+                  <UsersIcon className="w-5 h-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleNavigateView('classes')}
+                  title={`${t('classes')} (${classList.length})`}
+                  className={`w-10 h-10 rounded-sm flex items-center justify-center transition cursor-pointer relative ${
+                    currentView === 'classes'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  }`}>
+                  <AcademicCapIcon className="w-5 h-5" />
+                  {classList.length > 0 && (
+                    <span className="absolute -top-1 -right-1 text-[9px] bg-slate-800 border border-slate-700 text-slate-300 px-1 rounded-full font-mono">
+                      {classList.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleNavigateView('timetable')}
+                  title={t('timetable')}
+                  className={`w-10 h-10 rounded-sm flex items-center justify-center transition cursor-pointer ${
+                    currentView === 'timetable'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  }`}>
+                  <CalendarIcon className="w-5 h-5" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleNavigateView('student_inquiries')}
+                  title={t('inquiries')}
+                  className={`w-10 h-10 rounded-sm relative flex items-center justify-center transition cursor-pointer ${
+                    currentView === 'student_inquiries'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  }`}>
+                  <ChatIcon className="w-5 h-5" />
+                  {unansweredInquiriesCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse border border-slate-900" />
+                  )}
+                </button>
+
+                {/* If inside a class, show the 3 hubs */}
+                {currentView === 'class_detail' && selectedClassId && (
+                  <>
+                    <div className="w-8 border-t border-slate-800 my-1" />
+
+                    <div
+                      className="w-10 h-8 rounded-sm bg-slate-950 border border-blue-500/40 text-blue-300 font-bold text-[10px] flex items-center justify-center truncate uppercase cursor-pointer"
+                      onClick={() => setIsClassesSubmenuOpen(true)}
+                      title={`${t('managingClass')}: ${classInfo?.name || selectedClassId}`}>
+                      {classInfo?.name ? classInfo.name.slice(0, 3) : 'LOP'}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveClassTab(HUB_CONFIG.schedule_hub.defaultTab)}
+                      title={`1. ${t('hubSchedule')}`}
+                      className={`w-10 h-10 rounded-sm relative flex items-center justify-center transition cursor-pointer ${
+                        activeHub === 'schedule_hub'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                      }`}>
+                      <MegaphoneIcon className="w-5 h-5" />
+                      {onlineRequestsCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse border border-slate-900" />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveClassTab(HUB_CONFIG.assessment_hub.defaultTab)}
+                      title={`2. ${t('hubAssessment')}`}
+                      className={`w-10 h-10 rounded-sm flex items-center justify-center transition cursor-pointer ${
+                        activeHub === 'assessment_hub'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                      }`}>
+                      <ClipboardCheckIcon className="w-5 h-5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveClassTab(HUB_CONFIG.management_hub.defaultTab)}
+                      title={`3. ${t('hubManagement')}`}
+                      className={`w-10 h-10 rounded-sm flex items-center justify-center transition cursor-pointer ${
+                        activeHub === 'management_hub'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                      }`}>
+                      <CogIcon className="w-5 h-5" />
+                    </button>
+                  </>
+                )}
+
+                <div className="w-8 border-t border-slate-800 my-1" />
+
+                <button
+                  type="button"
+                  onClick={() => handleNavigateView('guide')}
+                  title={t('guide')}
+                  className={`w-10 h-10 rounded-sm flex items-center justify-center transition cursor-pointer ${
+                    currentView === 'guide'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                  }`}>
+                  <InfoIcon className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-            <div className="text-[10px] text-blue-400 font-semibold uppercase tracking-wider">
-              {t('teacherSubtitle')}
+
+            {/* Bottom: Settings button in slim mode */}
+            <div className="flex flex-col items-center gap-2 pt-2 border-t border-slate-800 w-full px-2">
+              <button
+                type="button"
+                onClick={() => setIsSettingsModalOpen(true)}
+                title={`${t('accountSettings')} (${user?.fullName || user?.email})`}
+                className="w-10 h-10 rounded-sm bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white flex items-center justify-center border border-slate-700 cursor-pointer transition">
+                <span className="text-xs font-bold uppercase">{user?.fullName ? user.fullName[0] : 'U'}</span>
+              </button>
             </div>
           </div>
-          <button
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="md:hidden text-slate-400 hover:text-white p-1 cursor-pointer">
-            <XIcon className="w-5 h-5" />
-          </button>
-        </div>
+        ) : null}
 
-        {/* THÂN SIDEBAR: DANH SÁCH MENU ĐIỀU HƯỚNG */}
-        <div className="flex-1 overflow-y-auto py-3 space-y-4">
-          {/* ================= KHỐI 1: MENU NGOÀI CÙNG (HỌC SINH TẤT CẢ CÁC LỚP, DANH SÁCH LỚP HỌC, THỜI KHÓA BIỂU TỔNG) ================= */}
-          <div className="px-3 space-y-1">
-            {/* 1.1: DANH SÁCH HỌC SINH (CỦA TẤT CẢ CÁC LỚP) - NẰM TRÊN MỤC DANH SÁCH LỚP HỌC */}
-            <button
-              onClick={() => handleNavigateView('all_students')}
-              className={`w-full text-left px-3.5 py-2.5 rounded-sm text-sm font-medium transition cursor-pointer flex items-center justify-between ${
-                currentView === 'all_students'
-                  ? 'bg-blue-600 text-white shadow-xs font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-              }`}>
-              <span>{t('allStudents')}</span>
-            </button>
+        {/* ================= PHIÊN BẢN 2: FULL SIDEBAR (BÌNH THƯỜNG / EXPANDED) ================= */}
+        <div className={`flex flex-col h-full ${isSidebarCollapsed ? 'md:hidden' : 'flex'}`}>
+          {/* HEADER CỦA SIDEBAR */}
+          <div className="p-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
+            <div
+              onClick={() => handleNavigateView('classes')}
+              className="cursor-pointer group">
+              <div className="font-extrabold text-base tracking-tight text-white group-hover:text-blue-400 transition">
+                TeachTool
+              </div>
+              <div className="text-[10px] text-blue-400 font-semibold uppercase tracking-wider">
+                {t('teacherSubtitle')}
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="hidden md:flex p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-sm cursor-pointer transition"
+                title={lang === 'en' ? 'Collapse sidebar (Ctrl+B)' : 'Thu gọn thanh bên (Ctrl+B)'}>
+                <ChevronLeftIcon className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="md:hidden text-slate-400 hover:text-white p-1 cursor-pointer">
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
 
-            {/* 1.2: DANH SÁCH LỚP HỌC (TRANG CHỦ) */}
-            <div className="space-y-1">
-              <div className="flex items-center">
-                <button
-                  onClick={() => handleNavigateView('classes')}
-                  className={`flex-1 text-left px-3.5 py-2.5 rounded-sm text-sm font-medium transition cursor-pointer flex items-center justify-between ${
-                    currentView === 'classes'
-                      ? 'bg-blue-600 text-white shadow-xs font-semibold'
-                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-                  }`}>
-                  <span>{t('classes')}</span>
-                  <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded font-mono border border-slate-700">
-                    {classList.length > 0 ? `${classList.length} ${t('classesCount')}` : t('home')}
-                  </span>
-                </button>
-                {classList.length > 0 && (
+          {/* THÂN SIDEBAR: DANH SÁCH MENU ĐIỀU HƯỚNG */}
+          <div className="flex-1 overflow-y-auto py-3 space-y-4">
+            {/* ================= KHỐI 1: MENU NGOÀI CÙNG (HỌC SINH TẤT CẢ CÁC LỚP, DANH SÁCH LỚP HỌC, THỜI KHÓA BIỂU TỔNG) ================= */}
+            <div className="px-3 space-y-1">
+              {/* 1.1: DANH SÁCH HỌC SINH (CỦA TẤT CẢ CÁC LỚP) - NẰM TRÊN MỤC DANH SÁCH LỚP HỌC */}
+              <button
+                onClick={() => handleNavigateView('all_students')}
+                className={`w-full text-left px-3.5 py-2.5 rounded-sm text-sm font-medium transition cursor-pointer flex items-center justify-between ${
+                  currentView === 'all_students'
+                    ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                }`}>
+                <span>{t('allStudents')}</span>
+              </button>
+
+              {/* 1.2: DANH SÁCH LỚP HỌC (TRANG CHỦ) */}
+              <div className="space-y-1">
+                <div className="flex items-center">
                   <button
-                    type="button"
-                    onClick={() => setIsClassesSubmenuOpen(!isClassesSubmenuOpen)}
-                    className="p-2 text-slate-400 hover:text-white cursor-pointer"
-                    title={isClassesSubmenuOpen ? (lang === 'en' ? 'Collapse class list' : 'Thu gọn danh sách lớp') : (lang === 'en' ? 'Expand class list' : 'Mở rộng danh sách lớp')}>
-                    <span className="text-xs">{isClassesSubmenuOpen ? '▲' : '▼'}</span>
+                    onClick={() => handleNavigateView('classes')}
+                    className={`flex-1 text-left px-3.5 py-2.5 rounded-sm text-sm font-medium transition cursor-pointer flex items-center justify-between ${
+                      currentView === 'classes'
+                        ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                        : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                    }`}>
+                    <span>{t('classes')}</span>
+                    <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded font-mono border border-slate-700">
+                      {classList.length > 0 ? `${classList.length} ${t('classesCount')}` : t('home')}
+                    </span>
                   </button>
+                  {classList.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsClassesSubmenuOpen(!isClassesSubmenuOpen)}
+                      className="p-2 text-slate-400 hover:text-white cursor-pointer"
+                      title={isClassesSubmenuOpen ? (lang === 'en' ? 'Collapse class list' : 'Thu gọn danh sách lớp') : (lang === 'en' ? 'Expand class list' : 'Mở rộng danh sách lớp')}>
+                      <span className="text-xs">{isClassesSubmenuOpen ? '▲' : '▼'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Danh sách các lớp học con để click chuyển nhanh */}
+                {isClassesSubmenuOpen && classList.length > 0 && (
+                  <div className="pl-3 pr-1 space-y-0.5 border-l-2 border-slate-800 ml-4 py-1">
+                    {classList.map(cls => {
+                      const isSelected = currentView === 'class_detail' && String(selectedClassId) === String(cls.id);
+                      return (
+                        <button
+                          key={cls.id}
+                          type="button"
+                          onClick={() => handleSelectClass(cls.id)}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-xs text-xs transition cursor-pointer flex items-center justify-between truncate ${
+                            isSelected
+                              ? 'bg-blue-600/40 text-blue-200 font-bold border border-blue-400/30'
+                              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                          }`}
+                          title={cls.name}>
+                          <span className="truncate">{cls.name}</span>
+                          {cls.classCode && (
+                            <span className="text-[10px] font-mono opacity-70 ml-1">
+                              {cls.classCode}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
 
-              {/* Danh sách các lớp học con để click chuyển nhanh */}
-              {isClassesSubmenuOpen && classList.length > 0 && (
-                <div className="pl-3 pr-1 space-y-0.5 border-l-2 border-slate-800 ml-4 py-1">
-                  {classList.map(cls => {
-                    const isSelected = currentView === 'class_detail' && String(selectedClassId) === String(cls.id);
+              {/* 1.3: THỜI KHÓA BIỂU (TẤT CẢ CÁC LỚP) */}
+              <button
+                onClick={() => handleNavigateView('timetable')}
+                className={`w-full text-left px-3.5 py-2.5 rounded-sm text-sm font-medium transition cursor-pointer flex items-center justify-between ${
+                  currentView === 'timetable'
+                    ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                }`}>
+                <span>{t('timetable')}</span>
+              </button>
+
+              {/* 1.4: CÂU HỎI TỪ HỌC VIÊN */}
+              <button
+                onClick={() => handleNavigateView('student_inquiries')}
+                className={`w-full text-left px-3.5 py-2.5 rounded-sm text-sm font-medium transition cursor-pointer flex items-center justify-between ${
+                  currentView === 'student_inquiries'
+                    ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                }`}>
+                <span>{t('inquiries')}</span>
+                {unansweredInquiriesCount > 0 && (
+                  <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-500 text-white rounded-full animate-pulse shadow-xs">
+                    {unansweredInquiriesCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* ================= KHỐI 2: MENU LỚP ĐANG CHỌN (NẾU ĐANG TRONG 1 LỚP CỤ THỂ) ================= */}
+            {currentView === 'class_detail' && selectedClassId && (
+              <div className="pt-2 border-t border-slate-800 animate-fade-in">
+                {/* Card thông tin lớp học */}
+                <div className="mx-3 p-3.5 bg-slate-950/80 rounded-sm border border-slate-800 mb-3 space-y-2">
+                  <div className="flex items-start justify-between gap-1.5">
+                    <div className="truncate flex-1">
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">
+                          {t('managingClass')}
+                        </span>
+                        {classList.length > 1 && (
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={handlePrevClass}
+                              title={t('previousClass')}
+                              className="w-5 h-5 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded text-xs font-bold border border-slate-700 cursor-pointer">
+                              &lt;
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleNextClass}
+                              title={t('nextClass')}
+                              className="w-5 h-5 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded text-xs font-bold border border-slate-700 cursor-pointer">
+                              &gt;
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <h3 className="font-bold text-sm text-white truncate" title={classInfo?.name}>
+                        {classInfo ? classInfo.name : `Lớp #${selectedClassId}`}
+                      </h3>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {classInfo?.startDate ? `${classInfo.startDate} → ${classInfo.endDate || '...'}` : ''}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsEditModalOpen(true)}
+                      title={t('edit')}
+                      className="p-1 px-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded transition cursor-pointer text-xs border border-slate-700 self-start">
+                      {t('edit')}
+                    </button>
+                  </div>
+
+                  {classInfo?.classCode && (
+                    <div className="pt-1 flex items-center justify-between gap-1">
+                      <span className="text-[11px] font-mono font-bold bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded border border-blue-400/30 truncate">
+                        {t('classCode')}: {classInfo.classCode}
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(classInfo.classCode);
+                          toast.success(`${t('copyCodeSuccess')} ("${classInfo.classCode}")`);
+                        }}
+                        title={t('copy')}
+                        className="text-[11px] text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2 py-0.5 rounded cursor-pointer transition whitespace-nowrap">
+                        {t('copy')}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Nút Xuất Báo Cáo Tuần (Word Docx Chuẩn) */}
+                  <button
+                    type="button"
+                    onClick={handleExportWeeklyReport}
+                    disabled={exportingReport}
+                    title="Xuất Báo Cáo Tuần theo định dạng mẫu Word (.docx)"
+                    className="w-full mt-2 text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-between cursor-pointer transition disabled:opacity-50">
+                    <span>{t('exportWeeklyReport') || 'Xuất Báo Cáo Tuần (Word)'}</span>
+                    {exportingReport ? (
+                      <span className="text-[10px] text-blue-400 font-mono animate-pulse">{lang === 'en' ? 'Exporting...' : 'Đang xuất...'}</span>
+                    ) : (
+                      <span className="text-[10px] text-blue-400 font-mono font-bold">.DOCX</span>
+                    )}
+                  </button>
+                </div>
+
+                {/* 3 CORE HUBS (Bảng tin & Lịch học | Bài tập & Đánh giá | Quản trị lớp học) */}
+                <div className="px-3 space-y-1.5">
+                  {Object.entries(HUB_CONFIG).map(([hubId, hub], idx) => {
+                    const isHubActive = activeHub === hubId;
                     return (
                       <button
-                        key={cls.id}
+                        key={hubId}
                         type="button"
-                        onClick={() => handleSelectClass(cls.id)}
-                        className={`w-full text-left px-2.5 py-1.5 rounded-xs text-xs transition cursor-pointer flex items-center justify-between truncate ${
-                          isSelected
-                            ? 'bg-blue-600/40 text-blue-200 font-bold border border-blue-400/30'
-                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                        }`}
-                        title={cls.name}>
-                        <span className="truncate">{cls.name}</span>
-                        {cls.classCode && (
-                          <span className="text-[10px] font-mono opacity-70 ml-1">
-                            {cls.classCode}
+                        onClick={() => {
+                          if (!isHubActive) {
+                            setActiveClassTab(hub.defaultTab);
+                          }
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-2.5 rounded-sm text-xs font-semibold transition cursor-pointer flex items-center justify-between border ${
+                          isHubActive
+                            ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
+                            : 'text-slate-300 hover:bg-slate-800/90 hover:text-white border-transparent'
+                        }`}>
+                        <span className="truncate">{`${idx + 1}. ${t(hub.key)}`}</span>
+                        {hubId === 'schedule_hub' && onlineRequestsCount > 0 && (
+                          <span
+                            className="px-1.5 py-0.5 text-[10px] font-bold bg-rose-500 text-white rounded-full animate-pulse ml-1"
+                            title={`${onlineRequestsCount} ${t('onlineRequestsTooltip')}`}>
+                            {onlineRequestsCount}
                           </span>
                         )}
                       </button>
                     );
                   })}
                 </div>
-              )}
-            </div>
-
-            {/* 1.3: THỜI KHÓA BIỂU (TẤT CẢ CÁC LỚP) */}
-            <button
-              onClick={() => handleNavigateView('timetable')}
-              className={`w-full text-left px-3.5 py-2.5 rounded-sm text-sm font-medium transition cursor-pointer flex items-center justify-between ${
-                currentView === 'timetable'
-                  ? 'bg-blue-600 text-white shadow-xs font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-              }`}>
-              <span>{t('timetable')}</span>
-            </button>
-
-            {/* 1.4: CÂU HỎI TỪ HỌC VIÊN */}
-            <button
-              onClick={() => handleNavigateView('student_inquiries')}
-              className={`w-full text-left px-3.5 py-2.5 rounded-sm text-sm font-medium transition cursor-pointer flex items-center justify-between ${
-                currentView === 'student_inquiries'
-                  ? 'bg-blue-600 text-white shadow-xs font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-              }`}>
-              <span>{t('inquiries')}</span>
-              {unansweredInquiriesCount > 0 && (
-                <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-500 text-white rounded-full animate-pulse shadow-xs">
-                  {unansweredInquiriesCount}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {/* ================= KHỐI 2: MENU LỚP ĐANG CHỌN (NẾU ĐANG TRONG 1 LỚP CỤ THỂ) ================= */}
-          {currentView === 'class_detail' && selectedClassId && (
-            <div className="pt-2 border-t border-slate-800 animate-fade-in">
-              {/* Card thông tin lớp học */}
-              <div className="mx-3 p-3.5 bg-slate-950/80 rounded-sm border border-slate-800 mb-3 space-y-2">
-                <div className="flex items-start justify-between gap-1.5">
-                  <div className="truncate flex-1">
-                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider block">
-                        {t('managingClass')}
-                      </span>
-                      {classList.length > 1 && (
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={handlePrevClass}
-                            title={t('previousClass')}
-                            className="w-5 h-5 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded text-xs font-bold border border-slate-700 cursor-pointer">
-                            &lt;
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleNextClass}
-                            title={t('nextClass')}
-                            className="w-5 h-5 flex items-center justify-center bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded text-xs font-bold border border-slate-700 cursor-pointer">
-                            &gt;
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <h3 className="font-bold text-sm text-white truncate" title={classInfo?.name}>
-                      {classInfo ? classInfo.name : `Lớp #${selectedClassId}`}
-                    </h3>
-                    <div className="text-[11px] text-slate-400 mt-0.5">
-                      {classInfo?.startDate ? `${classInfo.startDate} → ${classInfo.endDate || '...'}` : ''}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setIsEditModalOpen(true)}
-                    title={t('edit')}
-                    className="p-1 px-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded transition cursor-pointer text-xs border border-slate-700 self-start">
-                    {t('edit')}
-                  </button>
-                </div>
-
-                {classInfo?.classCode && (
-                  <div className="pt-1 flex items-center justify-between gap-1">
-                    <span className="text-[11px] font-mono font-bold bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded border border-blue-400/30 truncate">
-                      {t('classCode')}: {classInfo.classCode}
-                    </span>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(classInfo.classCode);
-                        toast.success(`${t('copyCodeSuccess')} ("${classInfo.classCode}")`);
-                      }}
-                      title={t('copy')}
-                      className="text-[11px] text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2 py-0.5 rounded cursor-pointer transition whitespace-nowrap">
-                      {t('copy')}
-                    </button>
-                  </div>
-                )}
-
-                {/* Nút Xuất Báo Cáo Tuần (Word Docx Chuẩn) */}
-                <button
-                  type="button"
-                  onClick={handleExportWeeklyReport}
-                  disabled={exportingReport}
-                  title="Xuất Báo Cáo Tuần theo định dạng mẫu Word (.docx)"
-                  className="w-full mt-2 text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-between cursor-pointer transition disabled:opacity-50">
-                  <span>{t('exportWeeklyReport') || 'Xuất Báo Cáo Tuần (Word)'}</span>
-                  {exportingReport ? (
-                    <span className="text-[10px] text-blue-400 font-mono animate-pulse">{lang === 'en' ? 'Exporting...' : 'Đang xuất...'}</span>
-                  ) : (
-                    <span className="text-[10px] text-blue-400 font-mono font-bold">.DOCX</span>
-                  )}
-                </button>
               </div>
+            )}
 
-              {/* 3 CORE HUBS (Bảng tin & Lịch học | Bài tập & Đánh giá | Quản trị lớp học) */}
-              <div className="px-3 space-y-1.5">
-                {Object.entries(HUB_CONFIG).map(([hubId, hub], idx) => {
-                  const isHubActive = activeHub === hubId;
-                  return (
-                    <button
-                      key={hubId}
-                      type="button"
-                      onClick={() => {
-                        if (!isHubActive) {
-                          setActiveClassTab(hub.defaultTab);
-                        }
-                        setIsMobileMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-3.5 py-2.5 rounded-sm text-xs font-semibold transition cursor-pointer flex items-center justify-between border ${
-                        isHubActive
-                          ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
-                          : 'text-slate-300 hover:bg-slate-800/90 hover:text-white border-transparent'
-                      }`}>
-                      <span className="truncate">{`${idx + 1}. ${t(hub.key)}`}</span>
-                      {hubId === 'schedule_hub' && onlineRequestsCount > 0 && (
-                        <span
-                          className="px-1.5 py-0.5 text-[10px] font-bold bg-rose-500 text-white rounded-full animate-pulse ml-1"
-                          title={`${onlineRequestsCount} ${t('onlineRequestsTooltip')}`}>
-                          {onlineRequestsCount}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+            {/* ================= KHỐI 3: HƯỚNG DẪN SỬ DỤNG (PHÍA DƯỚI) ================= */}
+            <div className="pt-3 border-t border-slate-800 px-3">
+              <button
+                onClick={() => handleNavigateView('guide')}
+                className={`w-full text-left px-3.5 py-2.5 rounded-sm text-sm font-medium transition cursor-pointer flex items-center justify-between ${
+                  currentView === 'guide'
+                    ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                }`}>
+                <span>{t('guide')}</span>
+              </button>
             </div>
-          )}
+          </div>
 
-          {/* ================= KHỐI 3: HƯỚNG DẪN SỬ DỤNG (PHÍA DƯỚI) ================= */}
-          <div className="pt-3 border-t border-slate-800 px-3">
+          {/* FOOTER CỦA SIDEBAR: THÔNG TIN GIÁO VIÊN, GIAO DIỆN & CÀI ĐẶT */}
+          <div className="p-3.5 bg-slate-950 border-t border-slate-800 space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="truncate flex-1">
+                <div className="text-xs font-bold text-white truncate">{user?.fullName || t('teacherSubtitle')}</div>
+                <div className="text-[11px] text-slate-400 truncate">{user?.email}</div>
+              </div>
+              <ThemeLanguageToggle />
+            </div>
             <button
-              onClick={() => handleNavigateView('guide')}
-              className={`w-full text-left px-3.5 py-2.5 rounded-sm text-sm font-medium transition cursor-pointer flex items-center justify-between ${
-                currentView === 'guide'
-                  ? 'bg-blue-600 text-white shadow-xs font-semibold'
-                  : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
-              }`}>
-              <span>{t('guide')}</span>
+              onClick={() => setIsSettingsModalOpen(true)}
+              className="w-full px-3 py-2 text-xs font-semibold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-sm border border-slate-700 cursor-pointer transition text-center shadow-2xs">
+              {t('accountSettings')}
             </button>
           </div>
-        </div>
-
-        {/* FOOTER CỦA SIDEBAR: THÔNG TIN GIÁO VIÊN, GIAO DIỆN & CÀI ĐẶT */}
-        <div className="p-3.5 bg-slate-950 border-t border-slate-800 space-y-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="truncate flex-1">
-              <div className="text-xs font-bold text-white truncate">{user?.fullName || t('teacherSubtitle')}</div>
-              <div className="text-[11px] text-slate-400 truncate">{user?.email}</div>
-            </div>
-            <ThemeLanguageToggle />
-          </div>
-          <button
-            onClick={() => setIsSettingsModalOpen(true)}
-            className="w-full px-3 py-2 text-xs font-semibold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-sm border border-slate-700 cursor-pointer transition text-center shadow-2xs">
-            {t('accountSettings')}
-          </button>
         </div>
       </div>
 
       {/* VÙNG NỘI DUNG CHÍNH (CARD TRẮNG TRÊN NỀN XÁM NHẸ HOẶC CARD TỐI) */}
       <div className={`flex-1 min-w-0 overflow-y-auto w-full ${
-        currentView === 'student_inquiries' ? 'p-2 sm:p-4' : 'p-2.5 sm:p-5 md:p-6'
+        currentView === 'student_inquiries' ? 'p-2 sm:p-3 md:p-4' : 'p-2 sm:p-3 md:p-4 lg:p-5'
       }`}>
         <div className={`min-h-full ${
           currentView === 'student_inquiries'
             ? 'p-0 border-0 bg-transparent shadow-none'
-            : 'bg-white dark:bg-slate-900 rounded-sm shadow-xs border border-slate-200 dark:border-slate-800 p-3.5 sm:p-5 md:p-6 text-slate-900 dark:text-slate-100'
+            : 'bg-white dark:bg-slate-900 rounded-sm shadow-xs border border-slate-200 dark:border-slate-800 p-3 sm:p-4 md:p-5 text-slate-900 dark:text-slate-100'
         }`}>
+          {/* TOP CONTROLS & BREADCRUMB BAR (COLLAPSIBLE SIDEBAR TOGGLE & QUICK EXPORT) */}
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-slate-800 gap-2 flex-wrap">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-200/80 dark:hover:bg-slate-800 rounded-sm cursor-pointer transition border border-slate-200 dark:border-slate-700 shrink-0"
+                title={isSidebarCollapsed ? (lang === 'en' ? 'Expand sidebar (Ctrl+B)' : 'Mở rộng thanh bên (Ctrl+B)') : (lang === 'en' ? 'Collapse sidebar (Ctrl+B)' : 'Thu gọn thanh bên (Ctrl+B)')}>
+                <SidebarIcon className="w-4 h-4" />
+                <span className="font-semibold text-[11px]">
+                  {isSidebarCollapsed ? (lang === 'en' ? 'Expand' : 'Mở rộng') : (lang === 'en' ? 'Collapse' : 'Thu gọn')}
+                </span>
+              </button>
+
+              <div className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1.5 truncate">
+                {currentView === 'class_detail' && classInfo ? (
+                  <>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{classInfo.name}</span>
+                    {classInfo.classCode && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 shrink-0">
+                        {classInfo.classCode}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="font-bold text-slate-800 dark:text-slate-200 truncate">{getMobileHeaderTitle()}</span>
+                )}
+              </div>
+            </div>
+
+            {currentView === 'class_detail' && (
+              <div className="hidden sm:flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleExportWeeklyReport}
+                  disabled={exportingReport}
+                  title="Xuất Báo Cáo Tuần (.docx)"
+                  className="px-2.5 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-sm transition cursor-pointer shadow-2xs flex items-center gap-1 disabled:opacity-50">
+                  <span>{exportingReport ? (lang === 'en' ? 'Exporting...' : 'Đang xuất...') : (t('exportWeeklyReport') || 'Báo Cáo Tuần')}</span>
+                  <span className="text-[10px] text-blue-600 dark:text-blue-400 font-mono font-bold">.DOCX</span>
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* SEGMENTED SUB-NAVIGATION BAR FOR ACTIVE CORE HUB */}
           {currentView === 'class_detail' && selectedClassId && (
-            <div className="flex flex-wrap items-center gap-1.5 p-1 mb-5 bg-slate-100 dark:bg-slate-800/80 rounded-sm border border-slate-200 dark:border-slate-700">
+            <div className="overflow-x-auto flex items-center gap-1.5 p-1 mb-4 bg-slate-100 dark:bg-slate-800/80 rounded-sm border border-slate-200 dark:border-slate-700 no-scrollbar">
               {HUB_CONFIG[activeHub]?.tabs.map((subTab) => {
                 const isSubActive = activeClassTab === subTab.id;
                 return (
@@ -868,7 +1127,7 @@ export default function ClassDashboard({ initialView }) {
                     key={subTab.id}
                     type="button"
                     onClick={() => setActiveClassTab(subTab.id)}
-                    className={`px-3 py-1.5 rounded-xs text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-xs text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
                       isSubActive
                         ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 font-bold shadow-xs border border-slate-200 dark:border-slate-700'
                         : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-700/50'

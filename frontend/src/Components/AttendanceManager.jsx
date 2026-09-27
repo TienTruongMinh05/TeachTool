@@ -249,7 +249,7 @@ export default function AttendanceManager({ classId, initialSessionId = null }) 
           )}
 
           {/* Thẻ thống kê nhanh */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
             <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 p-3 rounded-lg text-center">
               <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{presentCount}</div>
               <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase mt-0.5">{t('statusPresent')}</div>
