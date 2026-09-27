@@ -385,8 +385,13 @@ export default function StudentList({ classId }) {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl w-full max-w-sm p-6">
             <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2">{t('removeStudentConfirmTitle')}</h3>
-            <p className="text-sm text-gray-600 dark:text-slate-300 mb-4">
+            <p className="text-sm text-gray-600 dark:text-slate-300 mb-2">
               {t('removeStudentConfirmDesc')} <b>{deletingStudent.studentName}</b> {t('fromThisClassDesc')}
+            </p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4 bg-slate-50 dark:bg-slate-800/60 p-2 rounded border border-slate-200 dark:border-slate-700/60">
+              💡 {lang === 'en' 
+                ? 'This action only unenrolls the student from this class. To permanently delete the student account from the system, please use the "All Students" menu.'
+                : 'Thao tác này chỉ hủy ghi danh học sinh khỏi lớp học này. Để xóa vĩnh viễn tài khoản học sinh khỏi toàn bộ hệ thống, bạn có thể thực hiện tại menu "Tất cả học sinh".'}
             </p>
             <div className="flex justify-end gap-2">
               <button 

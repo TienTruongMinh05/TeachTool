@@ -124,25 +124,31 @@ export default function AllStudentsList({ onSelectClass }) {
 
   // Xóa tài khoản học sinh
   const handleDeleteStudent = async (st) => {
-    if (st.enrolledClasses && st.enrolledClasses.length > 0) {
-      toast.warning(`Không thể xóa học sinh "${st.studentName}" vì đang tham gia ${st.enrolledClasses.length} lớp học. Vui lòng vào từng lớp và hủy ghi danh học sinh trước khi xóa tài khoản!`);
-      return;
-    }
+    const hasClasses = st.enrolledClasses && st.enrolledClasses.length > 0;
+    const classNames = hasClasses ? st.enrolledClasses.map(c => c.className).join(', ') : '';
+
+    const confirmMessage = hasClasses
+      ? (lang === 'en'
+          ? `Student "${st.studentName}" is currently enrolled in ${st.enrolledClasses.length} class(es): [${classNames}]. Deleting this account will automatically unenroll them from all classes and permanently remove all associated records (attendance, submissions, inquiries). Are you sure?`
+          : `Học sinh "${st.studentName}" đang tham gia ${st.enrolledClasses.length} lớp học: [${classNames}]. Xóa tài khoản sẽ tự động hủy ghi danh khỏi tất cả các lớp này và xóa vĩnh viễn toàn bộ dữ liệu (điểm danh, bài nộp, thắc mắc). Bạn có chắc chắn muốn xóa không?`)
+      : (lang === 'en'
+          ? `Are you sure you want to permanently delete student account "${st.studentName}" (${st.studentEmail})? All associated data will be permanently removed.`
+          : `Bạn có chắc muốn xóa vĩnh viễn tài khoản học sinh "${st.studentName}" (${st.studentEmail}) khỏi hệ thống? Toàn bộ dữ liệu tài khoản sẽ bị xóa hoàn toàn.`);
 
     const ok = await confirm({
-      title: 'Xóa tài khoản học sinh',
-      message: `Bạn có chắc muốn xóa tài khoản học sinh "${st.studentName}" (${st.studentEmail}) khỏi hệ thống? Dữ liệu tài khoản sẽ bị xóa vĩnh viễn.`,
-      confirmText: 'Xóa học sinh',
+      title: lang === 'en' ? 'Delete Student Account' : 'Xóa tài khoản học sinh',
+      message: confirmMessage,
+      confirmText: lang === 'en' ? 'Delete Permanently' : 'Xóa vĩnh viễn',
       type: 'danger'
     });
     if (!ok) return;
 
     try {
       await studentApi.delete(st.studentId);
-      toast.success(`Đã xóa tài khoản học sinh "${st.studentName}" thành công!`);
+      toast.success(lang === 'en' ? `Deleted student "${st.studentName}" successfully!` : `Đã xóa tài khoản học sinh "${st.studentName}" thành công!`);
       await loadData();
     } catch (err) {
-      toast.error('Lỗi khi xóa học sinh: ' + (err.response?.data?.message || err.message));
+      toast.error(lang === 'en' ? 'Error deleting student: ' + (err.response?.data?.message || err.message) : 'Lỗi khi xóa học sinh: ' + (err.response?.data?.message || err.message));
     }
   };
 

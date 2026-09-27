@@ -755,6 +755,27 @@
 
 ---
 
+### 📍 GIAI ĐOẠN 21: TỐI ƯU HÓA & KHẮC PHỤC TRIỆT ĐỂ CƠ CHẾ XÓA HỌC SINH
+* **Mục tiêu**: Xử lý triệt để nguyên nhân không xóa được học sinh (ràng buộc khóa ngoại SQL, học sinh còn ghi danh lớp khác, nhầm lẫn giữa "Hủy ghi danh khỏi lớp" và "Xóa tài khoản").
+* **Kết quả thực hiện**:
+  1. **Cascade Xóa Toàn Diện Dữ Liệu Phụ Thuộc Trong CSDL (`UserService.java`)**:
+     - Bổ sung dọn dẹp sạch sẽ 8 bảng liên quan trước khi xóa `users`:
+       - `submission_feedback_comments` (bình luận do học sinh gửi hoặc trên bài nộp của học sinh).
+       - `inquiry_messages` & `inquiry_threads` (tin nhắn và luồng câu hỏi thắc mắc).
+       - `attendances` (lịch sử điểm danh).
+       - `submissions` (toàn bộ bài nộp bài tập).
+       - `enrollments` (ghi danh vào các lớp học).
+       - `class_teachers` & `classes.teacher_id` (quyền giáo viên nếu có).
+       - `class_announcements` (thông báo nếu có).
+     - Loại bỏ việc quăng ngoại lệ chặn cứng khi học sinh còn ở trong lớp. Cho phép Giáo viên xóa triệt để tài khoản chỉ với 1 thao tác.
+  2. **Tối Ưu Hóa Giao Diện Danh Sách Tất Cả Học Sinh (`AllStudentsList.jsx`)**:
+     - Cho phép giáo viên xác nhận xóa tài khoản học sinh trực tiếp kể cả khi đang ghi danh ở nhiều lớp.
+     - Modal cảnh báo hiển thị chi tiết tên tất cả các lớp học sinh đang tham gia và cảnh báo tự động hủy ghi danh trước khi xóa vĩnh viễn.
+  3. **Làm Rõ Khái Niệm Trong Trang Quản Lý Lớp (`StudentList.jsx`)**:
+     - Thêm ghi chú phân biệt trực quan giữa "Hủy ghi danh khỏi lớp này" (chỉ rút học sinh khỏi lớp) và "Xóa tài khoản" (vào mục Tất cả học sinh để xóa vĩnh viễn).
+
+---
+
 ## 📊 TỔNG KẾT CHỈ SỐ HỆ THỐNG
 
 | Tiêu chí | Trước tối ưu hóa | Hiện tại | Hiệu quả cải thiện |
