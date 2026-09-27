@@ -42,26 +42,21 @@ public class AuthService {
             // Tự động kiểm tra và thêm cột password nếu chưa có
             stmt.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255)");
             log.info("Xác nhận cấu trúc bảng users: Cột password đã sẵn sàng.");
-        } catch (Exception e) {
-            log.warn("Lưu ý khi kiểm tra cấu trúc bảng users: {}", e.getMessage());
-        }
 
-        // Tự động cập nhật mật khẩu 123456 cho các tài khoản kiểm thử chính để đăng nhập local không cần Google
-        try {
-            String defaultHash = passwordHasher.hash("123456");
-            userRepository.findAll().forEach(u -> {
-                if (u.getPassword() == null || u.getPassword().trim().isEmpty()
-                        || "awn5024@gmail.com".equalsIgnoreCase(u.getEmail())
-                        || "tien.truong.cit23@eiu.edu.vn".equalsIgnoreCase(u.getEmail())
-                        || "teacher.mai@gmail.com".equalsIgnoreCase(u.getEmail())
-                        || "student.nam@gmail.com".equalsIgnoreCase(u.getEmail())) {
-                    u.setPassword(defaultHash);
-                    userRepository.save(u);
-                    log.info("Đã thiết lập mật khẩu test (123456) cho tài khoản: {}", u.getEmail());
-                }
-            });
+            // Tự động quét và dọn dẹp sạch các tài khoản kiểm thử/ảo nếu còn tồn tại trong CSDL
+            stmt.execute("DELETE FROM attendances WHERE student_id IN (SELECT id FROM users WHERE email IN ('teacher.mai@gmail.com', 'student.nam@gmail.com'))");
+            stmt.execute("DELETE FROM submissions WHERE student_id IN (SELECT id FROM users WHERE email IN ('teacher.mai@gmail.com', 'student.nam@gmail.com'))");
+            stmt.execute("DELETE FROM enrollments WHERE student_id IN (SELECT id FROM users WHERE email IN ('teacher.mai@gmail.com', 'student.nam@gmail.com'))");
+            stmt.execute("DELETE FROM class_teachers WHERE teacher_id IN (SELECT id FROM users WHERE email IN ('teacher.mai@gmail.com', 'student.nam@gmail.com'))");
+            stmt.execute("DELETE FROM inquiry_messages WHERE sender_id IN (SELECT id FROM users WHERE email IN ('teacher.mai@gmail.com', 'student.nam@gmail.com'))");
+            stmt.execute("DELETE FROM inquiry_threads WHERE student_id IN (SELECT id FROM users WHERE email IN ('teacher.mai@gmail.com', 'student.nam@gmail.com'))");
+            stmt.execute("UPDATE classes SET teacher_id = NULL WHERE teacher_id IN (SELECT id FROM users WHERE email IN ('teacher.mai@gmail.com', 'student.nam@gmail.com'))");
+            int deletedUsers = stmt.executeUpdate("DELETE FROM users WHERE email IN ('teacher.mai@gmail.com', 'student.nam@gmail.com')");
+            if (deletedUsers > 0) {
+                log.info("Đã dọn dẹp sạch {} tài khoản kiểm thử/ảo khỏi hệ thống cơ sở dữ liệu.", deletedUsers);
+            }
         } catch (Exception e) {
-            log.warn("Lưu ý cập nhật mật khẩu test: {}", e.getMessage());
+            log.warn("Lưu ý khi kiểm tra cấu trúc bảng hoặc dọn dẹp tài khoản kiểm thử: {}", e.getMessage());
         }
     }
 
