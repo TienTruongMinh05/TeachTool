@@ -136,16 +136,11 @@ Hệ thống được thiết kế và kiểm thử toàn diện theo các tiêu
 * **Node.js:** v18 trở lên (khuyên dùng Node.js 20+)
 * **PostgreSQL:** Port 5432 (Database name: `edu_manager`)
 
-### 1. Khởi động nhanh (Dành cho máy Windows đã tích hợp sẵn công cụ)
-Trong thư mục dự án trên máy tính, bạn chỉ cần nhấp đúp chuột vào:
-* `Chay_He_Thong.bat`: Khởi động cả PostgreSQL, Backend Spring Boot và Frontend Vite chỉ trong 1 thao tác.
-* `Dung_He_Thong.bat`: Tắt toàn bộ hệ thống an toàn.
-
-### 2. Khởi động thủ công qua dòng lệnh
+### 1. Khởi động nhanh qua dòng lệnh
 
 #### Khởi động Backend (Spring Boot):
 ```bash
-cd api
+cd backend
 # Thiết lập biến môi trường kết nối database (nếu khác mặc định)
 ./mvnw clean spring-boot:run
 ```
@@ -153,11 +148,16 @@ cd api
 
 #### Khởi động Frontend (React / Vite):
 ```bash
-cd edu-frontend
+cd frontend
 npm install
 npm run dev
 ```
 *Frontend sẽ chạy tại `http://localhost:5173`.*
+
+Hoặc chạy build từ thư mục gốc:
+```bash
+npm run build
+```
 
 ---
 
@@ -165,36 +165,50 @@ npm run dev
 
 ```
 TEACHTOOL/
-├── api/                                # Backend Spring Boot
+├── backend/                            # Backend Spring Boot 3.x / Java 21
 │   ├── src/main/java/com/edumanager/api/
-│   │   ├── config/                     # Cấu hình CORS & WebMvc
+│   │   ├── config/                     # Cấu hình CORS, Database Optimizer & WebMvc
 │   │   ├── controller/                 # REST API Controllers (Auth, Classes, Plans, Sessions...)
 │   │   ├── dto/                        # Data Transfer Objects
 │   │   ├── entity/                     # JPA Entities (ClassRoom, User, Session, Assignment...)
 │   │   ├── exception/                  # Global Exception Handler
 │   │   ├── repository/                 # Spring Data JPA Repositories
 │   │   ├── security/                   # AuthInterceptor, JwtService, PasswordHasher, RateLimiter...
-│   │   └── service/                    # Business Logic Layer
+│   │   └── service/                    # Business Logic Layer & Data Retention
 │   ├── src/main/resources/
 │   │   └── application.yaml            # Cấu hình Datasource, JPA, JWT, Multipart
 │   └── Dockerfile                      # Multi-stage Dockerfile cho Cloud Deploy
-├── edu-frontend/                       # Frontend React / Vite
+├── frontend/                           # Frontend React 19 / Vite
 │   ├── src/
 │   │   ├── api/                        # Axios API Clients (authApi, classApi, sessionApi, submissionApi...)
 │   │   ├── Components/                 # Reusable UI Components
+│   │   │   ├── AssignmentGradeMatrix.jsx # Ma trận điểm bài tập
 │   │   │   ├── AssignmentManager.jsx   # Quản lý & giao bài tập đính kèm đa tệp
 │   │   │   ├── AudioGradingWorkbench.jsx # Bàn chấm âm thanh nhận xét timestamp
 │   │   │   ├── BookPagePickerModal.jsx # Chọn trang sách giáo khoa
+│   │   │   ├── LearningAnalyticsHeatmap.jsx # Heatmap cảnh báo sớm
 │   │   │   ├── PdfCanvasViewer.jsx     # Trình đọc sách PDF trực quan Canvas
 │   │   │   ├── SessionList.jsx         # Quản lý buổi học & menu thông minh
 │   │   │   ├── StudentGuide.jsx        # Cẩm nang hướng dẫn dành cho học sinh
+│   │   │   ├── StudentInquiriesManager.jsx # Quản lý thắc mắc học viên
 │   │   │   ├── TimetableGrid.jsx       # Thời khóa biểu tuần ma trận
 │   │   │   └── UserGuide.jsx           # Cẩm nang hướng dẫn dành cho giáo viên
 │   │   ├── context/                    # AuthContext, ToastContext
 │   │   └── pages/                      # Pages (Login, ClassList, ClassDashboard, StudentPortal)
 │   ├── vercel.json                     # Cấu hình SPA Routing cho Vercel
 │   └── vite.config.js                  # Cấu hình Vite
+├── database/                           # Cơ sở dữ liệu và công cụ CSDL PostgreSQL
+│   └── postgre/                        # Portable PostgreSQL Server
+├── deploy/                             # Tài liệu và mẫu cấu hình triển khai Cloud
+│   ├── DEPLOYMENT_GUIDE.md             # Hướng dẫn chi tiết triển khai Vercel & Render
+│   ├── render.yaml                     # Mẫu cấu hình Render Web Service
+│   └── vercel.json                     # Mẫu cấu hình Vercel Frontend
+├── utilities/                          # Công cụ phụ trợ và tập lệnh thử nghiệm
+│   ├── dbeaver/                        # Công cụ quản lý trực quan CSDL DBeaver
+│   └── scratch/                        # Script thử nghiệm an toàn
 ├── render.yaml                         # Blueprint triển khai Render Web Service
+├── vercel.json                         # Cấu hình Vercel gốc cho CI/CD
+├── package.json                        # Root package.json hỗ trợ build frontend
 ├── .gitignore                          # Cấu hình bảo mật mã nguồn (loại trừ secrets & db)
 └── README.md                           # Tài liệu tổng quan hệ thống
 ```

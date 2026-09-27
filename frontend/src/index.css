@@ -1,0 +1,23 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html.dark,
+  body.dark {
+    color-scheme: dark;
+    background-color: #020617;
+    color: #f8fafc;
+  }
+
+  /* Form control defaults in dark mode */
+  .dark select,
+  .dark input,
+  .dark textarea {
+    color-scheme: dark;
+  }
+
+  .dark select option {
+    background-color: #0f172a;
+    color: #f8fafc;
+  }
+}

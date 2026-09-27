@@ -6,14 +6,24 @@
 POSTGRE/
 DBEAVER/
 pgadmin*
+database/postgre/
+database/POSTGRE/
+database/
+utilities/dbeaver/
+utilities/DBEAVER/
+utilities/scratch/
+scratch/
 
 # 2. Build Artifacts & Dependencies
+backend/target/
 api/target/
 target/
 **/target/
+frontend/node_modules/
 edu-frontend/node_modules/
 node_modules/
 **/node_modules/
+frontend/dist/
 edu-frontend/dist/
 dist/
 **/dist/
@@ -28,12 +38,15 @@ dist/
 # 4. User Uploaded Files (Preserve folder structure via .gitkeep)
 uploads/*
 !uploads/.gitkeep
+backend/uploads/*
+!backend/uploads/.gitkeep
 api/uploads/*
 !api/uploads/.gitkeep
 
 # 5. Logs & Temporary Files
 *.log
 logs/
+backend/logs/
 api/logs/
 npm-debug.log*
 yarn-debug.log*
@@ -53,12 +66,13 @@ Desktop.ini
 
 # 7. Deployment Info & Local Secrets
 THONG_TIN_TRIEN_KHAI.md
-
+deploy/THONG_TIN_TRIEN_KHAI.md
 
 # Local batch scripts
 *.bat
 
-# Temporary scratch scripts & testing tools
-scratch/
+# Generated reports & documents
+*.docx
+!backend/src/main/resources/templates/*.docx
 
 .vercel

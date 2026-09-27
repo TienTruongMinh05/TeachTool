@@ -2,6 +2,6 @@
   "name": "teachtool-root",
   "private": true,
   "scripts": {
-    "build": "npm run build --prefix edu-frontend"
+    "build": "npm run build --prefix frontend"
   }
 }
