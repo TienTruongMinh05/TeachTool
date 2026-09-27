@@ -21,7 +21,7 @@ import { MegaphoneIcon, PaperclipIcon, GlobeIcon, XCircleIcon, XIcon, CheckCircl
 export default function StudentPortal() {
   const { user, logout, updateUser } = useAuth();
   const { toast, confirm } = useToast();
-  const { t } = useThemeLanguage();
+  const { t, lang } = useThemeLanguage();
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isMistakeNotebookOpen, setIsMistakeNotebookOpen] = useState(false);
   const [selectedAnnouncementClassId, setSelectedAnnouncementClassId] = useState(null);

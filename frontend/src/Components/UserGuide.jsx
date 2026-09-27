@@ -17,6 +17,7 @@ export default function UserGuide() {
     { id: 'attendance', title: '9. Attendance & Attendance Log' },
     { id: 'account', title: '10. Account, Optimization & Security' },
     { id: 'inquiries', title: '11. Inquiries & Two-Way Chat (AES-256)' },
+    { id: 'reports_and_ui', title: '12. Weekly Report (.docx), Announcements & Collapsible Sidebar (Ctrl+B)' },
   ] : [
     { id: 'overview', title: '1. Tổng quan & Khởi đầu nhanh' },
     { id: 'classes', title: '2. Quản lý Lớp & Giáo viên đồng phụ trách' },
@@ -29,6 +30,7 @@ export default function UserGuide() {
     { id: 'attendance', title: '9. Điểm danh & Bảng chuyên cần' },
     { id: 'account', title: '10. Tài khoản, Tối ưu & Bảo mật' },
     { id: 'inquiries', title: '11. Thắc Mắc & Trò Chuyện 2 Chiều (AES-256)' },
+    { id: 'reports_and_ui', title: '12. Báo Cáo Tuần (.docx), Bảng Tin & Sidebar Thu Gọn (Ctrl+B)' },
   ];
 
   return (
@@ -592,6 +594,76 @@ export default function UserGuide() {
                   </li>
                   <li>
                     <b>Chống lỗ hổng BOLA/IDOR (OWASP Top 10):</b> Mỗi yêu cầu đọc/gửi tin nhắn đều được máy chủ xác thực danh tính: Học sinh chỉ có thể truy cập cuộc hội thoại của chính mình trong lớp đã tham gia; Giáo viên chỉ có quyền truy cập các cuộc hội thoại thuộc những lớp mình giảng dạy hoặc chủ nhiệm.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PHẦN 12: BÁO CÁO TUẦN (.DOCX), BẢNG TIN & SIDEBAR THU GỌN */}
+        {activeSection === 'reports_and_ui' && (
+          <div className="space-y-4 animate-fade-in">
+            <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+              {lang === 'en' ? '12. Weekly Report (.docx), Class Announcements & Collapsible Sidebar' : '12. Báo Cáo Tuần (.docx), Bảng Tin Lớp & Sidebar Thu Gọn'}
+            </h4>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              {lang === 'en'
+                ? 'TeachTool integrates automated Word report generation, official announcements with pinning, and optimized desktop/mobile workspaces.'
+                : 'TeachTool tích hợp công cụ xuất báo cáo tuần theo chuẩn sư phạm Word (.docx), bảng tin trao đổi thông báo chính thức và thanh điều hướng linh hoạt cho mọi cỡ màn hình.'}
+            </p>
+
+            <div className="space-y-4">
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
+                <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
+                  {lang === 'en' ? '1. Export Weekly Report (.docx)' : '1. Xuất Báo Cáo Tuần (.docx chuẩn Word)'}
+                </h5>
+                <ul className="list-disc pl-5 space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                  <li>
+                    {lang === 'en'
+                      ? 'Click the ".DOCX Weekly Report" button in the class header or sidebar to download a structured Word document.'
+                      : 'Bấm nút ".DOCX Báo Cáo Tuần" trên thanh đầu lớp học hoặc thanh bên trái để tự động tạo và tải tệp Word về máy tính.'}
+                  </li>
+                  <li>
+                    {lang === 'en'
+                      ? 'The system automatically fills in: Class name, teacher, total enrollment, session attendance (present/absent), homework completion stats, and students needing special attention.'
+                      : 'Hệ thống tự động điền sẵn: Tên lớp, giáo viên phụ trách, sĩ số, thống kê điểm danh từng buổi, tỷ lệ nộp bài tập và danh sách học sinh cần lưu ý theo dõi.'}
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
+                <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
+                  {lang === 'en' ? '2. Class Announcements Board' : '2. Bảng Tin Lớp Học & Ghim Bài'}
+                </h5>
+                <ul className="list-disc pl-5 space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                  <li>
+                    {lang === 'en'
+                      ? 'Teachers can post official announcements, exam notices, and study guidelines with file attachments.'
+                      : 'Giáo viên có thể đăng thông báo chính thức, lịch thi cử, dặn dò bài học kèm tệp đính kèm.'}
+                  </li>
+                  <li>
+                    {lang === 'en'
+                      ? 'Pin important announcements to the top of the feed with one click.'
+                      : 'Ghim các bài thông báo quan trọng lên đầu bảng tin chỉ với 1 click để học sinh luôn nhìn thấy đầu tiên.'}
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
+                <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
+                  {lang === 'en' ? '3. Collapsible Desktop Sidebar (Ctrl + B)' : '3. Thanh Bên Thu Gọn Linh Hoạt (Ctrl + B)'}
+                </h5>
+                <ul className="list-disc pl-5 space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                  <li>
+                    {lang === 'en'
+                      ? 'On desktop, teachers can collapse the left sidebar to expand the workspace by clicking the collapse button or pressing Ctrl + B.'
+                      : 'Trên máy tính PC, thầy cô có thể thu gọn thanh bên trái để mở rộng tối đa không gian làm việc bằng nút thu gọn hoặc nhấn phím tắt Ctrl + B.'}
+                  </li>
+                  <li>
+                    {lang === 'en'
+                      ? 'Preference is saved in localStorage and persists across page refreshes.'
+                      : 'Trạng thái thu gọn được ghi nhớ tự động trên trình duyệt và giữ nguyên khi tải lại trang.'}
                   </li>
                 </ul>
               </div>

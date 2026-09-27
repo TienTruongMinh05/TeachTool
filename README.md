@@ -54,8 +54,11 @@
   2. *Bộ nhớ đệm sách giáo khoa (Digital Book Caching):* Ứng dụng CacheStorage API và HTTP ETag giúp mở sách giáo khoa PDF dung lượng lớn tức thì 0ms, không tốn băng thông máy chủ.
   3. *Phân tách mã nguồn (Code Splitting):* Cấu hình dynamic import `React.lazy` và `manualChunks` tách nhỏ thư viện, giảm file JavaScript chính từ 1,090 kB xuống chỉ còn 12.28 kB (giảm 98.8%).
   4. *Đánh chỉ mục cơ sở dữ liệu (Database Indexing):* Đánh chỉ mục JPA `@Index` và SQL tự động tối ưu hóa mọi truy vấn lọc lớp học, bài tập, điểm danh và bài nộp đạt tốc độ $O(\log N)$.
+* **Xuất Báo Cáo Tuần Chuẩn Word (.docx):** Tạo tệp Word định dạng `.docx` theo chuẩn sư phạm chỉ với 1 click, tự động tổng hợp sĩ số, chuyên cần, tỷ lệ nộp bài tập và danh sách học sinh cần theo dõi.
+* **Bảng Tin Lớp Học (Class Announcements):** Đăng thông báo, dặn dò học tập, lịch kiểm tra kèm tệp đính kèm; hỗ trợ ghim bài viết quan trọng lên đầu bảng tin.
+* **Thanh Bên Thu Gọn Linh Hoạt (Collapsible Desktop Sidebar - Ctrl + B):** Giáo viên có thể thu gọn thanh điều hướng bên trái bằng nút thu gọn hoặc phím tắt `Ctrl + B` trên PC để mở rộng tối đa không gian làm việc.
 * **Thanh Thao Tác Thông Minh:** Tự động điều chỉnh hướng mở (Smart Dropup / Dropdown) tránh tràn màn hình khi thao tác ở buổi học dưới cùng.
-* **Cẩm Nang Hướng Dẫn Tích Hợp:** Hướng dẫn sử dụng trực quan 10 chuyên đề ngay trong thanh điều hướng giáo viên.
+* **Cẩm Nang Hướng Dẫn Tích Hợp:** Hướng dẫn sử dụng trực quan 12 chuyên đề ngay trong thanh điều hướng giáo viên.
 
 ### 👨‍🎓 Phân Hệ Dành Cho Học Sinh (Student Portal)
 * **Tham Gia Lớp Bằng Mã:** Học sinh chỉ cần nhập mã lớp 6 ký tự để tự động vào lớp.
@@ -77,7 +80,9 @@
   - **3 Cam kết bù bài bắt buộc:** Bắt buộc tích chọn xác nhận đủ 3 cam kết bù bài khi xin nghỉ hẳn.
   - **Tùy chọn "Xin học Online" (Khuyên dùng):** Không tính vào hạn mức 2 buổi vắng và giữ nguyên 100% điểm chuyên cần. Tự động thông báo tới Giáo viên trên Thẻ Buổi học và gửi tin nhắn qua Kênh hỗ trợ học viên. Giáo viên có nút bấm nhanh **"Gửi link phòng học"** mở modal thông báo dán link Google Meet / Zoom. Phía học sinh nhận ô **"Tin tức" nhấp nháy chậm** và khung thông báo **viền đỏ nhấp nháy nền vàng**.
   - **Hủy báo vắng / Hủy học online:** Học sinh có thể chủ động hủy để đi học trực tiếp trước khi buổi học bắt đầu.
-* **Trang Hướng Dẫn Học Sinh Tích Hợp:** Tab hướng dẫn sử dụng chuyên dụng ngay trên Cổng học sinh.
+* **Bảng Tin Lớp Học (Class Announcements):** Xem thông báo chính thức, lịch kiểm tra, quy định lớp học và tải tệp đính kèm do giáo viên đăng tải.
+* **Sổ Tay Lỗi Sai Cá Nhân (Mistake Notebook):** Lưu trữ và phân loại các lỗi phát âm, ngữ pháp hoặc từ vựng thường mắc phải trong bài nộp để tự ôn tập định kỳ.
+* **Trang Hướng Dẫn Học Sinh Tích Hợp:** Cẩm nang hướng dẫn sử dụng 9 chuyên đề trực quan trên thanh Header Cổng học sinh.
 
 ---
 

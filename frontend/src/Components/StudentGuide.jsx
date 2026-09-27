@@ -14,6 +14,7 @@ export default function StudentGuide() {
     { id: 'delete_submission', title: '6. Resubmission & Deletion' },
     { id: 'absence', title: '7. Absence Notice & Cancellation' },
     { id: 'account', title: '8. Account & 1-Month Storage' },
+    { id: 'announcements_mistakes', title: '9. Announcements & Mistake Notebook' },
   ] : [
     { id: 'overview', title: '1. Khởi đầu nhanh' },
     { id: 'join_class', title: '2. Vào lớp học' },
@@ -23,6 +24,7 @@ export default function StudentGuide() {
     { id: 'delete_submission', title: '6. Xóa bài đã nộp để nộp lại' },
     { id: 'absence', title: '7. Báo vắng & Hủy báo vắng' },
     { id: 'account', title: '8. Tài khoản & Lưu trữ 1 tháng' },
+    { id: 'announcements_mistakes', title: '9. Bảng Tin Lớp & Sổ Tay Lỗi Sai' },
   ];
 
   return (
@@ -409,6 +411,63 @@ export default function StudentGuide() {
                   </li>
                   <li>
                     <b>Khuyến nghị:</b> Các tệp bài viết quan trọng bạn nên lưu giữ một bản sao lưu trên máy tính hoặc điện thoại cá nhân.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PHẦN 9: BẢNG TIN LỚP & SỔ TAY LỖI SAI */}
+        {activeSection === 'announcements_mistakes' && (
+          <div className="space-y-4 animate-fade-in">
+            <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+              {lang === 'en' ? '9. Class Announcements & Mistake Notebook' : '9. Bảng Tin Lớp Học & Sổ Tay Lỗi Sai'}
+            </h4>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              {lang === 'en'
+                ? 'Stay up-to-date with official classroom updates and track common grammar/pronunciation mistakes for effective revision.'
+                : 'Theo dõi thông báo chính thức từ giáo viên và ghi chép lại các lỗi sai quan trọng để cải thiện kết quả học tập nhanh chóng.'}
+            </p>
+
+            <div className="space-y-4">
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
+                <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
+                  {lang === 'en' ? '1. Class Announcements (Tab "Announcements")' : '1. Bảng Tin Lớp Học (Tab "Bảng tin")'}
+                </h5>
+                <ul className="list-disc pl-5 space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                  <li>
+                    {lang === 'en'
+                      ? 'View all announcements, examination updates, schedule adjustments, and classroom rules posted by your teacher.'
+                      : 'Xem toàn bộ thông báo học tập, lịch kiểm tra, điều chỉnh phòng học và nội quy do thầy cô đăng tải.'}
+                  </li>
+                  <li>
+                    {lang === 'en'
+                      ? 'Pinned announcements will always appear first at the top of your feed.'
+                      : 'Các thông báo đặc biệt quan trọng được ghim sẽ luôn xuất hiện nổi bật ở vị trí đầu tiên.'}
+                  </li>
+                  <li>
+                    {lang === 'en'
+                      ? 'Download file attachments (PDFs, worksheets, reference links) directly from the announcement card.'
+                      : 'Tải trực tiếp các tệp đính kèm (đề ôn tập, tài liệu học, file PDF) ngay trên từng thẻ thông báo.'}
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
+                <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
+                  {lang === 'en' ? '2. Mistake Notebook (Header Bar)' : '2. Sổ Tay Lỗi Sai (Nút trên thanh Header)'}
+                </h5>
+                <ul className="list-disc pl-5 space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                  <li>
+                    {lang === 'en'
+                      ? 'Click "Mistake Notebook" in the top bar anytime to open your personal error log.'
+                      : 'Bấm nút "Sổ tay lỗi sai" trên thanh công cụ trên cùng để mở sổ tay cá nhân của bạn.'}
+                  </li>
+                  <li>
+                    {lang === 'en'
+                      ? 'Review feedback from graded assignments, note down recurring pronunciation slips, grammar bugs, or vocabulary mistakes to review before tests.'
+                      : 'Ghi lại các nhận xét phát âm, lỗi ngữ pháp hay từ vựng giáo viên đã sửa trong các bài tập để ôn luyện trước kỳ thi.'}
                   </li>
                 </ul>
               </div>

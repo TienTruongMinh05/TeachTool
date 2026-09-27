@@ -680,6 +680,64 @@
 
 ---
 
+### 📍 GIAI ĐOẠN 17: BẢN ĐỊA HÓA ANH - VIỆT TOÀN DIỆN & TỐI ƯU GIAO DIỆN ĐA KÍCH THƯỚC (RESPONSIVE)
+* **Mục tiêu**: Loại bỏ 100% dữ liệu ảo/tài khoản kiểm thử, dịch thuật 100% giao diện sang 2 ngôn ngữ Anh - Việt, hỗ trợ thanh bên thu gọn linh hoạt với phím tắt `Ctrl + B` và chống tràn giao diện trên màn hình nhỏ.
+* **Kết quả thực hiện**:
+  1. **Thanh Bên Thu Gọn Linh Hoạt (Collapsible Desktop Sidebar)**:
+     - Thêm nút thu nhỏ/mở rộng ở chân Sidebar của Giáo viên, thu gọn từ 256px xuống 68px với tooltip trực quan.
+     - Hỗ trợ phím tắt toàn cục `Ctrl + B` (hoặc `Cmd + B` trên macOS) để ẩn/hiện nhanh thanh bên.
+     - Tự động ghi nhớ trạng thái người dùng qua `localStorage` (`teach_sidebar_collapsed`).
+  2. **Tối Ưu Hóa Responsive Đa Kích Thước Màn Hình**:
+     - Khắc phục triệt để hiện tượng tràn thanh tab ngang và tiêu đề trên các kích thước màn hình nhỏ và tablet (`no-scrollbar`, `truncate`, `overflow-x-auto`).
+     - Thanh điều hướng phân đoạn và các nút thao tác co giãn linh hoạt, không vỡ layout.
+  3. **Thanh Lọc Dữ Liệu Kiểm Thử Toàn Diện**:
+     - Gỡ bỏ hoàn toàn các tài khoản mẫu kiểm thử (`admin_test`, `student_test`,...).
+     - Xóa bỏ các tính năng giả lập (mock data injection, test debug bars) để chuẩn bị cho môi trường sản xuất thực tế.
+
+---
+
+### 📍 GIAI ĐOẠN 18: TÍCH HỢP BÁO CÁO TUẦN WORD (.DOCX), BẢNG TIN LỚP & SỔ TAY LỖI SAI
+* **Mục tiêu**: Xây dựng module xuất báo cáo tuần chuẩn Word sư phạm, bảng tin thông báo lớp học và sửa lỗi kích hoạt tải tệp trình duyệt.
+* **Kết quả thực hiện**:
+  1. **Xuất Báo Cáo Tuần Chuẩn Sư Phạm Word (.docx)**:
+     - Tích hợp `WeeklyReportController` (`/api/classes/{id}/weekly-report`) và `WeeklyReportService` dùng thư viện Apache POI.
+     - Tự động điền dữ liệu buổi học, sĩ số, chuyên cần, thống kê nộp bài và học sinh cần lưu ý theo dõi.
+     - **Khắc phục lỗi kích hoạt tải tệp**: Sửa hàm `handleExportWeeklyReport` trong `ClassDashboard.jsx` để tự động tạo `URL.createObjectURL(blob)`, thẻ `<a download>` và kích hoạt lưu tệp `.docx` trực tiếp vào thư mục Downloads của người dùng.
+  2. **Bảng Tin Lớp Học (Class Announcements)**:
+     - Giáo viên đăng thông báo, đính kèm tệp và ghim các thông báo quan trọng lên đầu bảng tin.
+     - Học sinh theo dõi thông tin chính thức, tải tài liệu phát tay.
+     - Sửa lỗi lặp 2 lần tiêu đề "Bảng tin lớp" trên giao diện học sinh.
+  3. **Sổ Tay Lỗi Sai Cá Nhân (Mistake Notebook)**:
+     - Cung cấp không gian cho học sinh ghi chép lại các lỗi sai thường gặp để chủ động ôn luyện trước bài kiểm tra.
+  4. **Rà Soát Toàn Bộ Khóa Bản Dịch**:
+     - Bổ sung đầy đủ 8 khóa ngôn ngữ còn thiếu: `studentCodeCol`, `exportGradeMatrix`, `cancelBtn`, `cancelDiscardBtn`, `closeBtn`, `attendanceStatusCol`, `noteCol`, `sessionLabel` trong `ThemeLanguageContext.jsx`.
+     - Chuẩn hóa nhãn `studentCodeCol` thành `"Student Code"` đúng theo yêu cầu.
+     - Xóa bỏ tiêu đề lặp "Thời khóa biểu tuần" trong `TimetableGrid.jsx`, chuẩn hóa thành `Tuần: [ngày]`.
+     - Gỡ bỏ nút "Hướng dẫn" dư thừa trong dãy tab của Cổng học sinh, giữ lại nút duy nhất trên thanh Header.
+
+---
+
+### 📍 GIAI ĐOẠN 19: KHẮC PHỤC LỖI TREO CỔNG HỌC SINH & KIỂM THỬ BẢO MẬT TOÀN DIỆN
+* **Mục tiêu**: Xử lý triệt để lỗi `ReferenceError: lang is not defined` gây treo trang học sinh, cập nhật toàn bộ tài liệu hướng dẫn và rà soát bảo mật toàn hệ thống.
+* **Kết quả thực hiện**:
+  1. **Khắc Phục Lỗi Treo Cổng Học Sinh (ReferenceError)**:
+     - Phát hiện nguyên nhân: `StudentPortal.jsx` gọi `useThemeLanguage()` nhưng chỉ bóc tách `{ t }` mà không bóc tách `{ lang }`, khiến việc truy cập danh sách buổi học (`scheduleViewMode === 'list'`) hoặc mở chi tiết bài tập gọi `lang === 'en'` bị crash ứng dụng.
+     - Sửa thành: `const { t, lang } = useThemeLanguage();`.
+     - Build kiểm thử `npm run build` hoàn thành trong 1.15s, 0 lỗi.
+  2. **Cập Nhật Toàn Diện Cẩm Nang Hướng Dẫn & Tài Liệu**:
+     - Bổ sung Phần 12 trong `UserGuide.jsx` (Báo cáo tuần, Bảng tin, Sidebar thu gọn Ctrl+B).
+     - Bổ sung Phần 9 trong `StudentGuide.jsx` (Bảng tin lớp, Sổ tay lỗi sai).
+     - Cập nhật đầy đủ các tính năng mới trong `README.md`.
+  3. **Kiểm Thử Bảo Mật & An Ninh Mạng Toàn Hệ Thống (OWASP Hardening)**:
+     - *XSS Protection*: 0 xuất hiện `dangerouslySetInnerHTML`. React tự động escape HTML entities.
+     - *SQL Injection*: 100% truy vấn JPA/JPQL dùng parameterized queries (`:param`). 0 lỗi SQL concatenation.
+     - *Path Traversal*: `FileUploadController` xác thực nghiêm ngặt `!filePath.startsWith(uploadDir)`, tệp lưu bằng UUID ngẫu nhiên, whitelist định dạng tệp.
+     - *RBAC & IDOR*: `AuthInterceptor` áp dụng Default-Deny, chặn học sinh gọi endpoint giáo viên. Endpoint `/system-diag` chỉ mở cho Giáo viên.
+     - *Rate Limiting*: `RateLimiterService` chặn brute-force login (10req/min) và spam register (5req/min).
+     - *Mật mã hóa*: PBKDF2WithHmacSHA256 (65,536 iterations + salt) cho mật khẩu, AES-256-CBC cho tin nhắn thắc mắc.
+
+---
+
 ## 📊 TỔNG KẾT CHỈ SỐ HỆ THỐNG
 
 | Tiêu chí | Trước tối ưu hóa | Hiện tại | Hiệu quả cải thiện |
