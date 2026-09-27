@@ -840,15 +840,6 @@ export default function StudentPortal() {
             }`}>
             <span>{t('myClasses')}</span> {enrolledClasses.length > 0 ? `(${enrolledClasses.length})` : ''}
           </button>
-          <button
-            onClick={() => setActiveTab('guide')}
-            className={`py-2 px-3 text-center text-xs font-semibold rounded-xs transition cursor-pointer whitespace-nowrap shrink-0 flex-1 sm:flex-initial ${
-              activeTab === 'guide'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-            }`}>
-            <span>{t('guide')}</span>
-          </button>
         </div>
 
         {loading && (
@@ -1536,29 +1527,20 @@ export default function StudentPortal() {
 
         {/* TAB: BẢNG TIN LỚP HỌC */}
         {activeTab === 'announcements' && (
-          <div className="space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-bold text-gray-800 dark:text-slate-100">{t('tabAnnouncements')}</h2>
-                <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                  {t('announcementsSubtitle')}
-                </p>
+          <div className="space-y-4">
+            {enrolledClasses.length > 1 && (
+              <div className="flex items-center justify-end gap-2 pb-1">
+                <span className="text-xs text-slate-600 dark:text-slate-300 font-medium">{t('classLabel')}</span>
+                <select
+                  value={selectedAnnouncementClassId || enrolledClasses[0]?.id}
+                  onChange={(e) => setSelectedAnnouncementClassId(e.target.value)}
+                  className="px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-sm font-medium text-slate-800 dark:text-slate-200">
+                  {enrolledClasses.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.name}</option>
+                  ))}
+                </select>
               </div>
-
-              {enrolledClasses.length > 1 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-600 dark:text-slate-300 font-medium">{t('classLabel')}</span>
-                  <select
-                    value={selectedAnnouncementClassId || enrolledClasses[0]?.id}
-                    onChange={(e) => setSelectedAnnouncementClassId(e.target.value)}
-                    className="px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-sm font-medium text-slate-800 dark:text-slate-200">
-                    {enrolledClasses.map(cls => (
-                      <option key={cls.id} value={cls.id}>{cls.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
+            )}
 
             {enrolledClasses.length === 0 ? (
               <div className="bg-white dark:bg-slate-900 rounded-sm border border-gray-200 dark:border-slate-800 p-8 text-center text-sm text-gray-500 dark:text-slate-400">
@@ -1568,6 +1550,7 @@ export default function StudentPortal() {
               <ClassAnnouncementBoard
                 classId={selectedAnnouncementClassId || enrolledClasses[0]?.id}
                 isTeacher={false}
+                classInfo={enrolledClasses.find(c => String(c.id) === String(selectedAnnouncementClassId || enrolledClasses[0]?.id))}
               />
             )}
           </div>

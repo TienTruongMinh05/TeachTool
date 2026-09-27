@@ -414,7 +414,9 @@ export default function TimetableGrid({
       {/* Header & Navigation */}
       <div className="p-4 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-100">{t('timetableGridTitle')}</h2>
+          <span className="text-sm sm:text-base font-bold text-slate-700 dark:text-slate-200">
+            {lang === 'en' ? 'Week:' : 'Tuần:'}
+          </span>
           <span className="text-xs font-semibold px-2.5 py-1 bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-transparent dark:border-blue-800/60 rounded-full">
             {weekRangeStr}
           </span>
