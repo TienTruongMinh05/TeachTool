@@ -12,9 +12,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -57,29 +54,25 @@ public class WeeklyReportService {
         List<Session> allSessions = new ArrayList<>(sessionRepository.findByClassRoomId(classId));
         allSessions.sort(Comparator.comparing(s -> s.getStartTime() != null ? s.getStartTime() : LocalDateTime.MIN));
 
-        int sessionsPerWeek = 2;
-        int startIndex = Math.max(0, (week - 1) * sessionsPerWeek);
-        int endIndex = Math.min(allSessions.size(), startIndex + sessionsPerWeek);
-        List<Session> weekSessions = (startIndex < allSessions.size()) ? allSessions.subList(startIndex, endIndex) : Collections.emptyList();
+        WeekWindow window = calculateWeekWindow(classRoom, allSessions, week);
 
-        int nextStartIndex = endIndex;
-        int nextEndIndex = Math.min(allSessions.size(), nextStartIndex + sessionsPerWeek);
-        List<Session> nextWeekSessions = (nextStartIndex < allSessions.size()) ? allSessions.subList(nextStartIndex, nextEndIndex) : Collections.emptyList();
+        Set<Long> weekSessionIds = window.weekSessions().stream()
+                .map(Session::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
 
-        String dateRange = calculateDateRange(weekSessions, week);
+        boolean attDone = calculateAttendanceDone(window.weekSessions());
+        boolean annDone = calculateAnnouncementsDone(classId, window.startDateTime(), window.endDateTime());
+        boolean hwAssigned = calculateHomeworkAssigned(classId, weekSessionIds, window.startDateTime(), window.endDateTime());
+        boolean hwGraded = calculateHomeworkGraded(classId, weekSessionIds, window.startDateTime(), window.endDateTime());
 
-        boolean attDone = calculateAttendanceDone(weekSessions);
-        boolean annDone = calculateAnnouncementsDone(classId);
-        boolean hwAssigned = calculateHomeworkAssigned(classId);
-        boolean hwGraded = calculateHomeworkGraded(classId);
-
-        List<String> pastSessions = weekSessions.stream().map(this::formatSession).toList();
-        List<String> nextSessions = nextWeekSessions.stream().map(this::formatSession).toList();
-        List<AtRiskStudentInfo> atRisk = findAtRiskStudents(classId, enrollments);
+        List<String> pastSessions = window.weekSessions().stream().map(this::formatSession).toList();
+        List<String> nextSessions = window.nextWeekSessions().stream().map(this::formatSession).toList();
+        List<AtRiskStudentInfo> atRisk = findAtRiskStudents(classId, enrollments, window.weekSessions(), window.startDateTime(), window.endDateTime());
 
         return WeeklyReportPreviewDTO.builder()
                 .week(week)
-                .dateRange(dateRange)
+                .dateRange(window.dateRange())
                 .teacherName(teacherName)
                 .className(className)
                 .attendanceDone(attDone)
@@ -122,32 +115,23 @@ public class WeeklyReportService {
         List<Session> allSessions = new ArrayList<>(sessionRepository.findByClassRoomId(classId));
         allSessions.sort(Comparator.comparing(s -> s.getStartTime() != null ? s.getStartTime() : LocalDateTime.MIN));
 
-        int sessionsPerWeek = 2;
-        int startIndex = Math.max(0, (week - 1) * sessionsPerWeek);
-        int endIndex = Math.min(allSessions.size(), startIndex + sessionsPerWeek);
-        List<Session> weekSessions = (startIndex < allSessions.size()) ? allSessions.subList(startIndex, endIndex) : Collections.emptyList();
+        WeekWindow window = calculateWeekWindow(classRoom, allSessions, week);
 
-        int nextStartIndex = endIndex;
-        int nextEndIndex = Math.min(allSessions.size(), nextStartIndex + sessionsPerWeek);
-        List<Session> nextWeekSessions = (nextStartIndex < allSessions.size()) ? allSessions.subList(nextStartIndex, nextEndIndex) : Collections.emptyList();
-
-        String dateRange = calculateDateRange(weekSessions, week);
+        Set<Long> weekSessionIds = window.weekSessions().stream()
+                .map(Session::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
 
         // Máy tự động tính hoặc dùng giá trị ghi đè từ form giáo viên
-        boolean attDone = requestDTO.getAttendanceDone() != null ? requestDTO.getAttendanceDone() : calculateAttendanceDone(weekSessions);
-        boolean annDone = requestDTO.getAnnouncementsDone() != null ? requestDTO.getAnnouncementsDone() : calculateAnnouncementsDone(classId);
-        boolean hwAssigned = requestDTO.getHomeworkAssigned() != null ? requestDTO.getHomeworkAssigned() : calculateHomeworkAssigned(classId);
-        boolean hwGraded = requestDTO.getHomeworkGraded() != null ? requestDTO.getHomeworkGraded() : calculateHomeworkGraded(classId);
+        boolean attDone = requestDTO.getAttendanceDone() != null ? requestDTO.getAttendanceDone() : calculateAttendanceDone(window.weekSessions());
+        boolean annDone = requestDTO.getAnnouncementsDone() != null ? requestDTO.getAnnouncementsDone() : calculateAnnouncementsDone(classId, window.startDateTime(), window.endDateTime());
+        boolean hwAssigned = requestDTO.getHomeworkAssigned() != null ? requestDTO.getHomeworkAssigned() : calculateHomeworkAssigned(classId, weekSessionIds, window.startDateTime(), window.endDateTime());
+        boolean hwGraded = requestDTO.getHomeworkGraded() != null ? requestDTO.getHomeworkGraded() : calculateHomeworkGraded(classId, weekSessionIds, window.startDateTime(), window.endDateTime());
 
         InputStream templateStream = null;
         try {
-            Path localTemplate = Paths.get("Bao_Cao_Tuan_Foundation_1.docx");
-            if (Files.exists(localTemplate)) {
-                templateStream = Files.newInputStream(localTemplate);
-            } else {
-                ClassPathResource resource = new ClassPathResource("templates/weekly_report_template.docx");
-                templateStream = resource.getInputStream();
-            }
+            ClassPathResource resource = new ClassPathResource("templates/weekly_report_template.docx");
+            templateStream = resource.getInputStream();
 
             try (XWPFDocument document = new XWPFDocument(templateStream);
                  ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -181,7 +165,7 @@ public class WeeklyReportService {
 
                     // I. THÔNG TIN CHUNG
                     if (text.contains("Giáo viên:") && text.contains("Tuần:") && text.contains("Lớp:")) {
-                        setParagraphText(paragraph, String.format("Giáo viên: %s    Tuần: %s    Lớp: %s", teacherName, dateRange, className));
+                        setParagraphText(paragraph, String.format("Giáo viên: %s    Tuần: %s    Lớp: %s", teacherName, window.dateRange(), className));
                     }
                     // II. TIẾN ĐỘ GIẢNG DẠY - Checkbox Hoàn thành
                     else if (text.contains("Hoàn thành đúng tiến độ") && text.contains("Nhanh hơn kế hoạch")) {
@@ -202,28 +186,44 @@ public class WeeklyReportService {
                             setParagraphText(paragraph, "Nếu chậm, lý do: Không có (Đảm bảo đúng tiến độ)");
                         }
                     }
-                    // Bài đã dạy (Buổi 1, Buổi 2)
+                    // Bài đã dạy (Buổi 1, Buổi 2...)
                     else if ("PAST_SESSIONS".equals(currentSection) && text.startsWith("Buổi 1:")) {
-                        String s1 = !weekSessions.isEmpty() ? formatSession(weekSessions.get(0)) : "Chưa có buổi học nào trong tuần";
+                        String s1 = !window.weekSessions().isEmpty() ? formatSession(window.weekSessions().get(0)) : "Chưa có buổi học nào trong tuần";
                         setParagraphText(paragraph, "Buổi 1: " + s1);
                     }
                     else if ("PAST_SESSIONS".equals(currentSection) && text.startsWith("Buổi 2:")) {
-                        String s2 = weekSessions.size() > 1 ? formatSession(weekSessions.get(1)) : (weekSessions.size() > 2 ? formatSession(weekSessions.get(1)) + " | " + formatSession(weekSessions.get(2)) : "Không có");
-                        setParagraphText(paragraph, "Buổi 2: " + s2);
+                        if (window.weekSessions().size() > 1) {
+                            StringBuilder sb = new StringBuilder();
+                            for (int i = 1; i < window.weekSessions().size(); i++) {
+                                if (i > 1) sb.append("\n");
+                                sb.append("Buổi ").append(i + 1).append(": ").append(formatSession(window.weekSessions().get(i)));
+                            }
+                            setParagraphText(paragraph, sb.toString());
+                        } else {
+                            setParagraphText(paragraph, "Buổi 2: -");
+                        }
                     }
-                    // Kế hoạch tuần tới (Buổi 1, Buổi 2)
+                    // Kế hoạch tuần tới (Buổi 1, Buổi 2...)
                     else if ("NEXT_SESSIONS".equals(currentSection) && text.startsWith("Buổi 1:")) {
-                        String s1 = !nextWeekSessions.isEmpty() ? formatSession(nextWeekSessions.get(0)) : "Theo tiến độ phân phối chương trình";
+                        String s1 = !window.nextWeekSessions().isEmpty() ? formatSession(window.nextWeekSessions().get(0)) : "Theo tiến độ phân phối chương trình";
                         setParagraphText(paragraph, "Buổi 1: " + s1);
                     }
                     else if ("NEXT_SESSIONS".equals(currentSection) && text.startsWith("Buổi 2:")) {
-                        String s2 = nextWeekSessions.size() > 1 ? formatSession(nextWeekSessions.get(1)) : "Theo tiến độ phân phối chương trình";
-                        setParagraphText(paragraph, "Buổi 2: " + s2);
+                        if (window.nextWeekSessions().size() > 1) {
+                            StringBuilder sb = new StringBuilder();
+                            for (int i = 1; i < window.nextWeekSessions().size(); i++) {
+                                if (i > 1) sb.append("\n");
+                                sb.append("Buổi ").append(i + 1).append(": ").append(formatSession(window.nextWeekSessions().get(i)));
+                            }
+                            setParagraphText(paragraph, sb.toString());
+                        } else {
+                            setParagraphText(paragraph, "Buổi 2: Theo tiến độ phân phối chương trình");
+                        }
                     }
-                    // III. Tình hình học sinh (Buổi 1, Buổi 2, Buổi 3)
+                    // III. Tình hình học sinh (Buổi 1, Buổi 2, Buổi 3...)
                     else if ("STUDENTS".equals(currentSection) && text.startsWith("Buổi 1")) {
-                        if (!weekSessions.isEmpty()) {
-                            Session s = weekSessions.get(0);
+                        if (!window.weekSessions().isEmpty()) {
+                            Session s = window.weekSessions().get(0);
                             AttendanceStats stats = getAttendanceStats(s.getId(), totalStudents);
                             setParagraphText(paragraph, String.format("Buổi 1 (%s): Tổng số HS: %d | Có mặt: %d | Vắng: %d",
                                     s.getTopic() != null ? s.getTopic() : "Buổi 1", stats.total(), stats.present(), stats.absent()));
@@ -232,21 +232,26 @@ public class WeeklyReportService {
                         }
                     }
                     else if ("STUDENTS".equals(currentSection) && text.startsWith("Buổi 2")) {
-                        if (weekSessions.size() > 1) {
-                            Session s = weekSessions.get(1);
+                        if (window.weekSessions().size() > 1) {
+                            Session s = window.weekSessions().get(1);
                             AttendanceStats stats = getAttendanceStats(s.getId(), totalStudents);
                             setParagraphText(paragraph, String.format("Buổi 2 (%s): Tổng số HS: %d | Có mặt: %d | Vắng: %d",
                                     s.getTopic() != null ? s.getTopic() : "Buổi 2", stats.total(), stats.present(), stats.absent()));
                         } else {
-                            setParagraphText(paragraph, "Buổi 2: (Lớp học 1 buổi/tuần)");
+                            setParagraphText(paragraph, "Buổi 2: -");
                         }
                     }
                     else if ("STUDENTS".equals(currentSection) && text.startsWith("Buổi 3")) {
-                        if (weekSessions.size() > 2) {
-                            Session s = weekSessions.get(2);
-                            AttendanceStats stats = getAttendanceStats(s.getId(), totalStudents);
-                            setParagraphText(paragraph, String.format("Buổi 3 (%s): Tổng số HS: %d | Có mặt: %d | Vắng: %d",
-                                    s.getTopic() != null ? s.getTopic() : "Buổi 3", stats.total(), stats.present(), stats.absent()));
+                        if (window.weekSessions().size() > 2) {
+                            StringBuilder sb = new StringBuilder();
+                            for (int i = 2; i < window.weekSessions().size(); i++) {
+                                if (i > 2) sb.append("\n");
+                                Session s = window.weekSessions().get(i);
+                                AttendanceStats stats = getAttendanceStats(s.getId(), totalStudents);
+                                sb.append(String.format("Buổi %d (%s): Tổng số HS: %d | Có mặt: %d | Vắng: %d",
+                                        i + 1, s.getTopic() != null ? s.getTopic() : ("Buổi " + (i + 1)), stats.total(), stats.present(), stats.absent()));
+                            }
+                            setParagraphText(paragraph, sb.toString());
                         } else {
                             setParagraphText(paragraph, "Buổi 3: -");
                         }
@@ -290,18 +295,18 @@ public class WeeklyReportService {
                     }
                 }
 
-                // Table 1: Học sinh cần theo dõi
+                // Table 1: Học sinh cần theo dõi (chỉ tính trong tuần đang báo cáo)
                 if (!document.getTables().isEmpty()) {
                     XWPFTable table = document.getTables().get(0);
                     while (table.getRows().size() > 1) {
                         table.removeRow(1);
                     }
 
-                    List<AtRiskStudentInfo> atRiskStudents = findAtRiskStudents(classId, enrollments);
+                    List<AtRiskStudentInfo> atRiskStudents = findAtRiskStudents(classId, enrollments, window.weekSessions(), window.startDateTime(), window.endDateTime());
                     if (atRiskStudents.isEmpty()) {
                         XWPFTableRow row = table.createRow();
                         row.getCell(0).setText("Cả lớp");
-                        row.getCell(1).setText("Đi học và hoàn thành bài đầy đủ, không có vấn đề phát sinh.");
+                        row.getCell(1).setText("Đi học và hoàn thành bài đầy đủ trong tuần, không có vấn đề phát sinh.");
                         row.getCell(2).setText("Tiếp tục phát huy");
                     } else {
                         for (AtRiskStudentInfo st : atRiskStudents) {
@@ -326,32 +331,57 @@ public class WeeklyReportService {
         }
     }
 
+    private WeekWindow calculateWeekWindow(ClassRoom classRoom, List<Session> allSessions, int week) {
+        LocalDate baseDate = classRoom.getStartDate();
+        if (baseDate == null && !allSessions.isEmpty() && allSessions.get(0).getStartTime() != null) {
+            baseDate = allSessions.get(0).getStartTime().toLocalDate();
+        }
+        if (baseDate == null) {
+            baseDate = LocalDate.now();
+        }
+
+        LocalDate week1Monday = baseDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate weekStart = week1Monday.plusWeeks(week - 1);
+        LocalDate weekEnd = weekStart.plusDays(6);
+
+        LocalDateTime startDateTime = weekStart.atStartOfDay();
+        LocalDateTime endDateTime = weekEnd.atTime(23, 59, 59, 999999999);
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        String dateRange = weekStart.format(fmt) + " – " + weekEnd.format(fmt);
+
+        List<Session> weekSessions = allSessions.stream()
+                .filter(s -> s.getStartTime() != null && !s.getStartTime().isBefore(startDateTime) && !s.getStartTime().isAfter(endDateTime))
+                .toList();
+
+        LocalDate nextWeekStart = weekStart.plusWeeks(1);
+        LocalDate nextWeekEnd = nextWeekStart.plusDays(6);
+        LocalDateTime nextStartDateTime = nextWeekStart.atStartOfDay();
+        LocalDateTime nextEndDateTime = nextWeekEnd.atTime(23, 59, 59, 999999999);
+
+        List<Session> nextWeekSessions = allSessions.stream()
+                .filter(s -> s.getStartTime() != null && !s.getStartTime().isBefore(nextStartDateTime) && !s.getStartTime().isAfter(nextEndDateTime))
+                .toList();
+
+        return new WeekWindow(weekStart, weekEnd, startDateTime, endDateTime, dateRange, weekSessions, nextWeekSessions);
+    }
+
     private void setParagraphText(XWPFParagraph p, String newText) {
         int runCount = p.getRuns().size();
         for (int i = runCount - 1; i > 0; i--) {
             p.removeRun(i);
         }
-        if (!p.getRuns().isEmpty()) {
-            p.getRuns().get(0).setText(newText, 0);
-        } else {
-            XWPFRun run = p.createRun();
-            run.setText(newText);
+        XWPFRun run = !p.getRuns().isEmpty() ? p.getRuns().get(0) : p.createRun();
+        if (newText == null) {
+            run.setText("", 0);
+            return;
         }
-    }
-
-    private String calculateDateRange(List<Session> weekSessions, int week) {
-        if (weekSessions != null && !weekSessions.isEmpty()) {
-            LocalDateTime start = weekSessions.get(0).getStartTime();
-            LocalDateTime end = weekSessions.get(weekSessions.size() - 1).getStartTime();
-            if (start != null && end != null) {
-                DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-                return start.format(fmt) + " – " + end.format(fmt);
-            }
+        String[] lines = newText.split("\n");
+        run.setText(lines[0], 0);
+        for (int i = 1; i < lines.length; i++) {
+            run.addBreak();
+            run.setText(lines[i]);
         }
-        LocalDate monday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate sunday = monday.plusDays(6);
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-        return monday.format(fmt) + " – " + sunday.format(fmt);
     }
 
     private String formatSession(Session s) {
@@ -375,23 +405,48 @@ public class WeeklyReportService {
         return true;
     }
 
-    private boolean calculateAnnouncementsDone(Long classId) {
+    private boolean calculateAnnouncementsDone(Long classId, LocalDateTime startDateTime, LocalDateTime endDateTime) {
         List<ClassAnnouncement> list = classAnnouncementRepository.findByClassRoomId(classId);
-        return list != null && !list.isEmpty();
+        if (list == null || list.isEmpty()) return false;
+        boolean hasThisWeek = list.stream().anyMatch(a -> a.getCreatedAt() != null &&
+                !a.getCreatedAt().isBefore(startDateTime) && !a.getCreatedAt().isAfter(endDateTime));
+        return hasThisWeek || !list.isEmpty();
     }
 
-    private boolean calculateHomeworkAssigned(Long classId) {
+    private boolean calculateHomeworkAssigned(Long classId, Set<Long> weekSessionIds, LocalDateTime startDateTime, LocalDateTime endDateTime) {
         List<Assignment> list = assignmentRepository.findByClassRoomId(classId);
-        return list != null && !list.isEmpty();
+        if (list == null || list.isEmpty()) return false;
+        boolean hasThisWeek = list.stream().anyMatch(a ->
+                (a.getSession() != null && weekSessionIds.contains(a.getSession().getId())) ||
+                (a.getCreatedAt() != null && !a.getCreatedAt().isBefore(startDateTime) && !a.getCreatedAt().isAfter(endDateTime)) ||
+                (a.getDueDate() != null && !a.getDueDate().isBefore(startDateTime) && !a.getDueDate().isAfter(endDateTime)));
+        return hasThisWeek || !list.isEmpty();
     }
 
-    private boolean calculateHomeworkGraded(Long classId) {
+    private boolean calculateHomeworkGraded(Long classId, Set<Long> weekSessionIds, LocalDateTime startDateTime, LocalDateTime endDateTime) {
         List<Submission> submissions = submissionRepository.findByClassRoomId(classId);
         if (submissions == null || submissions.isEmpty()) return true;
-        long graded = submissions.stream()
+
+        List<Submission> weekSubmissions = submissions.stream()
+                .filter(s -> {
+                    if (s.getAssignment() != null && s.getAssignment().getSession() != null && weekSessionIds.contains(s.getAssignment().getSession().getId())) {
+                        return true;
+                    }
+                    if (s.getSubmittedAt() != null && !s.getSubmittedAt().isBefore(startDateTime) && !s.getSubmittedAt().isAfter(endDateTime)) {
+                        return true;
+                    }
+                    return false;
+                })
+                .toList();
+
+        if (weekSubmissions.isEmpty()) {
+            return true;
+        }
+
+        long graded = weekSubmissions.stream()
                 .filter(s -> s.getScore() != null || s.getGradedAt() != null || s.getFeedback() != null)
                 .count();
-        return ((double) graded / submissions.size()) >= 0.70;
+        return ((double) graded / weekSubmissions.size()) >= 0.70;
     }
 
     private AttendanceStats getAttendanceStats(Long sessionId, int totalStudents) {
@@ -413,27 +468,44 @@ public class WeeklyReportService {
         return new AttendanceStats(total, total - absentCount, absentCount);
     }
 
-    private List<AtRiskStudentInfo> findAtRiskStudents(Long classId, List<Enrollment> enrollments) {
+    private List<AtRiskStudentInfo> findAtRiskStudents(Long classId, List<Enrollment> enrollments, List<Session> weekSessions, LocalDateTime startDateTime, LocalDateTime endDateTime) {
         List<AtRiskStudentInfo> result = new ArrayList<>();
         if (enrollments == null || classId == null) return result;
 
-        List<Attendance> classAtts = attendanceRepository.findBySessionClassRoomId(classId);
-        Map<Long, Long> absentCounts = (classAtts != null ? classAtts : Collections.<Attendance>emptyList()).stream()
-                .filter(a -> a.getStudent() != null && "ABSENT".equalsIgnoreCase(a.getStatus()))
-                .collect(Collectors.groupingBy(a -> a.getStudent().getId(), Collectors.counting()));
+        Set<Long> weekSessionIds = (weekSessions != null) ? weekSessions.stream()
+                .map(Session::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet()) : Collections.emptySet();
+
+        Map<Long, Long> absentCounts = new HashMap<>();
+        if (!weekSessionIds.isEmpty()) {
+            List<Attendance> classAtts = attendanceRepository.findBySessionClassRoomId(classId);
+            if (classAtts != null) {
+                absentCounts = classAtts.stream()
+                        .filter(a -> a.getStudent() != null && a.getSession() != null && weekSessionIds.contains(a.getSession().getId()) && "ABSENT".equalsIgnoreCase(a.getStatus()))
+                        .collect(Collectors.groupingBy(a -> a.getStudent().getId(), Collectors.counting()));
+            }
+        }
 
         List<Submission> submissions = submissionRepository.findByClassRoomId(classId);
-        Map<Long, List<Submission>> studentSubmissions = submissions.stream()
-                .filter(s -> s.getStudent() != null)
+        Map<Long, List<Submission>> studentSubmissions = (submissions != null ? submissions : Collections.<Submission>emptyList()).stream()
+                .filter(s -> s.getStudent() != null && (
+                        (s.getAssignment() != null && s.getAssignment().getSession() != null && weekSessionIds.contains(s.getAssignment().getSession().getId())) ||
+                        (s.getSubmittedAt() != null && !s.getSubmittedAt().isBefore(startDateTime) && !s.getSubmittedAt().isAfter(endDateTime))
+                ))
                 .collect(Collectors.groupingBy(s -> s.getStudent().getId()));
 
         for (Enrollment e : enrollments) {
             User student = e.getStudent();
             if (student == null) continue;
 
+            String studentDisplayName = student.getFullName() != null && !student.getFullName().isBlank() 
+                    ? student.getFullName() 
+                    : (student.getEmail() != null ? student.getEmail() : "Học sinh");
+
             long absentCount = absentCounts.getOrDefault(student.getId(), 0L);
             List<Submission> subs = studentSubmissions.getOrDefault(student.getId(), Collections.emptyList());
-            
+
             double avgScore = subs.stream()
                     .filter(s -> s.getScore() != null)
                     .mapToDouble(s -> {
@@ -446,22 +518,27 @@ public class WeeklyReportService {
                     .average().orElse(10.0);
 
             if (absentCount >= 2) {
-                result.add(new AtRiskStudentInfo(student.getFullName(), 
-                        "Vắng " + absentCount + " buổi học, cần bổ túc bài", 
+                result.add(new AtRiskStudentInfo(studentDisplayName,
+                        "Vắng " + absentCount + " buổi trong tuần, cần bổ túc bài",
                         "Gửi bài giảng và dặn dò kèm cặp"));
             } else if (absentCount == 1 && avgScore < 6.0) {
-                result.add(new AtRiskStudentInfo(student.getFullName(), 
-                        "Vắng 1 buổi, điểm TB thấp (" + String.format("%.1f", avgScore) + ")", 
+                result.add(new AtRiskStudentInfo(studentDisplayName,
+                        "Vắng 1 buổi trong tuần, điểm TB thấp (" + String.format("%.1f", avgScore) + ")",
                         "Cần phụ đạo thêm kiến thức"));
+            } else if (absentCount == 1) {
+                result.add(new AtRiskStudentInfo(studentDisplayName,
+                        "Vắng 1 buổi học trong tuần",
+                        "Nhắc nhở học sinh xem lại bài giảng"));
             } else if (avgScore < 5.0 && !subs.isEmpty()) {
-                result.add(new AtRiskStudentInfo(student.getFullName(), 
-                        "Điểm bài tập thấp (" + String.format("%.1f", avgScore) + ")", 
+                result.add(new AtRiskStudentInfo(studentDisplayName,
+                        "Điểm bài tập trong tuần thấp (" + String.format("%.1f", avgScore) + ")",
                         "Giao bài tập bổ trợ để củng cố"));
             }
         }
         return result;
     }
 
+    private record WeekWindow(LocalDate weekStart, LocalDate weekEnd, LocalDateTime startDateTime, LocalDateTime endDateTime, String dateRange, List<Session> weekSessions, List<Session> nextWeekSessions) {}
     private record AttendanceStats(int total, int present, int absent) {}
     private record AtRiskStudentInfo(String name, String issue, String recommendation) {}
 }
