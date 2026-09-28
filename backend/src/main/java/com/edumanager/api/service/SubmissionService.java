@@ -38,6 +38,11 @@ public class SubmissionService {
             throw new IllegalStateException("Bài tập này được hẹn giờ phát hành và hiện chưa đến thời gian mở nộp bài.");
         }
 
+        // Kiểm tra quá hạn nộp bài
+        if (assignment.getDueDate() != null && java.time.LocalDateTime.now().isAfter(assignment.getDueDate())) {
+            throw new IllegalStateException("Đã quá hạn nộp bài tập. Bạn không thể nộp hoặc chỉnh sửa bài làm sau thời hạn quy định.");
+        }
+
         if (submissionType == null || submissionType.trim().isEmpty()) {
             throw new IllegalArgumentException("Vui lòng chọn hình thức nộp bài.");
         }
@@ -136,6 +141,9 @@ public class SubmissionService {
             }
             if (submission.getScore() != null && !submission.getScore().trim().isEmpty()) {
                 throw new IllegalStateException("Bài làm đã được giáo viên chấm điểm, không thể xóa.");
+            }
+            if (submission.getAssignment() != null && submission.getAssignment().getDueDate() != null && java.time.LocalDateTime.now().isAfter(submission.getAssignment().getDueDate())) {
+                throw new IllegalStateException("Đã quá hạn nộp bài tập, không thể xóa bài nộp.");
             }
         } else if ("TEACHER".equalsIgnoreCase(callerRole)) {
             if (callerId != null && submission.getAssignment() != null && submission.getAssignment().getClassRoom() != null) {

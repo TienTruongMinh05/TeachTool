@@ -530,6 +530,11 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
                       </span>
                     )}
                     <h4 className="font-bold text-gray-800 dark:text-slate-100 text-base">{assignment.title}</h4>
+                    {assignment.dueDate && new Date(assignment.dueDate) < new Date() && (
+                      <span className="px-2 py-0.5 text-[11px] font-bold bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white shrink-0 flex items-center gap-1">
+                        ⏰ {lang === 'en' ? 'Overdue' : 'Quá hạn'}
+                      </span>
+                    )}
                     {assignment.scheduledPublishAt && new Date(assignment.scheduledPublishAt) > new Date() && (
                       <span className="px-2 py-0.5 text-[11px] font-semibold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 rounded border border-amber-200 dark:border-amber-800 shrink-0">
                         {t('scheduledPublishPrefix')} {formatDateTime(assignment.scheduledPublishAt)}
@@ -707,9 +712,15 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
                                       {t('statusSubmitted')}
                                     </span>
                                   ) : (
-                                    <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700">
-                                      {t('unsubmittedStatus')}
-                                    </span>
+                                    activeAssignmentForSubmissions?.dueDate && new Date(activeAssignmentForSubmissions.dueDate) < new Date() ? (
+                                      <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+                                        ⚠️ {lang === 'en' ? 'Overdue (Unsubmitted)' : 'Quá hạn (Chưa nộp)'}
+                                      </span>
+                                    ) : (
+                                      <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400 border border-gray-200 dark:border-slate-700">
+                                        {t('unsubmittedStatus')}
+                                      </span>
+                                    )
                                   )}
                                 </td>
                                 <td className="px-5 py-3.5 text-xs text-gray-700 dark:text-slate-300">

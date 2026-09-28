@@ -74,6 +74,28 @@ public class WeeklyReportService {
         List<String> nextSessions = window.nextWeekSessions().stream().map(this::formatSession).toList();
         List<AtRiskStudentInfo> atRisk = findAtRiskStudents(classId, enrollments, window.weekSessions(), window.startDateTime(), window.endDateTime());
 
+        List<WeeklyReportPreviewDTO.SessionDetailDTO> sessionDetails = new ArrayList<>();
+        for (int i = 0; i < window.weekSessions().size(); i++) {
+            Session s = window.weekSessions().get(i);
+            AttendanceStats stats = getAttendanceStats(s.getId(), currentStudentIds);
+            sessionDetails.add(WeeklyReportPreviewDTO.SessionDetailDTO.builder()
+                    .sessionIndex(i + 1)
+                    .topic(s.getTopic() != null ? s.getTopic() : ("Buổi " + (i + 1)))
+                    .formattedText(formatSession(s))
+                    .totalStudents(stats.total())
+                    .presentCount(stats.present())
+                    .absentCount(stats.absent())
+                    .build());
+        }
+
+        List<WeeklyReportPreviewDTO.AtRiskStudentDetailDTO> atRiskStudentDTOs = atRisk.stream()
+                .map(ar -> WeeklyReportPreviewDTO.AtRiskStudentDetailDTO.builder()
+                        .name(ar.name())
+                        .issue(ar.issue())
+                        .recommendation(ar.recommendation())
+                        .build())
+                .toList();
+
         return WeeklyReportPreviewDTO.builder()
                 .week(week)
                 .totalWeeks(window.totalWeeks())
@@ -87,6 +109,8 @@ public class WeeklyReportService {
                 .homeworkGraded(hwGraded)
                 .pastSessions(pastSessions)
                 .nextSessions(nextSessions)
+                .sessionDetails(sessionDetails)
+                .atRiskStudents(atRiskStudentDTOs)
                 .totalStudents(totalStudents)
                 .atRiskCount(atRisk.size())
                 .build();

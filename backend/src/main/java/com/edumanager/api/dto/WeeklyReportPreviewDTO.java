@@ -24,6 +24,31 @@ public class WeeklyReportPreviewDTO {
     private boolean homeworkGraded;
     private List<String> pastSessions;
     private List<String> nextSessions;
+    private List<SessionDetailDTO> sessionDetails;
+    private List<AtRiskStudentDetailDTO> atRiskStudents;
     private int totalStudents;
     private int atRiskCount;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SessionDetailDTO {
+        private int sessionIndex;
+        private String topic;
+        private String formattedText;
+        private int totalStudents;
+        private int presentCount;
+        private int absentCount;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AtRiskStudentDetailDTO {
+        private String name;
+        private String issue;
+        private String recommendation;
+    }
 }

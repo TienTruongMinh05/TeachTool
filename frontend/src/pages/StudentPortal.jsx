@@ -249,6 +249,7 @@ export default function StudentPortal() {
         const sub = submissions.find(s => s.assignmentId === asgn.id);
         let asgnStatus = 'NOT_SUBMITTED';
         let asgnScore = null;
+        const isOverdue = !sub && fullAss.dueDate && new Date(fullAss.dueDate) < new Date();
         if (sub) {
           if (sub.status === 'GRADED' || (sub.score !== null && sub.score !== undefined)) {
             asgnStatus = 'GRADED';
@@ -256,6 +257,8 @@ export default function StudentPortal() {
           } else {
             asgnStatus = 'SUBMITTED';
           }
+        } else if (isOverdue) {
+          asgnStatus = 'OVERDUE';
         } else {
           try {
             const draftKey = `draft_asgn_${user?.id}_${asgn.id}`;
@@ -272,16 +275,22 @@ export default function StudentPortal() {
           ...fullAss,
           submission: sub || null,
           submissionStatus: asgnStatus,
-          submissionScore: asgnScore
+          submissionScore: asgnScore,
+          isOverdue
         };
       });
 
+      const isSessionOverdue = enrichedAssignments.some(a => a.isOverdue || a.submissionStatus === 'OVERDUE');
+
       if (enrichedAssignments.length > 0) {
+        const hasOverdue = enrichedAssignments.some(a => a.submissionStatus === 'OVERDUE');
         const hasGraded = enrichedAssignments.some(a => a.submissionStatus === 'GRADED');
         const hasSubmitted = enrichedAssignments.some(a => a.submissionStatus === 'SUBMITTED');
         const hasDraft = enrichedAssignments.some(a => a.submissionStatus === 'DRAFT');
 
-        if (hasGraded) {
+        if (hasOverdue) {
+          homeworkStatus = 'OVERDUE';
+        } else if (hasGraded) {
           homeworkStatus = 'GRADED';
           const gradedAss = enrichedAssignments.find(a => a.submissionScore != null);
           homeworkScore = gradedAss?.submissionScore;
@@ -298,7 +307,8 @@ export default function StudentPortal() {
         ...session,
         assignments: enrichedAssignments,
         homeworkStatus,
-        homeworkScore
+        homeworkScore,
+        isOverdue: isSessionOverdue
       };
     });
   }, [schedule, assignments, submissions, user?.id]);
@@ -511,6 +521,11 @@ export default function StudentPortal() {
   const handleSubmitAssignment = async (e) => {
     e.preventDefault();
     if (!activeAssignmentToSubmit) return;
+
+    if (activeAssignmentToSubmit.dueDate && new Date(activeAssignmentToSubmit.dueDate) < new Date()) {
+      toast.error(lang === 'en' ? 'Submission deadline has passed. You cannot submit or modify this assignment.' : 'Đã quá hạn nộp bài tập. Bạn không thể nộp hoặc chỉnh sửa bài làm sau thời hạn quy định.');
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -922,12 +937,17 @@ export default function StudentPortal() {
                         const isOnline = item.attendanceStatus === 'ONLINE' || (item.attendanceNote && item.attendanceNote.includes('[Xin học Online]'));
                         const isAbsent = item.attendanceStatus === 'ABSENT' && !isOnline;
                         const canAbsent = canReportAbsence(item);
+                        const isOverdue = item.isOverdue || item.homeworkStatus === 'OVERDUE';
 
                         return (
                           <div
                             key={item.sessionId || idx}
                             onClick={() => markNewsAsViewed(item)}
-                            className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden"
+                            className={`bg-white dark:bg-slate-900 rounded-xl shadow-xs overflow-hidden ${
+                              isOverdue
+                                ? 'border-2 border-black dark:border-white ring-1 ring-black dark:ring-white shadow-black/20'
+                                : 'border border-gray-200 dark:border-slate-800'
+                            }`}
                           >
                             {/* Header của Buổi học */}
                             <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -944,6 +964,11 @@ export default function StudentPortal() {
                                   <h3 className="font-bold text-gray-800 dark:text-slate-100 text-base">
                                     {item.topic || t('sessionLabel')}
                                   </h3>
+                                  {isOverdue && (
+                                    <span className="text-xs font-bold px-2 py-0.5 bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white flex items-center gap-1">
+                                      ⚠️ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                                    </span>
+                                  )}
                                   {isNewsUnviewed(item) && (
                                     <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 rounded border border-amber-300 dark:border-amber-700 animate-[pulse_2.5s_ease-in-out_infinite] shadow-2xs">
                                       {t('news')}
@@ -978,10 +1003,16 @@ export default function StudentPortal() {
                                   <button
                                     type="button"
                                     onClick={() => handleGoToAssignment(item, item.assignments[0])}
-                                    className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition cursor-pointer shadow-xs">
-                                    {isSessionEnded(item)
-                                      ? (item.homeworkStatus === 'SUBMITTED' || item.homeworkStatus === 'GRADED' ? t('reviewSubmission') : t('viewHomework'))
-                                      : (item.homeworkStatus === 'DRAFT' ? t('continueDraft') : item.homeworkStatus === 'SUBMITTED' || item.homeworkStatus === 'GRADED' ? t('reviewSubmission') : t('doHomework'))}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer shadow-xs ${
+                                      item.homeworkStatus === 'OVERDUE'
+                                        ? 'bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200'
+                                        : 'text-white bg-blue-600 hover:bg-blue-700'
+                                    }`}>
+                                    {item.homeworkStatus === 'OVERDUE'
+                                      ? (lang === 'en' ? 'Overdue (View)' : 'Quá hạn (Xem)')
+                                      : (isSessionEnded(item)
+                                        ? (item.homeworkStatus === 'SUBMITTED' || item.homeworkStatus === 'GRADED' ? t('reviewSubmission') : t('viewHomework'))
+                                        : (item.homeworkStatus === 'DRAFT' ? t('continueDraft') : item.homeworkStatus === 'SUBMITTED' || item.homeworkStatus === 'GRADED' ? t('reviewSubmission') : t('doHomework')))}
                                   </button>
                                 )}
                                 {item.assignments && item.assignments.length > 1 && (
@@ -1130,6 +1161,11 @@ export default function StudentPortal() {
                                             <div className="space-y-1">
                                               <div className="flex items-center gap-2">
                                                 <span className="font-bold text-sm text-gray-800 dark:text-slate-100">{ass.title}</span>
+                                                {status === 'OVERDUE' && (
+                                                  <span className="px-2 py-0.5 text-[10px] font-extrabold bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white">
+                                                    ⚠️ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                                                  </span>
+                                                )}
                                                 {status === 'GRADED' && (
                                                   <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded border border-emerald-300 dark:border-emerald-700">
                                                     {t('gradedBadge')} {ass.submissionScore != null ? ass.submissionScore : sub?.score} {t('pts')}
@@ -1159,13 +1195,17 @@ export default function StudentPortal() {
                                             <button
                                               onClick={() => openSubmitModal(ass)}
                                               className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer shadow-xs self-start sm:self-auto ${
-                                                status === 'DRAFT'
+                                                status === 'OVERDUE'
+                                                  ? 'bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200'
+                                                  : status === 'DRAFT'
                                                   ? 'bg-amber-600 hover:bg-amber-700 text-white'
                                                   : (status === 'SUBMITTED' || status === 'GRADED')
                                                   ? 'bg-slate-700 dark:bg-slate-800 hover:bg-slate-800 text-white'
                                                   : 'bg-blue-600 hover:bg-blue-700 text-white'
                                               }`}>
-                                              {status === 'DRAFT'
+                                              {status === 'OVERDUE'
+                                                ? (lang === 'en' ? 'Overdue (View)' : 'Quá hạn (Xem)')
+                                                : status === 'DRAFT'
                                                 ? t('continueDraft')
                                                 : (status === 'SUBMITTED' || status === 'GRADED')
                                                 ? t('reviewSubmission')
@@ -1218,12 +1258,17 @@ export default function StudentPortal() {
                       {pastStudentSessions.map((item, idx) => {
                         const isOnline = item.attendanceStatus === 'ONLINE' || (item.attendanceNote && item.attendanceNote.includes('[Xin học Online]'));
                         const isAbsent = item.attendanceStatus === 'ABSENT' && !isOnline;
+                        const isOverdue = item.isOverdue || item.homeworkStatus === 'OVERDUE';
 
                         return (
                           <div
                             key={item.sessionId || idx}
                             onClick={() => markNewsAsViewed(item)}
-                            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden opacity-90"
+                            className={`bg-white dark:bg-slate-900 rounded-xl shadow-xs overflow-hidden opacity-90 ${
+                              isOverdue
+                                ? 'border-2 border-black dark:border-white ring-1 ring-black dark:ring-white shadow-black/20'
+                                : 'border border-slate-200 dark:border-slate-800'
+                            }`}
                           >
                             {/* Header của Buổi học */}
                             <div className="p-4 bg-slate-100/70 dark:bg-slate-800/60 border-b border-gray-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -1240,6 +1285,11 @@ export default function StudentPortal() {
                                   <h3 className="font-bold text-gray-800 dark:text-slate-100 text-base">
                                     {item.topic || t('sessionLabel')}
                                   </h3>
+                                  {isOverdue && (
+                                    <span className="text-xs font-bold px-2 py-0.5 bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white flex items-center gap-1">
+                                      ⚠️ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                                    </span>
+                                  )}
                                   {isNewsUnviewed(item) && (
                                     <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 dark:bg-amber-950/60 text-amber-900 dark:text-amber-300 rounded border border-amber-300 dark:border-amber-700 animate-[pulse_2.5s_ease-in-out_infinite] shadow-2xs">
                                       {t('news')}
@@ -1277,8 +1327,18 @@ export default function StudentPortal() {
                                   <button
                                     type="button"
                                     onClick={() => handleGoToAssignment(item)}
-                                    className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition cursor-pointer shadow-xs">
-                                    {item.homeworkStatus === 'DRAFT' ? t('continueDraft') : item.homeworkStatus === 'SUBMITTED' || item.homeworkStatus === 'GRADED' ? t('reviewSubmission') : t('doHomework')}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer shadow-xs ${
+                                      item.homeworkStatus === 'OVERDUE'
+                                        ? 'bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200'
+                                        : 'text-white bg-blue-600 hover:bg-blue-700'
+                                    }`}>
+                                    {item.homeworkStatus === 'OVERDUE'
+                                      ? (lang === 'en' ? 'Overdue (View)' : 'Quá hạn (Xem)')
+                                      : item.homeworkStatus === 'DRAFT'
+                                      ? t('continueDraft')
+                                      : item.homeworkStatus === 'SUBMITTED' || item.homeworkStatus === 'GRADED'
+                                      ? t('reviewSubmission')
+                                      : t('doHomework')}
                                   </button>
                                 )}
 
@@ -1395,6 +1455,11 @@ export default function StudentPortal() {
                                             <div className="space-y-1">
                                               <div className="flex items-center gap-2">
                                                 <span className="font-bold text-sm text-gray-800 dark:text-slate-100">{ass.title}</span>
+                                                {status === 'OVERDUE' && (
+                                                  <span className="px-2 py-0.5 text-[10px] font-extrabold bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white">
+                                                    ⚠️ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                                                  </span>
+                                                )}
                                                 {status === 'GRADED' && (
                                                   <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 rounded border border-emerald-300 dark:border-emerald-700">
                                                     {t('gradedBadge')} {ass.submissionScore != null ? ass.submissionScore : sub?.score} {t('pts')}
@@ -1424,13 +1489,17 @@ export default function StudentPortal() {
                                             <button
                                               onClick={() => openSubmitModal(ass)}
                                               className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer shadow-xs self-start sm:self-auto ${
-                                                status === 'DRAFT'
+                                                status === 'OVERDUE'
+                                                  ? 'bg-black text-white hover:bg-neutral-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200'
+                                                  : status === 'DRAFT'
                                                   ? 'bg-amber-600 hover:bg-amber-700 text-white'
                                                   : (status === 'SUBMITTED' || status === 'GRADED')
                                                   ? 'bg-slate-700 dark:bg-slate-800 hover:bg-slate-800 text-white'
                                                   : 'bg-blue-600 hover:bg-blue-700 text-white'
                                               }`}>
-                                              {status === 'DRAFT'
+                                              {status === 'OVERDUE'
+                                                ? (lang === 'en' ? 'Overdue (View)' : 'Quá hạn (Xem)')
+                                                : status === 'DRAFT'
                                                 ? t('continueDraft')
                                                 : (status === 'SUBMITTED' || status === 'GRADED')
                                                 ? t('reviewSubmission')
@@ -1613,31 +1682,50 @@ export default function StudentPortal() {
       )}
 
       {/* MODAL NỘP BÀI TẬP (VĂN BẢN, DOCX, AUDIO, GHI ÂM TRỰC TIẾP) */}
-      {activeAssignmentToSubmit && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-lg my-6 max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="p-4 sm:p-5 bg-[#0f172b] text-white flex justify-between items-start">
-              <div>
-                <h4 className="text-base font-bold truncate max-w-sm">
-                  {activeAssignmentToSubmit.title}
-                </h4>
-                <div className="text-xs text-slate-300 mt-1">
-                  {t('dueDate')}: {formatDateTime(activeAssignmentToSubmit.dueDate)}
-                </div>
-              </div>
-              <button
-                onClick={() => setActiveAssignmentToSubmit(null)}
-                className="text-slate-400 hover:text-white p-1 cursor-pointer">
-                <XIcon className="w-5 h-5" />
-              </button>
-            </div>
+      {activeAssignmentToSubmit && (() => {
+        const isAssignmentOverdue = activeAssignmentToSubmit.dueDate && new Date(activeAssignmentToSubmit.dueDate) < new Date();
+        const existingSubmission = submissions.find(s => s.assignmentId === activeAssignmentToSubmit.id);
+        const isGraded = existingSubmission && (existingSubmission.status === 'GRADED' || (existingSubmission.score !== null && existingSubmission.score !== undefined));
 
-            <form onSubmit={handleSubmitAssignment} className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
-              {submissionSuccessMsg && (
-                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded-lg text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
-                  {submissionSuccessMsg}
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto">
+            <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl w-full max-w-lg my-6 max-h-[90vh] flex flex-col overflow-hidden">
+              <div className="p-4 sm:p-5 bg-[#0f172b] text-white flex justify-between items-start">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-base font-bold truncate max-w-sm">
+                      {activeAssignmentToSubmit.title}
+                    </h4>
+                    {isAssignmentOverdue && (
+                      <span className="px-2 py-0.5 text-[10px] font-bold bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white shrink-0">
+                        ⏰ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-300 mt-1">
+                    {t('dueDate')}: {formatDateTime(activeAssignmentToSubmit.dueDate)}
+                  </div>
                 </div>
-              )}
+                <button
+                  onClick={() => setActiveAssignmentToSubmit(null)}
+                  className="text-slate-400 hover:text-white p-1 cursor-pointer">
+                  <XIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmitAssignment} className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
+                {isAssignmentOverdue && (
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border-2 border-rose-500 rounded-xl text-xs text-rose-900 dark:text-rose-200 font-semibold flex items-center gap-2">
+                    <span>⚠️ {lang === 'en'
+                      ? `Submission deadline has passed (${formatDateTime(activeAssignmentToSubmit.dueDate)}). Submissions are closed for this assignment.`
+                      : `Đã hết hạn nộp bài tập (${formatDateTime(activeAssignmentToSubmit.dueDate)}). Hệ thống đã đóng cổng nộp bài cho bài tập này.`}</span>
+                  </div>
+                )}
+                {submissionSuccessMsg && (
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 rounded-lg text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
+                    {submissionSuccessMsg}
+                  </div>
+                )}
 
               {/* Mô tả đề bài */}
               <div className="p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-lg text-xs space-y-1.5">
@@ -1750,302 +1838,321 @@ export default function StudentPortal() {
                       )}
                     </div>
 
-                    {/* Nút hủy / xóa bài đã nộp dành cho học sinh nếu chưa chấm điểm */}
+                    {/* Nút hủy / xóa bài đã nộp dành cho học sinh nếu chưa chấm điểm và chưa quá hạn */}
                     {!isGraded && (
                       <div className="pt-2.5 border-t border-blue-100 dark:border-blue-900/40 flex items-center justify-between gap-2">
                         <span className="text-[11px] text-slate-500 dark:text-slate-400 italic">
-                          {t('deleteSubmissionNotice')}
+                          {isAssignmentOverdue
+                            ? (lang === 'en' ? 'Assignment is overdue. Submissions cannot be deleted.' : 'Bài tập đã quá hạn, không thể xóa bài làm.')
+                            : t('deleteSubmissionNotice')}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSubmission(existingSubmission.id)}
-                          disabled={isDeletingSubmission}
-                          className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-200 dark:border-rose-900/60 rounded-lg transition cursor-pointer disabled:opacity-50 shadow-2xs shrink-0">
-                          <span>{isDeletingSubmission ? t('deletingSubmission') : t('deleteSubmissionBtn')}</span>
-                        </button>
+                        {!isAssignmentOverdue && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSubmission(existingSubmission.id)}
+                            disabled={isDeletingSubmission}
+                            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-rose-200 dark:border-rose-900/60 rounded-lg transition cursor-pointer disabled:opacity-50 shadow-2xs shrink-0">
+                            <span>{isDeletingSubmission ? t('deletingSubmission') : t('deleteSubmissionBtn')}</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
                 );
               })()}
 
-              {/* Thông báo chính sách lưu trữ bài làm 1 tháng */}
-              <div className="p-2 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/60 rounded-lg text-xs text-amber-900 dark:text-amber-200">
-                {t('storageNotice30Days')}
-              </div>
-
-              {/* Chọn phương thức nộp bài (chỉ hiện các phương thức được giáo viên cho phép) */}
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-200">
-                    {submissions.some(s => s.assignmentId === activeAssignmentToSubmit.id) ? t('resubmitOrUpdate') : t('selectSubmissionFormat')}
-                  </label>
+              {isAssignmentOverdue ? (
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-center space-y-1">
+                  <div className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                    🔒 {lang === 'en' ? 'Submission portal is closed because the deadline has passed.' : 'Cổng nộp bài đã đóng do đã quá hạn nộp.'}
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {lang === 'en' ? 'You cannot submit, resubmit, or edit your work after the deadline.' : 'Bạn không thể nộp, nộp lại hoặc chỉnh sửa bài làm sau hạn chót quy định.'}
+                  </p>
                 </div>
-                {(() => {
-                  const rawAllowed = (activeAssignmentToSubmit.allowedSubmissionTypes || 'TEXT,DOCX,AUDIO,DIRECT_RECORD,IMAGE')
-                    .split(',')
-                    .map(s => s.trim().toUpperCase())
-                    .filter(Boolean);
-                  const allowedModes = rawAllowed.length > 0 ? rawAllowed : ['TEXT', 'DOCX', 'AUDIO', 'DIRECT_RECORD', 'IMAGE'];
-
-                  return (
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                      {allowedModes.includes('TEXT') && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedSubmissionMode('TEXT')}
-                          className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
-                            selectedSubmissionMode === 'TEXT'
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                              : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
-                          }`}>
-                          {t('modeText')}
-                        </button>
-                      )}
-                      {allowedModes.includes('DOCX') && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedSubmissionMode('DOCX')}
-                          className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
-                            selectedSubmissionMode === 'DOCX'
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                              : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
-                          }`}>
-                          {t('modeDocx')}
-                        </button>
-                      )}
-                      {allowedModes.includes('AUDIO') && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedSubmissionMode('AUDIO')}
-                          className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
-                            selectedSubmissionMode === 'AUDIO'
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                              : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
-                          }`}>
-                          {t('modeAudio')}
-                        </button>
-                      )}
-                      {allowedModes.includes('DIRECT_RECORD') && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedSubmissionMode('DIRECT_RECORD')}
-                          className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
-                            selectedSubmissionMode === 'DIRECT_RECORD'
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                              : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
-                          }`}>
-                          {t('modeRecord')}
-                        </button>
-                      )}
-                      {allowedModes.includes('IMAGE') && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedSubmissionMode('IMAGE')}
-                          className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
-                            selectedSubmissionMode === 'IMAGE'
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                              : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
-                          }`}>
-                          {t('modeImage')}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* PHƯƠNG THỨC 1: VĂN BẢN TRỰC TIẾP */}
-              {selectedSubmissionMode === 'TEXT' && (
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-200 mb-1">
-                    {t('enterSubmissionTextLabel')}
-                  </label>
-                  <textarea
-                    rows={5}
-                    required
-                    value={submissionText}
-                    onChange={(e) => setSubmissionText(e.target.value)}
-                    placeholder={t('enterSubmissionTextPlaceholder')}
-                    className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-gray-300 dark:border-slate-700 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-blue-500 placeholder-slate-400 dark:placeholder-slate-500"
-                  />
-                </div>
-              )}
-
-              {/* PHƯƠNG THỨC 2: TẢI TỆP WORD (DOCX) */}
-              {selectedSubmissionMode === 'DOCX' && (
-                <div className="space-y-2 p-3 bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-800 rounded-lg">
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-200 mb-1">
-                    {t('uploadDocxLabel')}
-                  </label>
-                  <input
-                    type="file"
-                    accept=".docx,.doc,.pdf"
-                    onChange={(e) => handleFileUpload(e, 'DOCX')}
-                    className="text-xs text-gray-500 dark:text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/60 file:text-blue-700 dark:file:text-blue-300 cursor-pointer"
-                  />
-                  {uploadingFile && <div className="text-xs text-blue-600 dark:text-blue-400">{t('uploadingFile')}</div>}
-                  {uploadedFileData.fileName && (
-                    <div className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1">
-                      <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      <span>{t('attachedLabel')} {uploadedFileData.fileName}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* PHƯƠNG THỨC 3: TẢI FILE ÂM THANH (AUDIO) */}
-              {selectedSubmissionMode === 'AUDIO' && (
-                <div className="space-y-2 p-3 bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-800 rounded-lg">
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-200 mb-1">
-                    {t('uploadAudioLabel')}
-                  </label>
-                  <input
-                    type="file"
-                    accept="audio/*,.mp3,.wav,.m4a,.webm"
-                    onChange={(e) => handleFileUpload(e, 'AUDIO')}
-                    className="text-xs text-gray-500 dark:text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/60 file:text-blue-700 dark:file:text-blue-300 cursor-pointer"
-                  />
-                  {uploadingFile && <div className="text-xs text-blue-600 dark:text-blue-400">{t('uploadingAudio')}</div>}
-                  {uploadedFileData.fileUrl && (
-                    <div className="pt-2 space-y-1">
-                      <span className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                        <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                        <span>{t('attachedLabel')} {uploadedFileData.fileName}</span>
-                      </span>
-                      <audio controls src={uploadedFileData.fileUrl} className="w-full h-8" />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* PHƯƠNG THỨC 4: THU ÂM TRỰC TIẾP TRÊN TRÌNH DUYỆT */}
-              {selectedSubmissionMode === 'DIRECT_RECORD' && (
-                <AudioRecorder
-                  onRecordingUploaded={({ fileUrl, fileName }) => {
-                    setUploadedFileData({ fileUrl, fileName });
-                  }}
-                />
-              )}
-
-              {/* PHƯƠNG THỨC 5: HÌNH ẢNH / CHỤP ẢNH NỘP BÀI */}
-              {selectedSubmissionMode === 'IMAGE' && (
-                <div className="space-y-3 p-3.5 bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-800 rounded-lg">
-                  <label className="block text-xs font-semibold text-gray-700 dark:text-slate-200">
-                    {t('submitWithPhotosLabel')}
-                  </label>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <label className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-xs font-semibold text-gray-700 dark:text-slate-200 cursor-pointer shadow-2xs flex items-center transition">
-                      {t('uploadFromDevice')}
-                      <input
-                        type="file"
-                        accept="image/*,.jpg,.jpeg,.png,.webp"
-                        className="hidden"
-                        onChange={(e) => handleFileUpload(e, 'IMAGE')}
-                      />
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && mobileCameraInputRef.current) {
-                          mobileCameraInputRef.current.click();
-                        } else {
-                          startCamera();
-                        }
-                      }}
-                      className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-2xs flex items-center transition">
-                      {t('takePhoto')}
-                    </button>
-
-                    <input
-                      type="file"
-                      ref={mobileCameraInputRef}
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={(e) => handleFileUpload(e, 'IMAGE')}
-                    />
+              ) : (
+                <>
+                  {/* Thông báo chính sách lưu trữ bài làm 1 tháng */}
+                  <div className="p-2 bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/60 rounded-lg text-xs text-amber-900 dark:text-amber-200">
+                    {t('storageNotice30Days')}
                   </div>
 
-                  {/* Khung chụp ảnh Webcam nếu mở trực tiếp trên máy tính */}
-                  {isCameraActive && (
-                    <div className="p-3 bg-[#0f172b] dark:bg-slate-950 rounded-xl space-y-2 text-center animate-fade-in border border-slate-800">
-                      <div className="relative rounded-lg overflow-hidden max-w-md mx-auto bg-black">
-                        <video
-                          ref={videoRef}
-                          autoPlay
-                          playsInline
-                          className="w-full h-auto max-h-72 object-contain mx-auto"
-                        />
-                        <canvas ref={canvasRef} className="hidden" />
-                      </div>
-                      <div className="flex justify-center items-center gap-3 pt-1">
-                        <button
-                          type="button"
-                          onClick={capturePhoto}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer flex items-center">
-                          {t('captureThisPhoto')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={stopCamera}
-                          className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium rounded-lg cursor-pointer">
-                          {t('stopCamera')}
-                        </button>
-                      </div>
+                  {/* Chọn phương thức nộp bài (chỉ hiện các phương thức được giáo viên cho phép) */}
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-200">
+                        {submissions.some(s => s.assignmentId === activeAssignmentToSubmit.id) ? t('resubmitOrUpdate') : t('selectSubmissionFormat')}
+                      </label>
+                    </div>
+                    {(() => {
+                      const rawAllowed = (activeAssignmentToSubmit.allowedSubmissionTypes || 'TEXT,DOCX,AUDIO,DIRECT_RECORD,IMAGE')
+                        .split(',')
+                        .map(s => s.trim().toUpperCase())
+                        .filter(Boolean);
+                      const allowedModes = rawAllowed.length > 0 ? rawAllowed : ['TEXT', 'DOCX', 'AUDIO', 'DIRECT_RECORD', 'IMAGE'];
+
+                      return (
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                          {allowedModes.includes('TEXT') && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSubmissionMode('TEXT')}
+                              className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
+                                selectedSubmissionMode === 'TEXT'
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                  : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
+                              }`}>
+                              {t('modeText')}
+                            </button>
+                          )}
+                          {allowedModes.includes('DOCX') && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSubmissionMode('DOCX')}
+                              className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
+                                selectedSubmissionMode === 'DOCX'
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                  : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
+                              }`}>
+                              {t('modeDocx')}
+                            </button>
+                          )}
+                          {allowedModes.includes('AUDIO') && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSubmissionMode('AUDIO')}
+                              className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
+                                selectedSubmissionMode === 'AUDIO'
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                  : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
+                              }`}>
+                              {t('modeAudio')}
+                            </button>
+                          )}
+                          {allowedModes.includes('DIRECT_RECORD') && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSubmissionMode('DIRECT_RECORD')}
+                              className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
+                                selectedSubmissionMode === 'DIRECT_RECORD'
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                  : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
+                              }`}>
+                              {t('modeRecord')}
+                            </button>
+                          )}
+                          {allowedModes.includes('IMAGE') && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSubmissionMode('IMAGE')}
+                              className={`py-2 px-1 text-center rounded-lg text-xs font-semibold border cursor-pointer transition ${
+                                selectedSubmissionMode === 'IMAGE'
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                  : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-200 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-800'
+                              }`}>
+                              {t('modeImage')}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* PHƯƠNG THỨC 1: VĂN BẢN TRỰC TIẾP */}
+                  {selectedSubmissionMode === 'TEXT' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-200 mb-1">
+                        {t('enterSubmissionTextLabel')}
+                      </label>
+                      <textarea
+                        rows={5}
+                        required
+                        value={submissionText}
+                        onChange={(e) => setSubmissionText(e.target.value)}
+                        placeholder={t('enterSubmissionTextPlaceholder')}
+                        className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-gray-300 dark:border-slate-700 rounded-lg p-2.5 text-xs focus:ring-2 focus:ring-blue-500 placeholder-slate-400 dark:placeholder-slate-500"
+                      />
                     </div>
                   )}
 
-                  {cameraError && (
-                    <div className="p-2 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 rounded text-rose-700 dark:text-rose-300 text-xs">
-                      {cameraError}
-                    </div>
-                  )}
-
-                  {uploadingFile && <div className="text-xs text-blue-600 dark:text-blue-400 font-semibold">{t('uploadingPhoto')}</div>}
-
-                  {uploadedFileData.fileUrl && (
-                    <div className="pt-2 space-y-2">
-                      <div className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold flex items-center justify-between">
-                        <span className="flex items-center gap-1">
+                  {/* PHƯƠNG THỨC 2: TẢI TỆP WORD (DOCX) */}
+                  {selectedSubmissionMode === 'DOCX' && (
+                    <div className="space-y-2 p-3 bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-800 rounded-lg">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-200 mb-1">
+                        {t('uploadDocxLabel')}
+                      </label>
+                      <input
+                        type="file"
+                        accept=".docx,.doc,.pdf"
+                        onChange={(e) => handleFileUpload(e, 'DOCX')}
+                        className="text-xs text-gray-500 dark:text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/60 file:text-blue-700 dark:file:text-blue-300 cursor-pointer"
+                      />
+                      {uploadingFile && <div className="text-xs text-blue-600 dark:text-blue-400">{t('uploadingFile')}</div>}
+                      {uploadedFileData.fileName && (
+                        <div className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold mt-1 flex items-center gap-1">
                           <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           <span>{t('attachedLabel')} {uploadedFileData.fileName}</span>
-                        </span>
-                        <a
-                          href={uploadedFileData.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-blue-600 dark:text-blue-400 hover:underline">
-                          {t('downloadOrOpenFile')}
-                        </a>
-                      </div>
-                      <div className="p-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg text-center">
-                        <img
-                          src={uploadedFileData.fileUrl}
-                          alt={lang === 'en' ? 'Submission photo' : 'Bản chụp bài nộp'}
-                          className="max-h-60 max-w-full rounded object-contain mx-auto border border-gray-100 dark:border-slate-800 shadow-2xs"
-                        />
-                      </div>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
 
-              {draftSavedNotice && (
-                <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-200 rounded-lg text-xs font-semibold text-center animate-in fade-in">
-                  {draftSavedNotice}
-                </div>
+                  {/* PHƯƠNG THỨC 3: TẢI FILE ÂM THANH (AUDIO) */}
+                  {selectedSubmissionMode === 'AUDIO' && (
+                    <div className="space-y-2 p-3 bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-800 rounded-lg">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-200 mb-1">
+                        {t('uploadAudioLabel')}
+                      </label>
+                      <input
+                        type="file"
+                        accept="audio/*,.mp3,.wav,.m4a,.webm"
+                        onChange={(e) => handleFileUpload(e, 'AUDIO')}
+                        className="text-xs text-gray-500 dark:text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-50 dark:file:bg-blue-950/60 file:text-blue-700 dark:file:text-blue-300 cursor-pointer"
+                      />
+                      {uploadingFile && <div className="text-xs text-blue-600 dark:text-blue-400">{t('uploadingAudio')}</div>}
+                      {uploadedFileData.fileUrl && (
+                        <div className="pt-2 space-y-1">
+                          <span className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                            <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            <span>{t('attachedLabel')} {uploadedFileData.fileName}</span>
+                          </span>
+                          <audio controls src={uploadedFileData.fileUrl} className="w-full h-8" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* PHƯƠNG THỨC 4: THU ÂM TRỰC TIẾP TRÊN TRÌNH DUYỆT */}
+                  {selectedSubmissionMode === 'DIRECT_RECORD' && (
+                    <AudioRecorder
+                      onRecordingUploaded={({ fileUrl, fileName }) => {
+                        setUploadedFileData({ fileUrl, fileName });
+                      }}
+                    />
+                  )}
+
+                  {/* PHƯƠNG THỨC 5: HÌNH ẢNH / CHỤP ẢNH NỘP BÀI */}
+                  {selectedSubmissionMode === 'IMAGE' && (
+                    <div className="space-y-3 p-3.5 bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-800 rounded-lg">
+                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-200">
+                        {t('submitWithPhotosLabel')}
+                      </label>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-xs font-semibold text-gray-700 dark:text-slate-200 cursor-pointer shadow-2xs flex items-center transition">
+                          {t('uploadFromDevice')}
+                          <input
+                            type="file"
+                            accept="image/*,.jpg,.jpeg,.png,.webp"
+                            className="hidden"
+                            onChange={(e) => handleFileUpload(e, 'IMAGE')}
+                          />
+                        </label>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && mobileCameraInputRef.current) {
+                              mobileCameraInputRef.current.click();
+                            } else {
+                              startCamera();
+                            }
+                          }}
+                          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-2xs flex items-center transition">
+                          {t('takePhoto')}
+                        </button>
+
+                        <input
+                          type="file"
+                          ref={mobileCameraInputRef}
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={(e) => handleFileUpload(e, 'IMAGE')}
+                        />
+                      </div>
+
+                      {/* Khung chụp ảnh Webcam nếu mở trực tiếp trên máy tính */}
+                      {isCameraActive && (
+                        <div className="p-3 bg-[#0f172b] dark:bg-slate-950 rounded-xl space-y-2 text-center animate-fade-in border border-slate-800">
+                          <div className="relative rounded-lg overflow-hidden max-w-md mx-auto bg-black">
+                            <video
+                              ref={videoRef}
+                              autoPlay
+                              playsInline
+                              className="w-full h-auto max-h-72 object-contain mx-auto"
+                            />
+                            <canvas ref={canvasRef} className="hidden" />
+                          </div>
+                          <div className="flex justify-center items-center gap-3 pt-1">
+                            <button
+                              type="button"
+                              onClick={capturePhoto}
+                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer flex items-center">
+                              {t('captureThisPhoto')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={stopCamera}
+                              className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium rounded-lg cursor-pointer">
+                              {t('stopCamera')}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {cameraError && (
+                        <div className="p-2 bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 rounded text-rose-700 dark:text-rose-300 text-xs">
+                          {cameraError}
+                        </div>
+                      )}
+
+                      {uploadingFile && <div className="text-xs text-blue-600 dark:text-blue-400 font-semibold">{t('uploadingPhoto')}</div>}
+
+                      {uploadedFileData.fileUrl && (
+                        <div className="pt-2 space-y-2">
+                          <div className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold flex items-center justify-between">
+                            <span className="flex items-center gap-1">
+                              <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              <span>{t('attachedLabel')} {uploadedFileData.fileName}</span>
+                            </span>
+                            <a
+                              href={uploadedFileData.fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-600 dark:text-blue-400 hover:underline">
+                              {t('downloadOrOpenFile')}
+                            </a>
+                          </div>
+                          <div className="p-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg text-center">
+                            <img
+                              src={uploadedFileData.fileUrl}
+                              alt={lang === 'en' ? 'Submission photo' : 'Bản chụp bài nộp'}
+                              className="max-h-60 max-w-full rounded object-contain mx-auto border border-gray-100 dark:border-slate-800 shadow-2xs"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {draftSavedNotice && (
+                    <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-200 rounded-lg text-xs font-semibold text-center animate-in fade-in">
+                      {draftSavedNotice}
+                    </div>
+                  )}
+                </>
               )}
 
               <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-gray-200 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={handleSaveDraft}
-                  className="px-3.5 py-2 text-xs font-semibold text-amber-800 dark:text-amber-200 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-800 rounded-lg cursor-pointer transition shadow-2xs">
-                  {t('saveDraftBtn')}
-                </button>
+                {!isAssignmentOverdue && (
+                  <button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    className="px-3.5 py-2 text-xs font-semibold text-amber-800 dark:text-amber-200 bg-amber-100 dark:bg-amber-950/60 hover:bg-amber-200 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-800 rounded-lg cursor-pointer transition shadow-2xs">
+                    {t('saveDraftBtn')}
+                  </button>
+                )}
                 <div className="flex items-center gap-2 ml-auto">
                   <button
                     type="button"
@@ -2053,18 +2160,21 @@ export default function StudentPortal() {
                     className="px-4 py-2 text-xs text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg cursor-pointer">
                     {t('close')}
                   </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg cursor-pointer shadow-xs">
-                    {submitting ? t('submittingHomework') : t('confirmSubmitHomework')}
-                  </button>
+                  {!isAssignmentOverdue && (
+                    <button
+                      type="submit"
+                      disabled={submitting}
+                      className="px-5 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg cursor-pointer shadow-xs">
+                      {submitting ? t('submittingHomework') : t('confirmSubmitHomework')}
+                    </button>
+                  )}
                 </div>
               </div>
             </form>
           </div>
         </div>
-      )}
+      );
+    })()}
 
       {/* MODAL XEM HANDOUT TEXT */}
       {viewingHandoutText && (

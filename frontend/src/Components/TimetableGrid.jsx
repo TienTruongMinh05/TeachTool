@@ -566,7 +566,16 @@ export default function TimetableGrid({
                     let homeworkBorderClass = `${color.border} border`;
                     let homeworkStatusBadge = null;
 
-                    if (session.homeworkStatus === 'NOT_SUBMITTED') {
+                    const isOverdueSession = session.homeworkStatus === 'OVERDUE' || session.isOverdue;
+
+                    if (isOverdueSession) {
+                      homeworkBorderClass = 'border-2 border-black dark:border-white shadow-sm shadow-black/30 ring-1 ring-black dark:ring-white';
+                      homeworkStatusBadge = (
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white shrink-0">
+                          ⚠️ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                        </span>
+                      );
+                    } else if (session.homeworkStatus === 'NOT_SUBMITTED') {
                       homeworkBorderClass = 'border-2 border-red-500 shadow-sm shadow-red-200/50';
                       homeworkStatusBadge = (
                         <span className="text-[9px] font-bold px-1.5 py-0.5 bg-red-100 text-red-800 rounded border border-red-300">
@@ -768,6 +777,11 @@ export default function TimetableGrid({
                           <div className="font-bold text-xs text-gray-800 dark:text-slate-100">
                             {aIdx + 1}. {asgn.title}
                           </div>
+                          {asgn.submissionStatus === 'OVERDUE' && (
+                            <span className="shrink-0 text-[10px] font-extrabold text-white dark:text-black bg-black dark:bg-white px-2 py-0.5 rounded border border-black dark:border-white">
+                              ⚠️ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                            </span>
+                          )}
                           {asgn.submissionStatus === 'GRADED' && (
                             <span className="shrink-0 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-800">
                               {t('gradedBadge')} {asgn.submissionScore != null ? asgn.submissionScore : '—'} {lang === 'en' ? 'pts' : 'đ'}
