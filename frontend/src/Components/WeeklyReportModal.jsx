@@ -11,13 +11,13 @@ export default function WeeklyReportModal({ isOpen, onClose, classId, classInfo 
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [exporting, setExporting] = useState(false);
 
-  // Form states (Tôi làm)
+  // Form states
   const [progressStatus, setProgressStatus] = useState('ON_TIME'); // 'ON_TIME' | 'FASTER' | 'SLOWER'
   const [delayReason, setDelayReason] = useState('');
   const [challenges, setChallenges] = useState('');
   const [selfRating, setSelfRating] = useState(5);
 
-  // Machine tasks (Máy tự động tính - Cho phép giáo viên ghi đè nếu cần)
+  // Machine verified tasks (Cho phép giáo viên ghi đè nếu cần)
   const [attendanceDone, setAttendanceDone] = useState(true);
   const [announcementsDone, setAnnouncementsDone] = useState(true);
   const [homeworkAssigned, setHomeworkAssigned] = useState(true);
@@ -173,10 +173,10 @@ export default function WeeklyReportModal({ isOpen, onClose, classId, classInfo 
             )}
           </div>
 
-          {/* 2. TIẾN ĐỘ GIẢNG DẠY (Tôi làm) */}
+          {/* 2. TIẾN ĐỘ GIẢNG DẠY */}
           <div className="space-y-2">
             <label className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
-              II. {lang === 'en' ? 'Teaching Progress (Teacher assessment):' : 'Tiến Độ Giảng Dạy (Tôi làm):'}
+              II. {lang === 'en' ? 'Teaching Progress:' : 'Tiến Độ Giảng Dạy:'}
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <label className={`p-2.5 rounded-lg border flex items-center gap-2 cursor-pointer transition ${
@@ -242,11 +242,11 @@ export default function WeeklyReportModal({ isOpen, onClose, classId, classInfo 
             )}
           </div>
 
-          {/* 3. CÔNG TÁC GIẢNG DẠY (Máy làm - Đã tự động kiểm tra & tick) */}
+          {/* 3. CÔNG TÁC GIẢNG DẠY */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
-                IV. {lang === 'en' ? 'Teaching Administration (Auto-verified by system):' : 'Công Tác Giảng Dạy (Máy tự động kiểm tra & tick sẵn):'}
+                IV. {lang === 'en' ? 'Teaching Administration:' : 'Công Tác Giảng Dạy (Đối soát tiến độ):'}
               </label>
               <span className="text-[10px] text-slate-400">
                 {lang === 'en' ? 'Click to toggle if needed' : 'Có thể tick chọn thủ công'}
@@ -308,10 +308,10 @@ export default function WeeklyReportModal({ isOpen, onClose, classId, classInfo 
             </div>
           </div>
 
-          {/* 4. KHÓ KHĂN / HỖ TRỢ CẦN THIẾT (Tôi làm) */}
+          {/* 4. KHÓ KHĂN / HỖ TRỢ CẦN THIẾT */}
           <div className="space-y-1.5">
             <label className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
-              V. {lang === 'en' ? 'Difficulties / Required Support (Teacher input):' : 'Khó Khăn / Hỗ Trợ Cần Thiết (Tôi làm):'}
+              V. {lang === 'en' ? 'Difficulties / Required Support:' : 'Khó Khăn / Hỗ Trợ Cần Thiết:'}
             </label>
             <textarea
               rows={2}
@@ -322,7 +322,7 @@ export default function WeeklyReportModal({ isOpen, onClose, classId, classInfo 
             />
           </div>
 
-          {/* 5. TỰ ĐÁNH GIÁ (Tôi làm) */}
+          {/* 5. TỰ ĐÁNH GIÁ */}
           <div className="space-y-1.5">
             <label className="font-bold text-slate-800 dark:text-slate-200 block text-xs">
               VI. {lang === 'en' ? 'Self-Evaluation (1 = Poor | 5 = Excellent):' : 'Tự Đánh Giá (1 = Chưa tốt | 5 = Rất tốt):'}
@@ -330,13 +330,6 @@ export default function WeeklyReportModal({ isOpen, onClose, classId, classInfo 
             <div className="flex items-center gap-2">
               {[1, 2, 3, 4, 5].map((rating) => {
                 const isSelected = selfRating === rating;
-                const labels = {
-                  1: '1: Chưa tốt',
-                  2: '2: Cần cố gắng',
-                  3: '3: Đạt yêu cầu',
-                  4: '4: Tốt',
-                  5: '5: Rất tốt'
-                };
                 return (
                   <button
                     key={rating}
@@ -354,11 +347,11 @@ export default function WeeklyReportModal({ isOpen, onClose, classId, classInfo 
             </div>
           </div>
 
-          {/* 6. Tóm tắt thông tin máy tự điền (Auto-Filled Summary) */}
+          {/* 6. Tóm tắt thông tin tổng hợp */}
           {previewData && (
             <div className="p-3 bg-slate-50 dark:bg-slate-950/60 rounded-lg border border-slate-200 dark:border-slate-800 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
               <div className="font-semibold text-slate-700 dark:text-slate-300">
-                {lang === 'en' ? 'Auto-filled summary:' : 'Dữ liệu máy tự động truy xuất từ hệ thống:'}
+                {lang === 'en' ? 'Summary from class data:' : 'Dữ liệu tổng hợp từ lớp học:'}
               </div>
               <ul className="list-disc pl-4 space-y-0.5">
                 <li>

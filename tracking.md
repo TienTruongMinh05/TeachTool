@@ -776,6 +776,23 @@
 
 ---
 
+### 📍 GIAI ĐOẠN 22: LOẠI BỎ GHI CHÚ NỘI BỘ TRONG DOCX & KIỂM TRA BẢO MẬT TOÀN DIỆN
+* **Mục tiêu**: Loại bỏ toàn bộ các ghi chú nội bộ "(tôi làm)", "(máy làm)" trong biểu mẫu Word và giao diện xuất báo cáo; kiểm toán an ninh toàn diện và hoàn tất kích hoạt phiên bản máy chủ đám mây.
+* **Kết quả thực hiện**:
+  1. **Làm sạch Biểu mẫu DOCX Chuẩn (`weekly_report_template.docx`)**:
+     - Loại bỏ triệt để 10 vị trí chứa nhãn ghi chú `(máy làm)` và `(tôi làm)` trên tất cả các tiêu đề mục I, II, III, IV, V, VI, bài đã dạy, kế hoạch tuần tới, tình hình học sinh, học sinh cần theo dõi và ngày nộp.
+     - Giữ nguyên toàn bộ cấu trúc định dạng chuyên nghiệp, phông chữ và bảng biểu chuẩn Word.
+  2. **Tối ưu hóa Giao diện Modal Xuất Báo Cáo (`WeeklyReportModal.jsx`)**:
+     - Cập nhật nhãn thân thiện, chuyên nghiệp cho người dùng: "Tiến Độ Giảng Dạy", "Công Tác Giảng Dạy (Đối soát tiến độ)", "Khó Khăn / Hỗ Trợ Cần Thiết", "Tự Đánh Giá".
+  3. **Kiểm Tra & Gia Cố Bảo Mật Toàn Hệ Thống (OWASP Audit)**:
+     - **Security Response Headers**: Tự động inject `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection: 1; mode=block`, `Referrer-Policy: strict-origin-when-cross-origin` trong `AuthInterceptor.java`.
+     - **Path Traversal Defense**: `FileUploadController` xác thực chặt chẽ `!filePath.startsWith(uploadDir)` kết hợp whitelist định dạng tệp và UUID.
+     - **SQL Injection Prevention**: 100% truy vấn dữ liệu được tham số hóa qua JPA/JPQL và `JdbcTemplate` với placeholder `?`.
+     - **Bảo vệ chống Brute-Force & DoS**: `RateLimiterService` kiểm soát chặt chẽ tần suất đăng nhập và đăng ký.
+     - **Mã hóa Dữ liệu Nhạy Cảm**: PBKDF2WithHmacSHA256 (65,536 vòng + salt) cho mật khẩu, AES-256-CBC cho tin nhắn thắc mắc.
+
+---
+
 ## 📊 TỔNG KẾT CHỈ SỐ HỆ THỐNG
 
 | Tiêu chí | Trước tối ưu hóa | Hiện tại | Hiệu quả cải thiện |

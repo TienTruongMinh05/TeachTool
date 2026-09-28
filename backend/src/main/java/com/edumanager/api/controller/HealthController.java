@@ -15,6 +15,7 @@ public class HealthController {
         return ResponseEntity.ok(Map.of(
                 "status", "UP",
                 "service", "teachtool-api",
+                "version", "2026.09.28-v1.3",
                 "timestamp", System.currentTimeMillis()
         ));
     }

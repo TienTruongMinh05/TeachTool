@@ -251,7 +251,7 @@ public class WeeklyReportService {
                             setParagraphText(paragraph, "Buổi 3: -");
                         }
                     }
-                    // IV. CÔNG TÁC GIẢNG DẠY (máy làm)
+                    // IV. CÔNG TÁC GIẢNG DẠY
                     else if (text.contains("Điểm danh đầy đủ") && text.contains("Gửi thông báo nhóm đầy đủ")) {
                         setParagraphText(paragraph, String.format("%s Điểm danh đầy đủ        %s Gửi thông báo nhóm đầy đủ",
                                 attDone ? "☑" : "☐", annDone ? "☑" : "☐"));

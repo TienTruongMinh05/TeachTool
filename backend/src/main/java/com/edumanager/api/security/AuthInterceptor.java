@@ -21,6 +21,11 @@ public class AuthInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        response.setHeader("X-Content-Type-Options", "nosniff");
+        response.setHeader("X-Frame-Options", "DENY");
+        response.setHeader("X-XSS-Protection", "1; mode=block");
+        response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+
         // 1. Cho phép OPTIONS preflight request qua mà không chặn
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
