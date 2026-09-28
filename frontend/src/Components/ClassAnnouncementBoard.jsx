@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { announcementApi } from '../api/announcementApi';
 import { useToast } from '../context/ToastContext';
 import { useThemeLanguage } from '../context/ThemeLanguageContext';
+import LinkifiedText from './LinkifiedText';
 
 export default function ClassAnnouncementBoard({ classId, isTeacher = false, classInfo = null }) {
   const { toast, confirm } = useToast();
@@ -286,8 +287,8 @@ export default function ClassAnnouncementBoard({ classId, isTeacher = false, cla
               </div>
 
               {/* Nội dung thông báo */}
-              <div className="pt-2 text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
-                {item.content}
+              <div className="pt-2 text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                <LinkifiedText text={item.content} />
               </div>
 
               {/* Action buttons (cho giáo viên) */}

@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useThemeLanguage } from '../context/ThemeLanguageContext';
 
+import { XIcon } from './Icons';
+
 export default function MistakeNotebookModal({ isOpen, onClose }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -61,8 +63,8 @@ export default function MistakeNotebookModal({ isOpen, onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-sm font-bold cursor-pointer">
-            ✕
+            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">
+            <XIcon className="w-4 h-4" />
           </button>
         </div>
 

@@ -15,8 +15,9 @@ import StudentInquiryWidget from '../Components/StudentInquiryWidget';
 import ClassAnnouncementBoard from '../Components/ClassAnnouncementBoard';
 import SubmissionFeedbackThread from '../Components/SubmissionFeedbackThread';
 import MistakeNotebookModal from '../Components/MistakeNotebookModal';
+import LinkifiedText from '../Components/LinkifiedText';
 import { ThemeLanguageToggle, useThemeLanguage } from '../context/ThemeLanguageContext';
-import { MegaphoneIcon, PaperclipIcon, GlobeIcon, XCircleIcon, XIcon, CheckCircleIcon } from '../Components/Icons';
+import { MegaphoneIcon, PaperclipIcon, GlobeIcon, XCircleIcon, XIcon, CheckCircleIcon, ClockIcon, AlertTriangleIcon, LockIcon, ExternalLinkIcon } from '../Components/Icons';
 
 export default function StudentPortal() {
   const { user, logout, updateUser } = useAuth();
@@ -966,7 +967,8 @@ export default function StudentPortal() {
                                   </h3>
                                   {isOverdue && (
                                     <span className="text-xs font-bold px-2 py-0.5 bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white flex items-center gap-1">
-                                      ⚠️ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                                      <AlertTriangleIcon className="w-3.5 h-3.5 shrink-0" />
+                                      <span>{lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}</span>
                                     </span>
                                   )}
                                   {isNewsUnviewed(item) && (
@@ -1056,19 +1058,19 @@ export default function StudentPortal() {
                             <div className="p-4 space-y-4">
                               {/* THÔNG BÁO TỪ GIÁO VIÊN (NẾU CÓ) */}
                               {item.announcement && (
-                                <div className="p-3.5 sm:p-4 bg-amber-50 border-2 border-red-500 rounded-xl shadow-xs space-y-1.5 animate-pulse">
-                                  <div className="flex items-center gap-1.5 text-red-600 font-bold text-xs uppercase tracking-wider">
+                                <div className="p-3.5 sm:p-4 bg-amber-50 dark:bg-amber-950/30 border-2 border-red-500 rounded-xl shadow-xs space-y-1.5 animate-pulse">
+                                  <div className="flex items-center gap-1.5 text-red-600 dark:text-red-400 font-bold text-xs uppercase tracking-wider">
                                     <MegaphoneIcon className="w-4 h-4 shrink-0" />
                                     <span>{t('teacherAnnouncement')}</span>
                                     {item.announcementUpdatedAt && (
-                                      <span className="text-[10px] font-normal text-amber-700 ml-auto">
+                                      <span className="text-[10px] font-normal text-amber-700 dark:text-amber-400 ml-auto">
                                         {formatDateTime(item.announcementUpdatedAt)}
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-sm font-medium text-amber-950 leading-relaxed whitespace-pre-line">
-                                    {item.announcement}
-                                  </p>
+                                  <div className="text-sm font-medium text-amber-950 dark:text-amber-100 leading-relaxed">
+                                    <LinkifiedText text={item.announcement} />
+                                  </div>
                                 </div>
                               )}
                               {item.sections && item.sections.length > 0 ? (
@@ -1098,7 +1100,7 @@ export default function StudentPortal() {
                                         {sec.studentPreparation ? (
                                           <div className="p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-md text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
                                             <span className="font-bold text-amber-800 dark:text-amber-300 block mb-0.5">{t('studentPrepRequired')}</span>
-                                            {sec.studentPreparation}
+                                            <LinkifiedText text={sec.studentPreparation} />
                                           </div>
                                         ) : (
                                           <div className="text-xs text-gray-400 dark:text-slate-500 italic">
@@ -1162,8 +1164,9 @@ export default function StudentPortal() {
                                               <div className="flex items-center gap-2">
                                                 <span className="font-bold text-sm text-gray-800 dark:text-slate-100">{ass.title}</span>
                                                 {status === 'OVERDUE' && (
-                                                  <span className="px-2 py-0.5 text-[10px] font-extrabold bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white">
-                                                    ⚠️ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                                                  <span className="px-2 py-0.5 text-[10px] font-extrabold bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white flex items-center gap-1">
+                                                    <AlertTriangleIcon className="w-3 h-3 shrink-0" />
+                                                    <span>{lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}</span>
                                                   </span>
                                                 )}
                                                 {status === 'GRADED' && (
@@ -1287,7 +1290,8 @@ export default function StudentPortal() {
                                   </h3>
                                   {isOverdue && (
                                     <span className="text-xs font-bold px-2 py-0.5 bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white flex items-center gap-1">
-                                      ⚠️ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                                      <AlertTriangleIcon className="w-3.5 h-3.5 shrink-0" />
+                                      <span>{lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}</span>
                                     </span>
                                   )}
                                   {isNewsUnviewed(item) && (
@@ -1364,9 +1368,9 @@ export default function StudentPortal() {
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-sm font-medium text-amber-950 dark:text-amber-100 leading-relaxed whitespace-pre-line">
-                                    {item.announcement}
-                                  </p>
+                                  <div className="text-sm font-medium text-amber-950 dark:text-amber-100 leading-relaxed">
+                                    <LinkifiedText text={item.announcement} />
+                                  </div>
                                 </div>
                               )}
                               {item.sections && item.sections.length > 0 ? (
@@ -1396,7 +1400,7 @@ export default function StudentPortal() {
                                         {sec.studentPreparation && (
                                           <div className="p-2.5 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-md text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
                                             <span className="font-bold text-amber-800 dark:text-amber-300 block mb-0.5">{t('studentPrepRequired')}</span>
-                                            {sec.studentPreparation}
+                                            <LinkifiedText text={sec.studentPreparation} />
                                           </div>
                                         )}
 
@@ -1456,8 +1460,9 @@ export default function StudentPortal() {
                                               <div className="flex items-center gap-2">
                                                 <span className="font-bold text-sm text-gray-800 dark:text-slate-100">{ass.title}</span>
                                                 {status === 'OVERDUE' && (
-                                                  <span className="px-2 py-0.5 text-[10px] font-extrabold bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white">
-                                                    ⚠️ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                                                  <span className="px-2 py-0.5 text-[10px] font-extrabold bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white flex items-center gap-1">
+                                                    <AlertTriangleIcon className="w-3 h-3 shrink-0" />
+                                                    <span>{lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}</span>
                                                   </span>
                                                 )}
                                                 {status === 'GRADED' && (
@@ -1697,8 +1702,9 @@ export default function StudentPortal() {
                       {activeAssignmentToSubmit.title}
                     </h4>
                     {isAssignmentOverdue && (
-                      <span className="px-2 py-0.5 text-[10px] font-bold bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white shrink-0">
-                        ⏰ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                      <span className="px-2 py-0.5 text-[10px] font-bold bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white shrink-0 flex items-center gap-1">
+                        <ClockIcon className="w-3.5 h-3.5 shrink-0" />
+                        <span>{lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}</span>
                       </span>
                     )}
                   </div>
@@ -1716,7 +1722,8 @@ export default function StudentPortal() {
               <form onSubmit={handleSubmitAssignment} className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1">
                 {isAssignmentOverdue && (
                   <div className="p-3 bg-rose-50 dark:bg-rose-950/60 border-2 border-rose-500 rounded-xl text-xs text-rose-900 dark:text-rose-200 font-semibold flex items-center gap-2">
-                    <span>⚠️ {lang === 'en'
+                    <AlertTriangleIcon className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                    <span>{lang === 'en'
                       ? `Submission deadline has passed (${formatDateTime(activeAssignmentToSubmit.dueDate)}). Submissions are closed for this assignment.`
                       : `Đã hết hạn nộp bài tập (${formatDateTime(activeAssignmentToSubmit.dueDate)}). Hệ thống đã đóng cổng nộp bài cho bài tập này.`}</span>
                   </div>
@@ -1755,10 +1762,10 @@ export default function StudentPortal() {
                             href={att.fileUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 border border-blue-200 dark:border-slate-700 px-3 py-1.5 rounded-lg transition shadow-2xs"
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 border border-blue-200 dark:border-slate-700 px-3 py-1.5 rounded-lg transition shadow-2xs"
                           >
                             <span className="truncate max-w-[240px]">{att.fileName || (lang === 'en' ? `File ${idx + 1}` : `Tệp ${idx + 1}`)}</span>
-                            <span className="text-[10px] text-blue-400">↗</span>
+                            <ExternalLinkIcon className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                           </a>
                         ))}
                       </div>
@@ -1863,8 +1870,9 @@ export default function StudentPortal() {
 
               {isAssignmentOverdue ? (
                 <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-center space-y-1">
-                  <div className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                    🔒 {lang === 'en' ? 'Submission portal is closed because the deadline has passed.' : 'Cổng nộp bài đã đóng do đã quá hạn nộp.'}
+                  <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+                    <LockIcon className="w-4 h-4 shrink-0 text-slate-500" />
+                    <span>{lang === 'en' ? 'Submission portal is closed because the deadline has passed.' : 'Cổng nộp bài đã đóng do đã quá hạn nộp.'}</span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
                     {lang === 'en' ? 'You cannot submit, resubmit, or edit your work after the deadline.' : 'Bạn không thể nộp, nộp lại hoặc chỉnh sửa bài làm sau hạn chót quy định.'}

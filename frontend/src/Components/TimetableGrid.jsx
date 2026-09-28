@@ -3,7 +3,8 @@ import { studentPortalApi } from '../api/studentPortalApi';
 import { useToast } from '../context/ToastContext';
 import { useThemeLanguage } from '../context/ThemeLanguageContext';
 import CollapsibleDescription from './CollapsibleDescription';
-import { MegaphoneIcon, PaperclipIcon, GlobeIcon, XCircleIcon, XIcon } from './Icons';
+import LinkifiedText from './LinkifiedText';
+import { MegaphoneIcon, PaperclipIcon, GlobeIcon, XCircleIcon, XIcon, AlertTriangleIcon } from './Icons';
 
 // Color palette for classes (accessible, modern pastel tones)
 const CLASS_COLORS = [
@@ -571,8 +572,9 @@ export default function TimetableGrid({
                     if (isOverdueSession) {
                       homeworkBorderClass = 'border-2 border-black dark:border-white shadow-sm shadow-black/30 ring-1 ring-black dark:ring-white';
                       homeworkStatusBadge = (
-                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white shrink-0">
-                          ⚠️ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                        <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-black text-white dark:bg-white dark:text-black rounded border border-black dark:border-white shrink-0 inline-flex items-center gap-0.5">
+                          <AlertTriangleIcon className="w-2.5 h-2.5 shrink-0" />
+                          <span>{lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}</span>
                         </span>
                       );
                     } else if (session.homeworkStatus === 'NOT_SUBMITTED') {
@@ -734,9 +736,9 @@ export default function TimetableGrid({
                     </span>
                   )}
                 </div>
-                <p className="text-sm font-medium text-amber-950 dark:text-amber-100 leading-relaxed whitespace-pre-line">
-                  {selectedSession.announcement}
-                </p>
+                <div className="text-sm font-medium text-amber-950 dark:text-amber-100 leading-relaxed">
+                  <LinkifiedText text={selectedSession.announcement} />
+                </div>
               </div>
             )}
 
@@ -778,8 +780,9 @@ export default function TimetableGrid({
                             {aIdx + 1}. {asgn.title}
                           </div>
                           {asgn.submissionStatus === 'OVERDUE' && (
-                            <span className="shrink-0 text-[10px] font-extrabold text-white dark:text-black bg-black dark:bg-white px-2 py-0.5 rounded border border-black dark:border-white">
-                              ⚠️ {lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}
+                            <span className="shrink-0 text-[10px] font-extrabold text-white dark:text-black bg-black dark:bg-white px-2 py-0.5 rounded border border-black dark:border-white inline-flex items-center gap-1">
+                              <AlertTriangleIcon className="w-3 h-3 shrink-0" />
+                              <span>{lang === 'en' ? 'OVERDUE' : 'QUÁ HẠN'}</span>
                             </span>
                           )}
                           {asgn.submissionStatus === 'GRADED' && (
@@ -883,7 +886,7 @@ export default function TimetableGrid({
                       {sec.content && <p className="text-slate-600 dark:text-slate-400 leading-relaxed">{sec.content}</p>}
                       {sec.studentPreparation && (
                         <div className="p-2 bg-amber-50 dark:bg-amber-950/50 text-amber-900 dark:text-amber-200 rounded-lg border border-amber-200 dark:border-amber-900/60 mt-1">
-                          <strong className="text-amber-800 dark:text-amber-300">{t('studentPrepRequired')}</strong> {sec.studentPreparation}
+                          <strong className="text-amber-800 dark:text-amber-300">{t('studentPrepRequired')}</strong> <LinkifiedText text={sec.studentPreparation} />
                         </div>
                       )}
                     </div>

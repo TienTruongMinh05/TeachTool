@@ -3,6 +3,7 @@ import { studentApi } from '../api/studentApi';
 import { classApi } from '../api/classApi';
 import { useToast } from '../context/ToastContext';
 import { useThemeLanguage } from '../context/ThemeLanguageContext';
+import { InfoIcon } from './Icons';
 
 export default function StudentList({ classId }) {
   const { toast } = useToast();
@@ -388,11 +389,14 @@ export default function StudentList({ classId }) {
             <p className="text-sm text-gray-600 dark:text-slate-300 mb-2">
               {t('removeStudentConfirmDesc')} <b>{deletingStudent.studentName}</b> {t('fromThisClassDesc')}
             </p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4 bg-slate-50 dark:bg-slate-800/60 p-2 rounded border border-slate-200 dark:border-slate-700/60">
-              💡 {lang === 'en' 
-                ? 'This action only unenrolls the student from this class. To permanently delete the student account from the system, please use the "All Students" menu.'
-                : 'Thao tác này chỉ hủy ghi danh học sinh khỏi lớp học này. Để xóa vĩnh viễn tài khoản học sinh khỏi toàn bộ hệ thống, bạn có thể thực hiện tại menu "Tất cả học sinh".'}
-            </p>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-4 bg-slate-50 dark:bg-slate-800/60 p-2 rounded border border-slate-200 dark:border-slate-700/60 flex items-start gap-1.5">
+              <InfoIcon className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0 mt-0.5" />
+              <span>
+                {lang === 'en' 
+                  ? 'This action only unenrolls the student from this class. To permanently delete the student account from the system, please use the "All Students" menu.'
+                  : 'Thao tác này chỉ hủy ghi danh học sinh khỏi lớp học này. Để xóa vĩnh viễn tài khoản học sinh khỏi toàn bộ hệ thống, bạn có thể thực hiện tại menu "Tất cả học sinh".'}
+              </span>
+            </div>
             <div className="flex justify-end gap-2">
               <button 
                 type="button" 

@@ -846,9 +846,11 @@ export default function ClassDashboard({ initialView }) {
                     <button
                       type="button"
                       onClick={() => setIsClassesSubmenuOpen(!isClassesSubmenuOpen)}
-                      className="p-2 text-slate-400 hover:text-white cursor-pointer"
+                      className="p-2 text-slate-400 hover:text-white cursor-pointer flex items-center justify-center"
                       title={isClassesSubmenuOpen ? (lang === 'en' ? 'Collapse class list' : 'Thu gọn danh sách lớp') : (lang === 'en' ? 'Expand class list' : 'Mở rộng danh sách lớp')}>
-                      <span className="text-xs">{isClassesSubmenuOpen ? '▲' : '▼'}</span>
+                      <svg className={`w-3.5 h-3.5 transform transition-transform ${isClassesSubmenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
                     </button>
                   )}
                 </div>

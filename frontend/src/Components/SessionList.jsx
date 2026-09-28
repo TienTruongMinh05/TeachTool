@@ -1003,7 +1003,7 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
             <button
               onClick={() => toggleSessionExpand(session.id)}
               className="px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800 rounded-lg transition cursor-pointer">
-              {isExpanded ? (lang === 'en' ? 'Hide plan ▲' : 'Ẩn kế hoạch ▲') : `${t('viewPlanBtn')} (${sections.length}) ▼`}
+              {isExpanded ? (lang === 'en' ? 'Hide plan' : 'Ẩn kế hoạch') : `${t('viewPlanBtn')} (${sections.length})`}
             </button>
             <button
               onClick={() => openAddSectionModal(session, plan)}

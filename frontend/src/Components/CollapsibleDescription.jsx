@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import LinkifiedText from './LinkifiedText';
 
 /**
  * Component hiển thị nội dung đề bài/mô tả có tính năng thu gọn tự động khi nội dung quá dài.
- * Có nút 'Xem thêm ▼' / 'Thu gọn ▲' để người dùng xổ ra hoặc thu lại.
+ * Có nút 'Xem thêm' / 'Thu gọn' để người dùng xổ ra hoặc thu lại.
  */
 export default function CollapsibleDescription({
   text = '',
@@ -23,9 +24,9 @@ export default function CollapsibleDescription({
   if (!isLong) {
     return (
       <div className={className}>
-        <p className={`${textClassName} whitespace-pre-wrap leading-relaxed break-words`}>
-          {text}
-        </p>
+        <div className={`${textClassName} leading-relaxed break-words`}>
+          <LinkifiedText text={text} />
+        </div>
       </div>
     );
   }
@@ -33,9 +34,9 @@ export default function CollapsibleDescription({
   return (
     <div className={`space-y-1 ${className}`}>
       <div className={`relative transition-all duration-200 ${!isExpanded ? 'max-h-20 overflow-hidden' : ''}`}>
-        <p className={`${textClassName} whitespace-pre-wrap leading-relaxed break-words`}>
-          {text}
-        </p>
+        <div className={`${textClassName} leading-relaxed break-words`}>
+          <LinkifiedText text={text} />
+        </div>
         {!isExpanded && (
           <div className="absolute inset-x-0 bottom-0 h-7 bg-gradient-to-t from-white dark:from-slate-900 via-white/80 dark:via-slate-900/80 to-transparent pointer-events-none" />
         )}
