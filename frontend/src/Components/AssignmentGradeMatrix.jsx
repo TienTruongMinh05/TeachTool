@@ -306,6 +306,25 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
     return new Date(dueDateStr) < new Date();
   };
 
+  const handleQuickGrade = async (e) => {
+    e.preventDefault();
+    if (!selectedCell?.submission?.id) return;
+    try {
+      setSavingGrade(true);
+      await submissionApi.grade(selectedCell.submission.id, {
+        score: quickScore !== '' ? parseFloat(quickScore) : null,
+        feedback: quickFeedback || ''
+      });
+      toast.success(lang === 'en' ? 'Grade and feedback saved successfully!' : 'Đã lưu điểm và nhận xét thành công!');
+      setSelectedCell(null);
+      await loadMatrixData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || (lang === 'en' ? 'Failed to save grade' : 'Lỗi khi lưu điểm'));
+    } finally {
+      setSavingGrade(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8 flex flex-col items-center justify-center min-h-[400px] text-slate-500 gap-3">

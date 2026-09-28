@@ -734,14 +734,9 @@ export default function StudentPortal() {
       setIsDeletingSubmission(true);
       await submissionApi.delete(submissionId);
       toast.success(lang === 'en' ? 'Submission deleted successfully! You can re-attempt and submit a new one.' : 'Đã xóa bài nộp thành công! Bạn có thể làm lại và nộp bài mới.');
-      setSubmissionPayload({
-        submissionType: 'TEXT',
-        textContent: '',
-        fileUrl: '',
-        fileName: ''
-      });
-      setAudioBlob(null);
-      setAudioPreviewUrl(null);
+      setSubmissionText('');
+      setUploadedFileData({ fileUrl: '', fileName: '' });
+      setSelectedSubmissionMode('TEXT');
       setSubmissionSuccessMsg('');
       await loadData();
     } catch (err) {

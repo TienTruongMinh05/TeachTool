@@ -8,6 +8,7 @@ import AudioGradingWorkbench from './AudioGradingWorkbench';
 import CollapsibleDescription from './CollapsibleDescription';
 import SubmissionFeedbackThread from './SubmissionFeedbackThread';
 import { useToast } from '../context/ToastContext';
+import { useThemeLanguage } from '../context/ThemeLanguageContext';
 import { PaperclipIcon, XIcon, ClockIcon, AlertTriangleIcon } from './Icons';
 
 export default function AssignmentManager({ classId, initialAssignmentId = null }) {
