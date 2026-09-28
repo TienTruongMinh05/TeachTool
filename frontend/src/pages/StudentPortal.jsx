@@ -17,7 +17,7 @@ import SubmissionFeedbackThread from '../Components/SubmissionFeedbackThread';
 import MistakeNotebookModal from '../Components/MistakeNotebookModal';
 import LinkifiedText from '../Components/LinkifiedText';
 import { ThemeLanguageToggle, useThemeLanguage } from '../context/ThemeLanguageContext';
-import { MegaphoneIcon, PaperclipIcon, GlobeIcon, XCircleIcon, XIcon, CheckCircleIcon, ClockIcon, AlertTriangleIcon, LockIcon, ExternalLinkIcon } from '../Components/Icons';
+import { MegaphoneIcon, PaperclipIcon, GlobeIcon, XCircleIcon, XIcon, CheckCircleIcon, ClockIcon, AlertTriangleIcon, LockIcon, ExternalLinkIcon, MenuIcon } from '../Components/Icons';
 
 export default function StudentPortal() {
   const { user, logout, updateUser } = useAuth();
@@ -25,6 +25,7 @@ export default function StudentPortal() {
   const { t, lang } = useThemeLanguage();
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isMistakeNotebookOpen, setIsMistakeNotebookOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [selectedAnnouncementClassId, setSelectedAnnouncementClassId] = useState(null);
 
   // Camera capture states
@@ -783,7 +784,7 @@ export default function StudentPortal() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-12 transition-colors">
       {/* HEADER BAR (RESPONSIVE CHO CẢ PC & ĐIỆN THOẠI) */}
       <header className="bg-slate-900 dark:bg-slate-950 text-white shadow-md sticky top-0 z-40 border-b border-slate-800">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap justify-between items-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex justify-between items-center gap-3">
           <div className="flex flex-col">
             <span className="font-extrabold text-base sm:text-lg tracking-tight text-white">TeachTool</span>
             <span className="text-[10px] text-blue-400 font-semibold uppercase tracking-wider">
@@ -791,8 +792,9 @@ export default function StudentPortal() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="text-right hidden sm:block">
+          {/* DESKTOP ACTIONS */}
+          <div className="hidden md:flex items-center gap-2 sm:gap-3">
+            <div className="text-right">
               <div className="text-xs font-bold text-slate-100">{user?.fullName || t('studentSubtitle')}</div>
               <div className="text-[11px] text-slate-400">{user?.email}</div>
             </div>
@@ -822,7 +824,58 @@ export default function StudentPortal() {
             </button>
             <ThemeLanguageToggle />
           </div>
+
+          {/* MOBILE ACTION BAR */}
+          <div className="flex md:hidden items-center gap-2">
+            <ThemeLanguageToggle />
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-sm transition cursor-pointer"
+              title="Menu"
+            >
+              {isMobileMenuOpen ? <XIcon className="w-5 h-5" /> : <MenuIcon className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
+
+        {/* MOBILE DRAWER / MENU PANEL */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden border-t border-slate-800 bg-slate-900/95 backdrop-blur-md px-4 py-3 space-y-2.5 animate-fadeIn">
+            <div className="pb-2 border-b border-slate-800 text-xs">
+              <div className="font-bold text-slate-100">{user?.fullName || t('studentSubtitle')}</div>
+              <div className="text-[11px] text-slate-400">{user?.email}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                onClick={() => { setIsJoinModalOpen(true); setJoinError(''); setIsMobileMenuOpen(false); }}
+                className="w-full text-left px-3 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-sm transition cursor-pointer">
+                {t('joinClassByCode')}
+              </button>
+              <button
+                onClick={() => { setIsMistakeNotebookOpen(true); setIsMobileMenuOpen(false); }}
+                className="w-full text-left px-3 py-2 text-xs font-semibold text-amber-300 bg-slate-800 hover:bg-slate-700 border border-amber-500/40 rounded-sm transition cursor-pointer">
+                {t('mistakeNotebook')}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => { setActiveTab('guide'); setIsMobileMenuOpen(false); }}
+                className={`w-full text-left px-3 py-2 text-xs font-medium rounded-sm transition cursor-pointer border ${
+                  activeTab === 'guide'
+                    ? 'bg-blue-600 text-white border-blue-500 font-semibold'
+                    : 'text-slate-200 bg-slate-800 hover:bg-slate-700 border-slate-700'
+                }`}>
+                {t('guide')}
+              </button>
+              <button
+                onClick={() => { setIsSettingsModalOpen(true); setIsMobileMenuOpen(false); }}
+                className="w-full text-left px-3 py-2 text-xs font-medium text-slate-200 bg-slate-800 hover:bg-slate-700 rounded-sm transition cursor-pointer border border-slate-700">
+                {t('settings')}
+              </button>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* NỘI DUNG CHÍNH */}

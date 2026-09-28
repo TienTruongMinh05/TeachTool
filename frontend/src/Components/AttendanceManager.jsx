@@ -277,10 +277,10 @@ export default function AttendanceManager({ classId, initialSessionId = null }) 
             <table className="min-w-full text-left text-sm">
               <thead className="bg-gray-50 dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800 text-gray-600 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
                 <tr>
-                  <th className="px-5 py-3.5 w-20 min-w-[70px]">{lang === 'en' ? 'Student ID' : 'Mã HV'}</th>
-                  <th className="px-5 py-3.5 min-w-[200px]">{t('studentCol')}</th>
-                  <th className="px-5 py-3.5 text-center w-[340px] min-w-[340px] whitespace-nowrap">{t('attendanceStatusCol')}</th>
-                  <th className="px-5 py-3.5 min-w-[220px]">{t('noteCol')}</th>
+                  <th className="px-4 py-3.5 w-16 min-w-[60px]">{lang === 'en' ? 'ID' : 'Mã'}</th>
+                  <th className="px-4 py-3.5 min-w-[180px] sticky left-0 bg-gray-50 dark:bg-slate-950 z-10 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)]">{t('studentCol')}</th>
+                  <th className="px-4 py-3.5 text-center w-[340px] min-w-[340px] whitespace-nowrap">{t('attendanceStatusCol')}</th>
+                  <th className="px-4 py-3.5 min-w-[200px]">{t('noteCol')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-slate-800">
@@ -290,8 +290,8 @@ export default function AttendanceManager({ classId, initialSessionId = null }) 
 
                   return (
                     <tr key={st.id} className="hover:bg-gray-50/70 dark:hover:bg-slate-800/40 transition">
-                      <td className="px-5 py-3.5 font-medium text-gray-900 dark:text-slate-300 whitespace-nowrap">#{st.studentId}</td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-4 py-3.5 font-medium text-gray-500 dark:text-slate-400 whitespace-nowrap text-xs">#{st.studentId}</td>
+                      <td className="px-4 py-3.5 sticky left-0 bg-white dark:bg-slate-900 z-10 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.06)]">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-gray-800 dark:text-slate-100">{st.studentName}</span>
                           {status === 'ONLINE' && (
@@ -301,43 +301,43 @@ export default function AttendanceManager({ classId, initialSessionId = null }) 
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-slate-400">{st.studentEmail}</div>
+                        <div className="text-[11px] text-gray-500 dark:text-slate-400 truncate max-w-[170px]">{st.studentEmail}</div>
                       </td>
-                      <td className="px-5 py-3.5 w-[340px] min-w-[340px] whitespace-nowrap text-center">
+                      <td className="px-4 py-3.5 w-[340px] min-w-[340px] whitespace-nowrap text-center">
                         <div className="flex justify-center items-center gap-1.5 whitespace-nowrap">
                           <button 
                             type="button"
                             onClick={() => handleStatusChange(st.studentId, 'PRESENT')}
-                            className={`px-2.5 py-1 rounded text-xs font-semibold transition cursor-pointer border ${status === 'PRESENT' ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 hover:text-emerald-700 dark:hover:text-emerald-300'}`}>
+                            className={`px-3 py-1.5 rounded text-xs font-semibold transition cursor-pointer border min-h-[32px] sm:min-h-[30px] ${status === 'PRESENT' ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs' : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 hover:text-emerald-700 dark:hover:text-emerald-300'}`}>
                             {t('statusPresent')}
                           </button>
                           <button 
                             type="button"
                             onClick={() => handleStatusChange(st.studentId, 'ONLINE')}
-                            className={`px-2.5 py-1 rounded text-xs font-semibold transition cursor-pointer border ${status === 'ONLINE' ? 'bg-sky-600 text-white border-sky-600 shadow-xs' : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-950/50 hover:text-sky-700 dark:hover:text-sky-300'}`}>
+                            className={`px-3 py-1.5 rounded text-xs font-semibold transition cursor-pointer border min-h-[32px] sm:min-h-[30px] ${status === 'ONLINE' ? 'bg-sky-600 text-white border-sky-600 shadow-xs' : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-950/50 hover:text-sky-700 dark:hover:text-sky-300'}`}>
                             {t('statusOnline')}
                           </button>
                           <button 
                             type="button"
                             onClick={() => handleStatusChange(st.studentId, 'LATE')}
-                            className={`px-2.5 py-1 rounded text-xs font-semibold transition cursor-pointer border ${status === 'LATE' ? 'bg-amber-500 text-white border-amber-500 shadow-xs' : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-700 hover:bg-amber-50 dark:hover:bg-amber-950/50 hover:text-amber-700 dark:hover:text-amber-300'}`}>
+                            className={`px-3 py-1.5 rounded text-xs font-semibold transition cursor-pointer border min-h-[32px] sm:min-h-[30px] ${status === 'LATE' ? 'bg-amber-500 text-white border-amber-500 shadow-xs' : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-700 hover:bg-amber-50 dark:hover:bg-amber-950/50 hover:text-amber-700 dark:hover:text-amber-300'}`}>
                             {t('statusLate')}
                           </button>
                           <button 
                             type="button"
                             onClick={() => handleStatusChange(st.studentId, 'ABSENT')}
-                            className={`px-2.5 py-1 rounded text-xs font-semibold transition cursor-pointer border ${status === 'ABSENT' ? 'bg-red-600 text-white border-red-600 shadow-xs' : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-700 hover:bg-red-50 dark:hover:bg-red-950/50 hover:text-red-700 dark:hover:text-red-300'}`}>
+                            className={`px-3 py-1.5 rounded text-xs font-semibold transition cursor-pointer border min-h-[32px] sm:min-h-[30px] ${status === 'ABSENT' ? 'bg-red-600 text-white border-red-600 shadow-xs' : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-300 border-gray-300 dark:border-slate-700 hover:bg-red-50 dark:hover:bg-red-950/50 hover:text-red-700 dark:hover:text-red-300'}`}>
                             {t('statusAbsent')}
                           </button>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 min-w-[220px]">
+                      <td className="px-4 py-3.5 min-w-[200px]">
                         <input 
                           type="text"
                           value={currentRecord.note || ''}
                           onChange={(e) => handleNoteChange(st.studentId, e.target.value)}
-                          placeholder={lang === 'en' ? "Enter note (e.g., excused, 15m late)..." : "Nhập ghi chú (VD: có phép, muộn 15p)..."}
-                          className="w-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded px-2.5 py-1 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                          placeholder={lang === 'en' ? "Enter note..." : "Nhập ghi chú..."}
+                          className="w-full border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 rounded px-2.5 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
                         />
                       </td>
                     </tr>

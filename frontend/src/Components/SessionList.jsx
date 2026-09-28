@@ -10,6 +10,7 @@ import { getStoredClassMaterials, saveStoredClassMaterials } from './ClassMateri
 import { materialApi } from '../api/materialApi';
 import { useToast } from '../context/ToastContext';
 import { useThemeLanguage } from '../context/ThemeLanguageContext';
+import LinkifiedText from './LinkifiedText';
 import { MegaphoneIcon, BookOpenIcon, GlobeIcon, XIcon, CheckCircleIcon } from './Icons';
 
 export default function SessionList({ classId, classInfo, onSelectSessionForAttendance, targetSessionId = null, onOnlineRequestsChange = null }) {
@@ -981,9 +982,9 @@ export default function SessionList({ classId, classInfo, onSelectSessionForAtte
                       <MegaphoneIcon className="w-3.5 h-3.5 shrink-0" />
                       <span>{t('urgentAnnouncementLabel')}</span>
                     </div>
-                    <p className="whitespace-pre-line text-slate-800 dark:text-slate-200 font-medium leading-relaxed">
-                      {session.announcement}
-                    </p>
+                    <div className="text-slate-800 dark:text-slate-200 font-medium leading-relaxed">
+                      <LinkifiedText text={session.announcement} />
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
