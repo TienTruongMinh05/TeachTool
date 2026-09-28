@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { reportApi } from '../api/reportApi';
 import { useToast } from '../context/ToastContext';
 import { useThemeLanguage } from '../context/ThemeLanguageContext';
@@ -7,7 +7,62 @@ export default function WeeklyReportModal({ isOpen, onClose, classId, classInfo 
   const { toast } = useToast();
   const { t, lang } = useThemeLanguage();
 
+  // Tính số tuần động và tuần hiện tại theo startDate và endDate của lớp học
+  const dynamicWeekInfo = useMemo(() => {
+    let sDate = classInfo?.startDate ? new Date(classInfo.startDate) : null;
+    let eDate = classInfo?.endDate ? new Date(classInfo.endDate) : null;
+
+    if (!sDate || isNaN(sDate.getTime())) {
+      sDate = new Date();
+    }
+    // Thứ Hai của tuần chứa ngày bắt đầu
+    const day = sDate.getDay();
+    const mondayDiff = sDate.getDate() - day + (day === 0 ? -6 : 1);
+    const week1Monday = new Date(sDate);
+    week1Monday.setDate(mondayDiff);
+    week1Monday.setHours(0, 0, 0, 0);
+
+    let lastSunday;
+    if (eDate && !isNaN(eDate.getTime())) {
+      const eDay = eDate.getDay();
+      const sundayDiff = eDate.getDate() + (eDay === 0 ? 0 : 7 - eDay);
+      lastSunday = new Date(eDate);
+      lastSunday.setDate(sundayDiff);
+      lastSunday.setHours(23, 59, 59, 999);
+    } else {
+      // Mặc định nếu chưa đặt endDate: 12 tuần
+      lastSunday = new Date(week1Monday);
+      lastSunday.setDate(week1Monday.getDate() + 12 * 7 - 1);
+    }
+
+    if (lastSunday < week1Monday) {
+      lastSunday = new Date(week1Monday);
+      lastSunday.setDate(week1Monday.getDate() + 6);
+    }
+
+    const diffDays = Math.ceil((lastSunday - week1Monday) / (1000 * 60 * 60 * 24));
+    const calculatedTotalWeeks = Math.max(1, Math.ceil(diffDays / 7));
+
+    // Tính tuần hiện tại theo ngày hôm nay
+    const today = new Date();
+    let calculatedCurrentWeek = 1;
+    if (today < week1Monday) {
+      calculatedCurrentWeek = 1;
+    } else if (today > lastSunday) {
+      calculatedCurrentWeek = calculatedTotalWeeks;
+    } else {
+      const daysFromStart = Math.floor((today - week1Monday) / (1000 * 60 * 60 * 24));
+      calculatedCurrentWeek = Math.max(1, Math.min(calculatedTotalWeeks, Math.floor(daysFromStart / 7) + 1));
+    }
+
+    return {
+      totalWeeks: calculatedTotalWeeks,
+      currentWeek: calculatedCurrentWeek
+    };
+  }, [classInfo]);
+
   const [selectedWeek, setSelectedWeek] = useState(1);
+  const [totalWeeks, setTotalWeeks] = useState(12);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -27,6 +82,15 @@ export default function WeeklyReportModal({ isOpen, onClose, classId, classInfo 
   const [previewData, setPreviewData] = useState(null);
 
   useEffect(() => {
+    if (isOpen) {
+      const initTotal = dynamicWeekInfo.totalWeeks || 12;
+      const initCurrent = dynamicWeekInfo.currentWeek || 1;
+      setTotalWeeks(initTotal);
+      setSelectedWeek(initCurrent);
+    }
+  }, [isOpen, dynamicWeekInfo]);
+
+  useEffect(() => {
     if (isOpen && classId) {
       loadPreview(selectedWeek);
     }
@@ -39,6 +103,9 @@ export default function WeeklyReportModal({ isOpen, onClose, classId, classInfo 
       const data = res?.data || res;
       setPreviewData(data);
       if (data) {
+        if (data.totalWeeks && data.totalWeeks > 0) {
+          setTotalWeeks(prev => Math.max(prev, data.totalWeeks, week));
+        }
         setAttendanceDone(Boolean(data.attendanceDone));
         setAnnouncementsDone(Boolean(data.announcementsDone));
         setHomeworkAssigned(Boolean(data.homeworkAssigned));
@@ -50,6 +117,11 @@ export default function WeeklyReportModal({ isOpen, onClose, classId, classInfo 
       setLoadingPreview(false);
     }
   };
+
+  const weekList = useMemo(() => {
+    const maxWeeks = Math.max(totalWeeks, selectedWeek, dynamicWeekInfo.totalWeeks || 1);
+    return Array.from({ length: maxWeeks }, (_, i) => i + 1);
+  }, [totalWeeks, selectedWeek, dynamicWeekInfo]);
 
   const handleExport = async (e) => {
     e.preventDefault();
@@ -154,12 +226,15 @@ export default function WeeklyReportModal({ isOpen, onClose, classId, classInfo 
                 value={selectedWeek}
                 onChange={(e) => setSelectedWeek(Number(e.target.value))}
                 className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md font-semibold text-slate-800 dark:text-slate-200">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(w => (
+                {weekList.map(w => (
                   <option key={w} value={w}>
-                    {lang === 'en' ? `Week ${w}` : `Tuần ${w}`}
+                    {lang === 'en' ? `Week ${w}` : `Tuần ${w}`} {w === dynamicWeekInfo.currentWeek ? (lang === 'en' ? '(Current)' : '(Hiện tại)') : ''}
                   </option>
                 ))}
               </select>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                ({lang === 'en' ? `Total ${weekList.length} weeks` : `Tổng ${weekList.length} tuần`})
+              </span>
             </div>
 
             {loadingPreview ? (

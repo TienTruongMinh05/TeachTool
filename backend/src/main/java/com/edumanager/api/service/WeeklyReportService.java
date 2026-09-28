@@ -72,6 +72,8 @@ public class WeeklyReportService {
 
         return WeeklyReportPreviewDTO.builder()
                 .week(week)
+                .totalWeeks(window.totalWeeks())
+                .currentWeek(window.currentWeek())
                 .dateRange(window.dateRange())
                 .teacherName(teacherName)
                 .className(className)
@@ -332,15 +334,46 @@ public class WeeklyReportService {
     }
 
     private WeekWindow calculateWeekWindow(ClassRoom classRoom, List<Session> allSessions, int week) {
-        LocalDate baseDate = classRoom.getStartDate();
-        if (baseDate == null && !allSessions.isEmpty() && allSessions.get(0).getStartTime() != null) {
-            baseDate = allSessions.get(0).getStartTime().toLocalDate();
+        LocalDate baseStartDate = classRoom.getStartDate();
+        if (baseStartDate == null && !allSessions.isEmpty() && allSessions.get(0).getStartTime() != null) {
+            baseStartDate = allSessions.get(0).getStartTime().toLocalDate();
         }
-        if (baseDate == null) {
-            baseDate = LocalDate.now();
+        if (baseStartDate == null) {
+            baseStartDate = LocalDate.now();
         }
 
-        LocalDate week1Monday = baseDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate week1Monday = baseStartDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+
+        LocalDate baseEndDate = classRoom.getEndDate();
+        if (baseEndDate == null && !allSessions.isEmpty()) {
+            Session lastSession = allSessions.get(allSessions.size() - 1);
+            if (lastSession.getStartTime() != null) {
+                baseEndDate = lastSession.getStartTime().toLocalDate();
+            }
+        }
+        if (baseEndDate == null) {
+            baseEndDate = baseStartDate.plusWeeks(12).minusDays(1);
+        }
+
+        LocalDate lastWeekSunday = baseEndDate.isBefore(week1Monday)
+                ? week1Monday.plusDays(6)
+                : baseEndDate.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+
+        long diffDays = java.time.temporal.ChronoUnit.DAYS.between(week1Monday, lastWeekSunday) + 1;
+        int totalWeeks = (int) Math.max(1, (diffDays + 6) / 7);
+
+        // Tính tuần hiện tại theo ngày hôm nay
+        LocalDate today = LocalDate.now();
+        int currentWeek;
+        if (today.isBefore(week1Monday)) {
+            currentWeek = 1;
+        } else if (today.isAfter(lastWeekSunday)) {
+            currentWeek = totalWeeks;
+        } else {
+            long daysFromStart = java.time.temporal.ChronoUnit.DAYS.between(week1Monday, today);
+            currentWeek = (int) Math.max(1, Math.min(totalWeeks, (daysFromStart / 7) + 1));
+        }
+
         LocalDate weekStart = week1Monday.plusWeeks(week - 1);
         LocalDate weekEnd = weekStart.plusDays(6);
 
@@ -363,7 +396,7 @@ public class WeeklyReportService {
                 .filter(s -> s.getStartTime() != null && !s.getStartTime().isBefore(nextStartDateTime) && !s.getStartTime().isAfter(nextEndDateTime))
                 .toList();
 
-        return new WeekWindow(weekStart, weekEnd, startDateTime, endDateTime, dateRange, weekSessions, nextWeekSessions);
+        return new WeekWindow(weekStart, weekEnd, startDateTime, endDateTime, dateRange, weekSessions, nextWeekSessions, totalWeeks, currentWeek);
     }
 
     private void setParagraphText(XWPFParagraph p, String newText) {
@@ -538,7 +571,7 @@ public class WeeklyReportService {
         return result;
     }
 
-    private record WeekWindow(LocalDate weekStart, LocalDate weekEnd, LocalDateTime startDateTime, LocalDateTime endDateTime, String dateRange, List<Session> weekSessions, List<Session> nextWeekSessions) {}
+    private record WeekWindow(LocalDate weekStart, LocalDate weekEnd, LocalDateTime startDateTime, LocalDateTime endDateTime, String dateRange, List<Session> weekSessions, List<Session> nextWeekSessions, int totalWeeks, int currentWeek) {}
     private record AttendanceStats(int total, int present, int absent) {}
     private record AtRiskStudentInfo(String name, String issue, String recommendation) {}
 }

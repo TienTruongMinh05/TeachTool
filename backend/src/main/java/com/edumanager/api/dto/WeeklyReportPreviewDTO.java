@@ -13,6 +13,8 @@ import java.util.List;
 @AllArgsConstructor
 public class WeeklyReportPreviewDTO {
     private Integer week;
+    private Integer totalWeeks;
+    private Integer currentWeek;
     private String dateRange;
     private String teacherName;
     private String className;
