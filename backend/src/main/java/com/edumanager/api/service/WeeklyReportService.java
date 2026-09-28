@@ -49,7 +49,11 @@ public class WeeklyReportService {
         int week = (weekNumber != null && weekNumber > 0) ? weekNumber : 1;
 
         List<Enrollment> enrollments = enrollmentRepository.findByClassRoomId(classId);
-        int totalStudents = enrollments != null ? enrollments.size() : 0;
+        Set<Long> currentStudentIds = (enrollments != null) ? enrollments.stream()
+                .map(e -> e.getStudent() != null ? e.getStudent().getId() : null)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet()) : Collections.emptySet();
+        int totalStudents = currentStudentIds.size();
 
         List<Session> allSessions = new ArrayList<>(sessionRepository.findByClassRoomId(classId));
         allSessions.sort(Comparator.comparing(s -> s.getStartTime() != null ? s.getStartTime() : LocalDateTime.MIN));
@@ -61,10 +65,10 @@ public class WeeklyReportService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        boolean attDone = calculateAttendanceDone(window.weekSessions());
+        boolean attDone = calculateAttendanceDone(window.weekSessions(), currentStudentIds);
         boolean annDone = calculateAnnouncementsDone(classId, window.startDateTime(), window.endDateTime());
         boolean hwAssigned = calculateHomeworkAssigned(classId, weekSessionIds, window.startDateTime(), window.endDateTime());
-        boolean hwGraded = calculateHomeworkGraded(classId, weekSessionIds, window.startDateTime(), window.endDateTime());
+        boolean hwGraded = calculateHomeworkGraded(classId, weekSessionIds, currentStudentIds, window.startDateTime(), window.endDateTime());
 
         List<String> pastSessions = window.weekSessions().stream().map(this::formatSession).toList();
         List<String> nextSessions = window.nextWeekSessions().stream().map(this::formatSession).toList();
@@ -112,7 +116,11 @@ public class WeeklyReportService {
         String className = classRoom.getName() != null ? classRoom.getName() : "Lớp học";
 
         List<Enrollment> enrollments = enrollmentRepository.findByClassRoomId(classId);
-        int totalStudents = enrollments != null ? enrollments.size() : 0;
+        Set<Long> currentStudentIds = (enrollments != null) ? enrollments.stream()
+                .map(e -> e.getStudent() != null ? e.getStudent().getId() : null)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet()) : Collections.emptySet();
+        int totalStudents = currentStudentIds.size();
 
         List<Session> allSessions = new ArrayList<>(sessionRepository.findByClassRoomId(classId));
         allSessions.sort(Comparator.comparing(s -> s.getStartTime() != null ? s.getStartTime() : LocalDateTime.MIN));
@@ -125,10 +133,10 @@ public class WeeklyReportService {
                 .collect(Collectors.toSet());
 
         // Máy tự động tính hoặc dùng giá trị ghi đè từ form giáo viên
-        boolean attDone = requestDTO.getAttendanceDone() != null ? requestDTO.getAttendanceDone() : calculateAttendanceDone(window.weekSessions());
+        boolean attDone = requestDTO.getAttendanceDone() != null ? requestDTO.getAttendanceDone() : calculateAttendanceDone(window.weekSessions(), currentStudentIds);
         boolean annDone = requestDTO.getAnnouncementsDone() != null ? requestDTO.getAnnouncementsDone() : calculateAnnouncementsDone(classId, window.startDateTime(), window.endDateTime());
         boolean hwAssigned = requestDTO.getHomeworkAssigned() != null ? requestDTO.getHomeworkAssigned() : calculateHomeworkAssigned(classId, weekSessionIds, window.startDateTime(), window.endDateTime());
-        boolean hwGraded = requestDTO.getHomeworkGraded() != null ? requestDTO.getHomeworkGraded() : calculateHomeworkGraded(classId, weekSessionIds, window.startDateTime(), window.endDateTime());
+        boolean hwGraded = requestDTO.getHomeworkGraded() != null ? requestDTO.getHomeworkGraded() : calculateHomeworkGraded(classId, weekSessionIds, currentStudentIds, window.startDateTime(), window.endDateTime());
 
         InputStream templateStream = null;
         try {
@@ -222,11 +230,11 @@ public class WeeklyReportService {
                             setParagraphText(paragraph, "Buổi 2: Theo tiến độ phân phối chương trình");
                         }
                     }
-                    // III. Tình hình học sinh (Buổi 1, Buổi 2, Buổi 3...)
+                    // III. Tình hình học sinh (Buổi 1, Buổi 2, Buổi 3...) - Dựa strictly trên học sinh hiện tại của lớp
                     else if ("STUDENTS".equals(currentSection) && text.startsWith("Buổi 1")) {
                         if (!window.weekSessions().isEmpty()) {
                             Session s = window.weekSessions().get(0);
-                            AttendanceStats stats = getAttendanceStats(s.getId(), totalStudents);
+                            AttendanceStats stats = getAttendanceStats(s.getId(), currentStudentIds);
                             setParagraphText(paragraph, String.format("Buổi 1 (%s): Tổng số HS: %d | Có mặt: %d | Vắng: %d",
                                     s.getTopic() != null ? s.getTopic() : "Buổi 1", stats.total(), stats.present(), stats.absent()));
                         } else {
@@ -236,7 +244,7 @@ public class WeeklyReportService {
                     else if ("STUDENTS".equals(currentSection) && text.startsWith("Buổi 2")) {
                         if (window.weekSessions().size() > 1) {
                             Session s = window.weekSessions().get(1);
-                            AttendanceStats stats = getAttendanceStats(s.getId(), totalStudents);
+                            AttendanceStats stats = getAttendanceStats(s.getId(), currentStudentIds);
                             setParagraphText(paragraph, String.format("Buổi 2 (%s): Tổng số HS: %d | Có mặt: %d | Vắng: %d",
                                     s.getTopic() != null ? s.getTopic() : "Buổi 2", stats.total(), stats.present(), stats.absent()));
                         } else {
@@ -249,7 +257,7 @@ public class WeeklyReportService {
                             for (int i = 2; i < window.weekSessions().size(); i++) {
                                 if (i > 2) sb.append("\n");
                                 Session s = window.weekSessions().get(i);
-                                AttendanceStats stats = getAttendanceStats(s.getId(), totalStudents);
+                                AttendanceStats stats = getAttendanceStats(s.getId(), currentStudentIds);
                                 sb.append(String.format("Buổi %d (%s): Tổng số HS: %d | Có mặt: %d | Vắng: %d",
                                         i + 1, s.getTopic() != null ? s.getTopic() : ("Buổi " + (i + 1)), stats.total(), stats.present(), stats.absent()));
                             }
@@ -261,7 +269,7 @@ public class WeeklyReportService {
                     // IV. CÔNG TÁC GIẢNG DẠY
                     else if (text.contains("Điểm danh đầy đủ") && text.contains("Gửi thông báo nhóm đầy đủ")) {
                         setParagraphText(paragraph, String.format("%s Điểm danh đầy đủ        %s Gửi thông báo nhóm đầy đủ",
-                                attDone ? "☑" : "☐", annDone ? "☑" : "☐"));
+                            attDone ? "☑" : "☐", annDone ? "☑" : "☐"));
                     }
                     else if (text.contains("Giao BTVN đầy đủ") && text.contains("Chữa BTVN")) {
                         setParagraphText(paragraph, String.format("%s Giao BTVN đầy đủ        %s Chữa BTVN",
@@ -297,7 +305,7 @@ public class WeeklyReportService {
                     }
                 }
 
-                // Table 1: Học sinh cần theo dõi (chỉ tính trong tuần đang báo cáo)
+                // Table 1: Học sinh cần theo dõi (chỉ tính trong tuần đang báo cáo và cho học sinh hiện tại)
                 if (!document.getTables().isEmpty()) {
                     XWPFTable table = document.getTables().get(0);
                     while (table.getRows().size() > 1) {
@@ -424,7 +432,7 @@ public class WeeklyReportService {
         return dateStr + " - " + topic;
     }
 
-    private boolean calculateAttendanceDone(List<Session> weekSessions) {
+    private boolean calculateAttendanceDone(List<Session> weekSessions, Set<Long> currentStudentIds) {
         if (weekSessions == null || weekSessions.isEmpty()) return true;
         LocalDateTime now = LocalDateTime.now();
         for (Session s : weekSessions) {
@@ -432,6 +440,12 @@ public class WeeklyReportService {
                 List<Attendance> atts = attendanceRepository.findBySessionId(s.getId());
                 if (atts == null || atts.isEmpty()) {
                     return false;
+                }
+                if (currentStudentIds != null && !currentStudentIds.isEmpty()) {
+                    boolean hasCurrentAtt = atts.stream().anyMatch(a -> a.getStudent() != null && currentStudentIds.contains(a.getStudent().getId()));
+                    if (!hasCurrentAtt) {
+                        return false;
+                    }
                 }
             }
         }
@@ -456,11 +470,12 @@ public class WeeklyReportService {
         return hasThisWeek || !list.isEmpty();
     }
 
-    private boolean calculateHomeworkGraded(Long classId, Set<Long> weekSessionIds, LocalDateTime startDateTime, LocalDateTime endDateTime) {
+    private boolean calculateHomeworkGraded(Long classId, Set<Long> weekSessionIds, Set<Long> currentStudentIds, LocalDateTime startDateTime, LocalDateTime endDateTime) {
         List<Submission> submissions = submissionRepository.findByClassRoomId(classId);
         if (submissions == null || submissions.isEmpty()) return true;
 
         List<Submission> weekSubmissions = submissions.stream()
+                .filter(s -> s.getStudent() != null && (currentStudentIds == null || currentStudentIds.isEmpty() || currentStudentIds.contains(s.getStudent().getId())))
                 .filter(s -> {
                     if (s.getAssignment() != null && s.getAssignment().getSession() != null && weekSessionIds.contains(s.getAssignment().getSession().getId())) {
                         return true;
@@ -482,28 +497,37 @@ public class WeeklyReportService {
         return ((double) graded / weekSubmissions.size()) >= 0.70;
     }
 
-    private AttendanceStats getAttendanceStats(Long sessionId, int totalStudents) {
-        if (sessionId == null) return new AttendanceStats(totalStudents, totalStudents, 0);
+    private AttendanceStats getAttendanceStats(Long sessionId, Set<Long> currentStudentIds) {
+        int total = currentStudentIds != null ? currentStudentIds.size() : 0;
+        if (sessionId == null || total == 0) {
+            return new AttendanceStats(total, total, 0);
+        }
         List<Attendance> attendances = attendanceRepository.findBySessionId(sessionId);
         if (attendances == null || attendances.isEmpty()) {
-            return new AttendanceStats(totalStudents, totalStudents, 0);
+            return new AttendanceStats(total, total, 0);
         }
-        int absentCount = 0;
-        int presentCount = 0;
-        for (Attendance a : attendances) {
-            if ("ABSENT".equalsIgnoreCase(a.getStatus())) {
-                absentCount++;
-            } else {
-                presentCount++;
-            }
-        }
-        int total = Math.max(totalStudents, presentCount + absentCount);
-        return new AttendanceStats(total, total - absentCount, absentCount);
+
+        // Lọc strictly chỉ các học sinh hiện đang có trong lớp
+        List<Attendance> currentAtts = attendances.stream()
+                .filter(a -> a.getStudent() != null && currentStudentIds.contains(a.getStudent().getId()))
+                .toList();
+
+        int absentCount = (int) currentAtts.stream()
+                .filter(a -> "ABSENT".equalsIgnoreCase(a.getStatus()))
+                .count();
+
+        int presentCount = Math.max(0, total - absentCount);
+        return new AttendanceStats(total, presentCount, absentCount);
     }
 
     private List<AtRiskStudentInfo> findAtRiskStudents(Long classId, List<Enrollment> enrollments, List<Session> weekSessions, LocalDateTime startDateTime, LocalDateTime endDateTime) {
         List<AtRiskStudentInfo> result = new ArrayList<>();
         if (enrollments == null || classId == null) return result;
+
+        Set<Long> currentStudentIds = enrollments.stream()
+                .map(e -> e.getStudent() != null ? e.getStudent().getId() : null)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
 
         Set<Long> weekSessionIds = (weekSessions != null) ? weekSessions.stream()
                 .map(Session::getId)
@@ -515,14 +539,14 @@ public class WeeklyReportService {
             List<Attendance> classAtts = attendanceRepository.findBySessionClassRoomId(classId);
             if (classAtts != null) {
                 absentCounts = classAtts.stream()
-                        .filter(a -> a.getStudent() != null && a.getSession() != null && weekSessionIds.contains(a.getSession().getId()) && "ABSENT".equalsIgnoreCase(a.getStatus()))
+                        .filter(a -> a.getStudent() != null && currentStudentIds.contains(a.getStudent().getId()) && a.getSession() != null && weekSessionIds.contains(a.getSession().getId()) && "ABSENT".equalsIgnoreCase(a.getStatus()))
                         .collect(Collectors.groupingBy(a -> a.getStudent().getId(), Collectors.counting()));
             }
         }
 
         List<Submission> submissions = submissionRepository.findByClassRoomId(classId);
         Map<Long, List<Submission>> studentSubmissions = (submissions != null ? submissions : Collections.<Submission>emptyList()).stream()
-                .filter(s -> s.getStudent() != null && (
+                .filter(s -> s.getStudent() != null && currentStudentIds.contains(s.getStudent().getId()) && (
                         (s.getAssignment() != null && s.getAssignment().getSession() != null && weekSessionIds.contains(s.getAssignment().getSession().getId())) ||
                         (s.getSubmittedAt() != null && !s.getSubmittedAt().isBefore(startDateTime) && !s.getSubmittedAt().isAfter(endDateTime))
                 ))
@@ -530,7 +554,7 @@ public class WeeklyReportService {
 
         for (Enrollment e : enrollments) {
             User student = e.getStudent();
-            if (student == null) continue;
+            if (student == null || !currentStudentIds.contains(student.getId())) continue;
 
             String studentDisplayName = student.getFullName() != null && !student.getFullName().isBlank() 
                     ? student.getFullName() 
