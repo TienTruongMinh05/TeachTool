@@ -789,7 +789,27 @@
      - **Path Traversal Defense**: `FileUploadController` xác thực chặt chẽ `!filePath.startsWith(uploadDir)` kết hợp whitelist định dạng tệp và UUID.
      - **SQL Injection Prevention**: 100% truy vấn dữ liệu được tham số hóa qua JPA/JPQL và `JdbcTemplate` với placeholder `?`.
      - **Bảo vệ chống Brute-Force & DoS**: `RateLimiterService` kiểm soát chặt chẽ tần suất đăng nhập và đăng ký.
-     - **Mã hóa Dữ liệu Nhạy Cảm**: PBKDF2WithHmacSHA256 (65,536 vòng + salt) cho mật khẩu, AES-256-CBC cho tin nhắn thắc mắc.
+      - **Mã hóa Dữ liệu Nhạy Cảm**: PBKDF2WithHmacSHA256 (65,536 vòng + salt) cho mật khẩu, AES-256-CBC cho tin nhắn thắc mắc.
+
+---
+
+### 📍 GIAI ĐOẠN 23: CHUẨN HÓA CƠ CHẾ TÍNH TUẦN THEO LỊCH & CÔ LẬP DỮ LIỆU BÁO CÁO THEO TUẦN
+* **Mục tiêu**: Xử lý triệt để sự cố phân chia buổi học sai lệch ngày khi lớp học có $\ge 3$ buổi/tuần và sự cố đếm dồn toàn bộ số buổi vắng học sinh từ quá khứ vào báo cáo của một tuần cụ thể.
+* **Nguyên nhân gốc rễ (Root Cause)**:
+  1. `WeeklyReportService.java` trước đây gán cố định `sessionsPerWeek = 2` và cắt mảng buổi học theo chỉ số `(week-1)*2`. Khi lớp học có 3 buổi/tuần (như ngày 21, 22, 23/09), chỉ số bị lệch khiến Tuần 2 lấy ngày 16-21/09 và Tuần 3 chỉ lấy ngày 22-23/09 (bỏ sót ngày 21/09).
+  2. Phương thức tìm học sinh cần theo dõi `findAtRiskStudents` truy vấn `attendanceRepository.findBySessionClassRoomId(classId)`, lấy tổng toàn bộ số buổi vắng trong lịch sử lớp học thay vì chỉ đếm trong các buổi học thuộc tuần đang báo cáo (khiến học sinh My bị hiển thị vắng 4 buổi thay vì 3 buổi).
+* **Kết quả thực hiện**:
+  1. **Tính Tuần Dựa Trên Khung Lịch Chuẩn (Monday to Sunday)**:
+     - Dựa trên `classRoom.startDate` (hoặc buổi học đầu tiên), xác định ngày Thứ Hai đầu tiên (`week1Monday = baseDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))`).
+     - Với Tuần $N$: Khung thời gian là `[Thứ Hai tuần N, Chủ Nhật tuần N]`.
+     - Lọc toàn bộ các buổi học có `startTime` nằm chính xác trong tuần mà không phụ thuộc số lượng buổi dạy (hỗ trợ hoàn hảo các lớp 1, 2, 3, 4+ buổi/tuần).
+     - Khung kế hoạch tuần tới (Tuần $N+1$) tự động dịch chuyển 7 ngày tiếp theo `[Thứ Hai tuần N+1, Chủ Nhật tuần N+1]`.
+  2. **Cô Lập Tuyệt Đối Dữ Liệu Điểm Danh & Rủi Ro Theo Từng Tuần**:
+     - Lấy tập ID các buổi học trong tuần (`weekSessionIds`).
+     - Đếm số buổi vắng của học sinh (`absentCounts`) và bài nộp/điểm số (`studentSubmissions`) CHỈ trong phạm vi các buổi học và hạn nộp của tuần đang xét.
+     - Báo cáo số buổi vắng của học sinh (ví dụ: My vắng 3 buổi trong Tuần 3) thể hiện chính xác 100% dữ liệu thực tế của tuần đó.
+  3. **Hỗ Trợ Định Dạng Đa Buổi Học Trong File Word (.docx)**:
+     - Tự động hiển thị và xuống dòng (`XWPFRun.addBreak()`) đầy đủ cho tất cả các buổi học (Buổi 1, Buổi 2, Buổi 3, Buổi 4...) trong các mục *Bài đã dạy*, *Kế hoạch tuần tới*, và *Tình hình học sinh*.
 
 ---
 
@@ -797,15 +817,16 @@
 
 | Tiêu chí | Trước tối ưu hóa | Hiện tại | Hiệu quả cải thiện |
 | :--- | :--- | :--- | :--- |
-| **Kích thước JS tải ban đầu** | 1,090.43 kB | **12.28 kB** |  **Giảm 98.8%** |
+| **Kích thước JS tải ban đầu** | 1,090.43 kB | **12.28 kB** | ⚡ **Giảm 98.8%** |
 | **Thời gian build Frontend** | ~2.5 giây | **0.8 - 1.9 giây** | ⚡ **Nhanh hơn gấp 2 lần** |
-| **Dung lượng file ghi âm / phút** | 1.5 - 2.0 MB | **~240 KB** |  **Tiết kiệm 80% bộ nhớ** |
+| **Dung lượng file ghi âm / phút** | 1.5 - 2.0 MB | **~240 KB** | 🗜️ **Tiết kiệm 80% bộ nhớ** |
 | **Tốc độ mở lại sách giáo khoa PDF** | 3 - 6 giây (tải mạng) | **0ms (CacheStorage)** | ⚡ **Tức thì** |
 | **Độ phức tạp truy vấn điểm danh & bài nộp** | $O(N)$ (Full Scan) | **$O(\log N)$ (Indexed)** | ⚡ **Tăng tốc 10x - 50x** |
 | **Mức độ phụ thuộc popup trình duyệt** | Dùng nhiều `alert/confirm` | **0% (100% In-App Toast)** | ✨ **Trải nghiệm mượt mà** |
 | **Giao diện thương mại** | Nhiều badge & mô tả dài | **Tối giản, chuyên nghiệp** | 🎯 **Tập trung nghiệp vụ 100%** |
 | **Cơ chế giao bài tập** | Chỉ giao thủ công tức thì | **Hẹn giờ & Auto-Push** | ⏰ **Tự động hóa 100%** |
 | **Độ tin cậy ma trận điểm & Heatmap** | Dễ rỗng nếu thiếu endpoint | **Fallback đa tầng + Dual-Index** | 💎 **100% luôn đồng bộ dữ liệu** |
+| **Tính tuần & Dữ liệu báo cáo tuần** | Cố định 2 buổi/tuần, vắng cộng dồn lịch sử | **Theo lịch (Thứ 2 - CN), cô lập 100% theo tuần** | 🎯 **Chính xác tuyệt đối** |
 | **Bảo mật hệ thống** | Thiếu HTTP headers, lộ system-diag | **OWASP Hardened, Zero-Leak** | 🛡️ **An toàn đa tầng** |
 | **Kênh Thắc mắc & Hỗ trợ học viên** | Chưa có kênh riêng, dữ liệu phình to | **Chat 2 chiều Messenger + Nút Xóa giải phóng hệ thống** | 💬 **Tức thì, chủ động dọn dẹp nhẹ hệ thống** |
 
