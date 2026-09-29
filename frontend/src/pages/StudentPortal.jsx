@@ -87,10 +87,12 @@ export default function StudentPortal() {
 
   // Modal nộp bài tập
   const [activeAssignmentToSubmit, setActiveAssignmentToSubmit] = useState(null);
-  const [selectedSubmissionMode, setSelectedSubmissionMode] = useState('TEXT'); // 'TEXT' | 'DOCX' | 'AUDIO' | 'DIRECT_RECORD'
+  const [selectedSubmissionMode, setSelectedSubmissionMode] = useState('TEXT'); // 'TEXT' | 'DOCX' | 'AUDIO' | 'DIRECT_RECORD' | 'IMAGE'
   const [submissionText, setSubmissionText] = useState('');
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadedFileData, setUploadedFileData] = useState({ fileUrl: '', fileName: '' });
+  const [uploadedImages, setUploadedImages] = useState([]); // Danh sách ảnh đính kèm/chụp (tối đa 10 ảnh)
+  const [previewImageModal, setPreviewImageModal] = useState(null); // Xem ảnh phóng to
   const [submitting, setSubmitting] = useState(false);
   const [submissionSuccessMsg, setSubmissionSuccessMsg] = useState('');
 
@@ -349,6 +351,13 @@ export default function StudentPortal() {
         fileUrl: existing.fileUrl || '',
         fileName: existing.fileName || ''
       });
+      if (existing.submissionType === 'IMAGE' && existing.fileUrl) {
+        const urls = existing.fileUrl.split(',').map(u => u.trim()).filter(Boolean);
+        const names = existing.fileName ? existing.fileName.split(',').map(n => n.trim()) : [];
+        setUploadedImages(urls.map((url, i) => ({ fileUrl: url, fileName: names[i] || `Ảnh ${i + 1}` })));
+      } else {
+        setUploadedImages([]);
+      }
     } else {
       // Kiểm tra xem có bản nháp đã lưu không
       let loadedDraft = false;
@@ -356,10 +365,11 @@ export default function StudentPortal() {
         const draftStr = localStorage.getItem(`draft_asgn_${user?.id}_${assignment.id}`);
         if (draftStr) {
           const draft = JSON.parse(draftStr);
-          if (draft && (draft.submissionText || draft.uploadedFileData?.fileUrl)) {
+          if (draft && (draft.submissionText || draft.uploadedFileData?.fileUrl || (draft.uploadedImages && draft.uploadedImages.length > 0))) {
             setSelectedSubmissionMode(allowed.includes(draft.selectedSubmissionMode) ? draft.selectedSubmissionMode : (allowed[0] || 'TEXT'));
             setSubmissionText(draft.submissionText || '');
             setUploadedFileData(draft.uploadedFileData || { fileUrl: '', fileName: '' });
+            setUploadedImages(Array.isArray(draft.uploadedImages) ? draft.uploadedImages : []);
             setDraftSavedNotice(lang === 'en' ? 'Previously saved draft has been automatically reloaded.' : 'Đã tự động tải lại bản nháp bạn đã lưu trước đó.');
             loadedDraft = true;
           }
@@ -370,6 +380,7 @@ export default function StudentPortal() {
         setSelectedSubmissionMode(allowed[0] || 'TEXT');
         setSubmissionText('');
         setUploadedFileData({ fileUrl: '', fileName: '' });
+        setUploadedImages([]);
       }
     }
   };
@@ -380,6 +391,7 @@ export default function StudentPortal() {
       selectedSubmissionMode,
       submissionText,
       uploadedFileData,
+      uploadedImages,
       savedAt: new Date().toISOString()
     };
     try {
@@ -397,7 +409,7 @@ export default function StudentPortal() {
   // Tự động lưu bản nháp bài tập định kỳ 3 giây khi học sinh đang chỉnh sửa
   useEffect(() => {
     if (!activeAssignmentToSubmit || !user?.id) return;
-    if (!submissionText && !uploadedFileData?.fileUrl) return;
+    if (!submissionText && !uploadedFileData?.fileUrl && uploadedImages.length === 0) return;
 
     const timer = setTimeout(() => {
       try {
@@ -405,6 +417,7 @@ export default function StudentPortal() {
           selectedSubmissionMode,
           submissionText,
           uploadedFileData,
+          uploadedImages,
           savedAt: new Date().toISOString()
         };
         localStorage.setItem(`draft_asgn_${user.id}_${activeAssignmentToSubmit.id}`, JSON.stringify(draftData));
@@ -413,7 +426,7 @@ export default function StudentPortal() {
     }, 3000);
 
     return () => clearTimeout(timer);
-  }, [activeAssignmentToSubmit, selectedSubmissionMode, submissionText, uploadedFileData, user?.id, t]);
+  }, [activeAssignmentToSubmit, selectedSubmissionMode, submissionText, uploadedFileData, uploadedImages, user?.id, t]);
 
   const closeSubmitModal = () => {
     stopCamera();
@@ -450,8 +463,16 @@ export default function StudentPortal() {
     setIsCameraActive(false);
   };
 
+  const handleRemoveImage = (indexToRemove) => {
+    setUploadedImages(prev => prev.filter((_, idx) => idx !== indexToRemove));
+  };
+
   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) return;
+    if (uploadedImages.length >= 10) {
+      toast.warning(lang === 'en' ? 'Maximum 10 photos allowed for this assignment.' : 'Bạn chỉ được đính kèm hoặc chụp tối đa 10 ảnh bài làm.');
+      return;
+    }
     const video = videoRef.current;
     const canvas = canvasRef.current;
     canvas.width = video.videoWidth || 640;
@@ -463,15 +484,18 @@ export default function StudentPortal() {
       if (!blob) return;
       try {
         setUploadingFile(true);
-        const fileName = `chup_anh_bai_nop_${Date.now()}.jpg`;
+        const fileName = `chup_anh_${uploadedImages.length + 1}_${Date.now()}.jpg`;
         const file = new File([blob], fileName, { type: 'image/jpeg' });
         const res = await fileApi.upload(file);
-        setUploadedFileData({
+        const newImg = {
           fileUrl: res.fileUrl,
           fileName: res.fileName || fileName
+        };
+        setUploadedImages(prev => {
+          const next = [...prev, newImg];
+          return next.slice(0, 10);
         });
-        stopCamera();
-        toast.success(lang === 'en' ? 'Photo captured successfully!' : 'Đã chụp ảnh bài làm thành công!');
+        toast.success(lang === 'en' ? `Photo #${uploadedImages.length + 1}/10 captured successfully!` : `Đã chụp ảnh số ${uploadedImages.length + 1}/10 thành công!`);
       } catch (err) {
         toast.error(lang === 'en' ? ('Error uploading photo: ' + (err.response?.data?.message || err.message)) : ('Lỗi tải ảnh chụp lên máy chủ: ' + (err.response?.data?.message || err.message)));
       } finally {
@@ -481,9 +505,51 @@ export default function StudentPortal() {
   };
 
   const handleFileUpload = async (e, type) => {
-    const file = e.target.files[0];
-    if (!file) return;
+    const fileList = Array.from(e.target.files || []);
+    if (fileList.length === 0) return;
 
+    if (type === 'IMAGE') {
+      const remainingSlots = 10 - uploadedImages.length;
+      if (remainingSlots <= 0) {
+        toast.warning(lang === 'en' ? 'Maximum 10 photos reached. Please remove an image before adding more.' : 'Đã đạt giới hạn tối đa 10 ảnh bài làm. Vui lòng xóa bớt ảnh nếu muốn thêm ảnh mới.');
+        e.target.value = '';
+        return;
+      }
+
+      const filesToUpload = fileList.slice(0, remainingSlots);
+      if (fileList.length > remainingSlots) {
+        toast.info(lang === 'en' ? `Only the first ${remainingSlots} images were selected (limit 10).` : `Chỉ chọn ${remainingSlots} ảnh đầu tiên để không vượt quá giới hạn 10 ảnh.`);
+      }
+
+      for (const file of filesToUpload) {
+        const lowerName = file.name.toLowerCase();
+        if (!lowerName.endsWith('.jpg') && !lowerName.endsWith('.jpeg') && !lowerName.endsWith('.png') && !lowerName.endsWith('.webp') && !lowerName.endsWith('.gif') && !lowerName.endsWith('.heic')) {
+          toast.warning(lang === 'en' ? `File "${file.name}" is not a supported image format (.jpg, .png, .webp, .heic).` : `Tệp "${file.name}" không đúng định dạng hình ảnh (.jpg, .png, .webp, .heic).`);
+          continue;
+        }
+        try {
+          setUploadingFile(true);
+          const res = await fileApi.upload(file);
+          const newImg = {
+            fileUrl: res.fileUrl,
+            fileName: res.fileName || file.name
+          };
+          setUploadedImages(prev => {
+            if (prev.length >= 10) return prev;
+            return [...prev, newImg];
+          });
+          toast.success(lang === 'en' ? `Uploaded "${res.fileName || file.name}"` : `Đã tải lên "${res.fileName || file.name}"`);
+        } catch (err) {
+          toast.error(lang === 'en' ? `Error uploading "${file.name}": ${err.message}` : `Lỗi khi tải lên "${file.name}": ${err.message}`);
+        } finally {
+          setUploadingFile(false);
+        }
+      }
+      e.target.value = '';
+      return;
+    }
+
+    const file = fileList[0];
     const lowerName = file.name.toLowerCase();
     if (type === 'DOCX') {
       if (!lowerName.endsWith('.docx') && !lowerName.endsWith('.doc') && !lowerName.endsWith('.pdf')) {
@@ -494,12 +560,6 @@ export default function StudentPortal() {
     } else if (type === 'AUDIO') {
       if (!lowerName.endsWith('.mp3') && !lowerName.endsWith('.wav') && !lowerName.endsWith('.m4a') && !lowerName.endsWith('.webm') && !lowerName.endsWith('.ogg')) {
         toast.warning(lang === 'en' ? 'Invalid file format! Please upload audio files only (.mp3, .wav, .m4a, .webm)' : 'Định dạng tệp không hợp lệ! Vui lòng chỉ tải lên tệp âm thanh (.mp3, .wav, .m4a, .webm)');
-        e.target.value = '';
-        return;
-      }
-    } else if (type === 'IMAGE') {
-      if (!lowerName.endsWith('.jpg') && !lowerName.endsWith('.jpeg') && !lowerName.endsWith('.png') && !lowerName.endsWith('.webp') && !lowerName.endsWith('.gif') && !lowerName.endsWith('.heic')) {
-        toast.warning(lang === 'en' ? 'Invalid file format! Please upload image files only (.jpg, .jpeg, .png, .webp)' : 'Định dạng tệp không hợp lệ! Vui lòng chỉ tải lên tệp hình ảnh (.jpg, .jpeg, .png, .webp)');
         e.target.value = '';
         return;
       }
@@ -542,19 +602,34 @@ export default function StudentPortal() {
         return;
       }
 
+      let fileUrlPayload = null;
+      let fileNamePayload = null;
+
+      if (selectedSubmissionMode === 'IMAGE') {
+        if (uploadedImages.length === 0) {
+          toast.warning(lang === 'en' ? 'Please upload or capture at least 1 image before submitting!' : 'Vui lòng đính kèm hoặc chụp ít nhất 1 ảnh bài làm trước khi nộp!');
+          return;
+        }
+        fileUrlPayload = uploadedImages.map(img => img.fileUrl).join(',');
+        fileNamePayload = uploadedImages.map(img => img.fileName).join(',');
+      } else if (selectedSubmissionMode !== 'TEXT') {
+        if (!uploadedFileData.fileUrl) {
+          toast.warning(lang === 'en' ? 'Please upload or record your submission file before submitting!' : 'Vui lòng tải lên hoặc thu âm tệp bài làm trước khi nộp!');
+          return;
+        }
+        fileUrlPayload = uploadedFileData.fileUrl;
+        fileNamePayload = uploadedFileData.fileName;
+      }
+
       const payload = {
         submissionType: selectedSubmissionMode,
         textContent: selectedSubmissionMode === 'TEXT' ? submissionText : null,
-        fileUrl: selectedSubmissionMode !== 'TEXT' ? uploadedFileData.fileUrl : null,
-        fileName: selectedSubmissionMode !== 'TEXT' ? uploadedFileData.fileName : null
+        fileUrl: fileUrlPayload,
+        fileName: fileNamePayload
       };
 
       if (selectedSubmissionMode === 'TEXT' && !submissionText.trim()) {
         toast.warning(lang === 'en' ? 'Please enter text content for your submission!' : 'Vui lòng nhập nội dung văn bản bài làm!');
-        return;
-      }
-      if (selectedSubmissionMode !== 'TEXT' && !uploadedFileData.fileUrl) {
-        toast.warning(lang === 'en' ? 'Please upload, capture, or record your submission file before submitting!' : 'Vui lòng tải lên hoặc chụp ảnh/thu âm tệp bài làm trước khi nộp!');
         return;
       }
 
@@ -1886,9 +1961,39 @@ export default function StudentPortal() {
                           {(existingSubmission.submissionType === 'AUDIO' || existingSubmission.submissionType === 'DIRECT_RECORD' || (existingSubmission.fileUrl && /\.(mp3|wav|m4a|webm|ogg)$/i.test(existingSubmission.fileUrl))) && (
                             <audio controls src={existingSubmission.fileUrl} className="w-full h-8" />
                           )}
-                          {existingSubmission.submissionType === 'IMAGE' && (
-                            <img src={existingSubmission.fileUrl} alt={lang === 'en' ? 'Submitted assignment' : 'Bài làm đã nộp'} className="max-h-48 rounded object-contain border border-slate-100 mx-auto" />
-                          )}
+                          {existingSubmission.submissionType === 'IMAGE' && (() => {
+                            const imgUrls = existingSubmission.fileUrl.split(',').map(u => u.trim()).filter(Boolean);
+                            const imgNames = existingSubmission.fileName ? existingSubmission.fileName.split(',').map(n => n.trim()) : [];
+                            return (
+                              <div className="space-y-2 pt-1">
+                                <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                                  {lang === 'en' ? `Submitted photos (${imgUrls.length} image${imgUrls.length > 1 ? 's' : ''}):` : `Bản chụp bài làm đã nộp (${imgUrls.length} ảnh):`}
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                                  {imgUrls.map((url, idx) => (
+                                    <div key={url || idx} className="relative group bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1 text-center">
+                                      <span className="absolute top-1.5 left-1.5 bg-slate-900/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-xs">
+                                        #{idx + 1}
+                                      </span>
+                                      <img
+                                        src={url}
+                                        alt={`Ảnh ${idx + 1}`}
+                                        onClick={() => setPreviewImageModal({ url, title: imgNames[idx] || `Ảnh ${idx + 1}`, index: idx + 1, total: imgUrls.length })}
+                                        className="h-24 w-full object-cover rounded cursor-pointer hover:opacity-90 transition"
+                                      />
+                                      <a
+                                        href={url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline block truncate mt-1">
+                                        {imgNames[idx] || `${lang === 'en' ? 'Photo' : 'Ảnh'} ${idx + 1}`} ↗
+                                      </a>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -2087,46 +2192,60 @@ export default function StudentPortal() {
                     />
                   )}
 
-                  {/* PHƯƠNG THỨC 5: HÌNH ẢNH / CHỤP ẢNH NỘP BÀI */}
+                  {/* PHƯƠNG THỨC 5: HÌNH ẢNH / CHỤP ẢNH NỘP BÀI (TỐI ĐA 10 ẢNH) */}
                   {selectedSubmissionMode === 'IMAGE' && (
                     <div className="space-y-3 p-3.5 bg-gray-50 dark:bg-slate-900/70 border border-gray-200 dark:border-slate-800 rounded-lg">
-                      <label className="block text-xs font-semibold text-gray-700 dark:text-slate-200">
-                        {t('submitWithPhotosLabel')}
-                      </label>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <label className="block text-xs font-semibold text-gray-700 dark:text-slate-200">
+                          {t('submitWithPhotosLabel')}
+                        </label>
+                        <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 w-fit ${
+                          uploadedImages.length >= 10
+                            ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
+                            : uploadedImages.length > 0
+                            ? 'bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-800'
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                        }`}>
+                          {lang === 'en' ? `Attached photos: ${uploadedImages.length}/10` : `Đã thêm: ${uploadedImages.length}/10 ảnh`}
+                        </span>
+                      </div>
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        <label className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-xs font-semibold text-gray-700 dark:text-slate-200 cursor-pointer shadow-2xs flex items-center transition">
-                          {t('uploadFromDevice')}
+                      {uploadedImages.length < 10 && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="px-3 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg text-xs font-semibold text-gray-700 dark:text-slate-200 cursor-pointer shadow-2xs flex items-center transition">
+                            {lang === 'en' ? 'Upload photos (select multiple)' : 'Tải ảnh từ máy (chọn nhiều ảnh)'}
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/*,.jpg,.jpeg,.png,.webp,.heic"
+                              className="hidden"
+                              onChange={(e) => handleFileUpload(e, 'IMAGE')}
+                            />
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && mobileCameraInputRef.current) {
+                                mobileCameraInputRef.current.click();
+                              } else {
+                                startCamera();
+                              }
+                            }}
+                            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-2xs flex items-center transition">
+                            {t('takePhoto')}
+                          </button>
+
                           <input
                             type="file"
-                            accept="image/*,.jpg,.jpeg,.png,.webp"
+                            ref={mobileCameraInputRef}
+                            accept="image/*"
+                            capture="environment"
                             className="hidden"
                             onChange={(e) => handleFileUpload(e, 'IMAGE')}
                           />
-                        </label>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) && mobileCameraInputRef.current) {
-                              mobileCameraInputRef.current.click();
-                            } else {
-                              startCamera();
-                            }
-                          }}
-                          className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold cursor-pointer shadow-2xs flex items-center transition">
-                          {t('takePhoto')}
-                        </button>
-
-                        <input
-                          type="file"
-                          ref={mobileCameraInputRef}
-                          accept="image/*"
-                          capture="environment"
-                          className="hidden"
-                          onChange={(e) => handleFileUpload(e, 'IMAGE')}
-                        />
-                      </div>
+                        </div>
+                      )}
 
                       {/* Khung chụp ảnh Webcam nếu mở trực tiếp trên máy tính */}
                       {isCameraActive && (
@@ -2144,8 +2263,9 @@ export default function StudentPortal() {
                             <button
                               type="button"
                               onClick={capturePhoto}
-                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer flex items-center">
-                              {t('captureThisPhoto')}
+                              disabled={uploadedImages.length >= 10}
+                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer flex items-center">
+                              {t('captureThisPhoto')} ({uploadedImages.length + 1}/10)
                             </button>
                             <button
                               type="button"
@@ -2165,27 +2285,43 @@ export default function StudentPortal() {
 
                       {uploadingFile && <div className="text-xs text-blue-600 dark:text-blue-400 font-semibold">{t('uploadingPhoto')}</div>}
 
-                      {uploadedFileData.fileUrl && (
+                      {/* DANH SÁCH CÁC ẢNH ĐÃ ĐÍNH KÈM / CHỤP (TỐI ĐA 10 ẢNH) */}
+                      {uploadedImages.length > 0 && (
                         <div className="pt-2 space-y-2">
-                          <div className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold flex items-center justify-between">
+                          <div className="text-xs text-slate-700 dark:text-slate-300 font-semibold flex items-center justify-between">
                             <span className="flex items-center gap-1">
                               <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                              <span>{t('attachedLabel')} {uploadedFileData.fileName}</span>
+                              <span>{lang === 'en' ? `Attached photos (${uploadedImages.length}/10):` : `Danh sách ảnh bài nộp (${uploadedImages.length}/10 ảnh):`}</span>
                             </span>
-                            <a
-                              href={uploadedFileData.fileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-blue-600 dark:text-blue-400 hover:underline">
-                              {t('downloadOrOpenFile')}
-                            </a>
+                            <span className="text-[11px] text-slate-400">{lang === 'en' ? 'Click photo to view enlarged' : 'Bấm vào ảnh để xem to'}</span>
                           </div>
-                          <div className="p-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-lg text-center">
-                            <img
-                              src={uploadedFileData.fileUrl}
-                              alt={lang === 'en' ? 'Submission photo' : 'Bản chụp bài nộp'}
-                              className="max-h-60 max-w-full rounded object-contain mx-auto border border-gray-100 dark:border-slate-800 shadow-2xs"
-                            />
+
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                            {uploadedImages.map((img, idx) => (
+                              <div
+                                key={img.fileUrl || idx}
+                                className="relative group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1.5 shadow-2xs flex flex-col items-center">
+                                <span className="absolute top-2 left-2 bg-slate-900/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-xs z-10">
+                                  #{idx + 1}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveImage(idx)}
+                                  className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white w-5 h-5 rounded-full flex items-center justify-center shadow-xs cursor-pointer z-10 transition opacity-90 hover:opacity-100"
+                                  title={lang === 'en' ? 'Remove this photo' : 'Xóa ảnh này'}>
+                                  <XIcon className="w-3 h-3" />
+                                </button>
+                                <img
+                                  src={img.fileUrl}
+                                  alt={`Ảnh ${idx + 1}`}
+                                  onClick={() => setPreviewImageModal({ url: img.fileUrl, title: img.fileName || `Ảnh ${idx + 1}`, index: idx + 1, total: uploadedImages.length })}
+                                  className="w-full h-28 object-cover rounded cursor-pointer hover:opacity-90 transition"
+                                />
+                                <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate w-full text-center mt-1 px-1" title={img.fileName}>
+                                  {img.fileName || `Ảnh ${idx + 1}`}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       )}
@@ -2537,6 +2673,43 @@ export default function StudentPortal() {
           {t('mobileNavSettings')}
         </button>
       </nav>
+
+      {/* MODAL XEM ẢNH BÀI LÀM PHÓNG TO */}
+      {previewImageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs animate-fade-in" onClick={() => setPreviewImageModal(null)}>
+          <div className="relative max-w-4xl max-h-[90vh] bg-slate-900 rounded-2xl p-3 sm:p-4 border border-slate-700 shadow-2xl flex flex-col items-center overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="w-full flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-white text-xs font-semibold px-1">
+              <span className="truncate max-w-[240px] sm:max-w-md">
+                {previewImageModal.title} {previewImageModal.total > 1 ? `(${previewImageModal.index}/${previewImageModal.total})` : ''}
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewImageModal.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-semibold transition"
+                >
+                  {lang === 'en' ? 'Open original' : 'Mở ảnh gốc ↗'}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewImageModal(null)}
+                  className="p-1 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition cursor-pointer"
+                >
+                  <XIcon className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            <div className="overflow-auto max-h-[75vh] w-full flex items-center justify-center p-1">
+              <img
+                src={previewImageModal.url}
+                alt={previewImageModal.title}
+                className="max-h-[72vh] max-w-full object-contain rounded-lg shadow-md"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

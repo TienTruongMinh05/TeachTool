@@ -44,10 +44,10 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
   const [submissions, setSubmissions] = useState([]);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
 
-  // Modal Chấm điểm bài nộp của 1 học sinh
   const [selectedSubmissionToGrade, setSelectedSubmissionToGrade] = useState(null);
   const [selectedStudentForGrading, setSelectedStudentForGrading] = useState(null);
   const [gradingForm, setGradingForm] = useState({ score: '', feedback: '' });
+  const [activeGradeImageIndex, setActiveGradeImageIndex] = useState(0);
   const [savingGrade, setSavingGrade] = useState(false);
   const [splicedAudioBlob, setSplicedAudioBlob] = useState(null);
   const [timelineFeedbackText, setTimelineFeedbackText] = useState('');
@@ -326,6 +326,7 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
   const openGradingModal = (student, existingSubmission) => {
     setSelectedStudentForGrading(student);
     setSelectedSubmissionToGrade(existingSubmission);
+    setActiveGradeImageIndex(0);
     setSplicedAudioBlob(null);
     setTimelineFeedbackText('');
     setGradingForm({
@@ -888,36 +889,75 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
                   </div>
                 )}
 
-                {/* Nếu nộp Ảnh chụp hoặc Hình ảnh */}
-                {selectedSubmissionToGrade.submissionType === 'IMAGE' && (
-                  <div className="p-4 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm font-semibold text-gray-800 dark:text-slate-200">
-                        {selectedSubmissionToGrade.fileName || (lang === 'en' ? 'Image / Photo submission' : 'Hình ảnh / Bản chụp bài làm')}
+                {/* Nếu nộp Ảnh chụp hoặc Hình ảnh (hỗ trợ tối đa 10 ảnh) */}
+                {selectedSubmissionToGrade.submissionType === 'IMAGE' && (() => {
+                  const imgUrls = selectedSubmissionToGrade.fileUrl ? selectedSubmissionToGrade.fileUrl.split(',').map(u => u.trim()).filter(Boolean) : [];
+                  const imgNames = selectedSubmissionToGrade.fileName ? selectedSubmissionToGrade.fileName.split(',').map(n => n.trim()) : [];
+                  const activeImgUrl = imgUrls[activeGradeImageIndex] || imgUrls[0];
+                  const activeImgName = imgNames[activeGradeImageIndex] || (lang === 'en' ? `Photo #${activeGradeImageIndex + 1}` : `Ảnh số ${activeGradeImageIndex + 1}`);
+
+                  return (
+                    <div className="p-4 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-gray-800 dark:text-slate-200">
+                            {lang === 'en' ? `Student Photos (${imgUrls.length} image${imgUrls.length > 1 ? 's' : ''})` : `Bản chụp bài làm học sinh (${imgUrls.length} ảnh)`}
+                          </span>
+                          {imgUrls.length > 1 && (
+                            <span className="text-xs font-bold px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300">
+                              {activeGradeImageIndex + 1} / {imgUrls.length}
+                            </span>
+                          )}
+                        </div>
+                        {activeImgUrl && (
+                          <a
+                            href={activeImgUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-3 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100">
+                            {t('openOriginalImage')} ↗
+                          </a>
+                        )}
                       </div>
-                      {selectedSubmissionToGrade.fileUrl && (
-                        <a
-                          href={selectedSubmissionToGrade.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-3 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded hover:bg-blue-100">
-                          {t('openOriginalImage')}
-                        </a>
+
+                      {/* Danh sách thumbnails để giáo viên chọn nhanh ảnh cần xem */}
+                      {imgUrls.length > 1 && (
+                        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                          {imgUrls.map((url, idx) => (
+                            <button
+                              key={url || idx}
+                              type="button"
+                              onClick={() => setActiveGradeImageIndex(idx)}
+                              className={`relative shrink-0 rounded-lg overflow-hidden border-2 transition cursor-pointer p-0.5 ${
+                                activeGradeImageIndex === idx
+                                  ? 'border-blue-600 ring-2 ring-blue-400'
+                                  : 'border-slate-200 dark:border-slate-700 opacity-70 hover:opacity-100'
+                              }`}
+                            >
+                              <span className="absolute top-1 left-1 bg-slate-900/80 text-white text-[9px] font-bold px-1 rounded">
+                                #{idx + 1}
+                              </span>
+                              <img src={url} alt={`Ảnh ${idx + 1}`} className="w-14 h-14 object-cover rounded" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Khung xem ảnh chính */}
+                      {activeImgUrl ? (
+                        <div className="max-h-[480px] overflow-auto border border-gray-100 dark:border-slate-700 rounded-lg bg-slate-100 dark:bg-slate-800 flex flex-col items-center justify-center p-2 relative">
+                          <img
+                            src={activeImgUrl}
+                            alt={activeImgName}
+                            className="max-h-[440px] max-w-full object-contain rounded shadow-xs"
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-xs text-red-500">{t('imageNotFound')}</p>
                       )}
                     </div>
-                    {selectedSubmissionToGrade.fileUrl ? (
-                      <div className="max-h-96 overflow-auto border border-gray-100 dark:border-slate-700 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center p-2">
-                        <img
-                          src={selectedSubmissionToGrade.fileUrl}
-                          alt="Bài làm học sinh"
-                          className="max-h-80 max-w-full object-contain rounded shadow-xs"
-                        />
-                      </div>
-                    ) : (
-                      <p className="text-xs text-red-500">{t('imageNotFound')}</p>
-                    )}
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* Form chấm điểm & Viết feedback */}

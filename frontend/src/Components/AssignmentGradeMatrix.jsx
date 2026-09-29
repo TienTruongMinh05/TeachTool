@@ -700,20 +700,49 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
                   )}
 
                   {selectedCell.submission.fileUrl && (
-                    <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                      <span className="font-medium text-slate-700 dark:text-slate-300 truncate mr-2 flex items-center gap-1.5">
-                        <PaperclipIcon className="w-4 h-4 shrink-0 text-slate-500 dark:text-slate-400" />
-                        <span className="truncate">{selectedCell.submission.fileName || (lang === 'en' ? 'Attached file' : 'Tệp đính kèm')}</span>
-                      </span>
-                      <a
-                        href={selectedCell.submission.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-2.5 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition"
-                      >
-                        {lang === 'en' ? 'Open file' : 'Mở tệp'}
-                      </a>
-                    </div>
+                    selectedCell.submission.submissionType === 'IMAGE' ? (() => {
+                      const imgUrls = selectedCell.submission.fileUrl.split(',').map(u => u.trim()).filter(Boolean);
+                      const imgNames = selectedCell.submission.fileName ? selectedCell.submission.fileName.split(',').map(n => n.trim()) : [];
+                      return (
+                        <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                          <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 block">
+                            {lang === 'en' ? `Submitted photos (${imgUrls.length} image${imgUrls.length > 1 ? 's' : ''}):` : `Bản chụp bài làm (${imgUrls.length} ảnh):`}
+                          </span>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {imgUrls.map((url, idx) => (
+                              <div key={url || idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1 text-center relative group">
+                                <span className="absolute top-1.5 left-1.5 bg-slate-900/80 text-white text-[9px] font-bold px-1 rounded">
+                                  #{idx + 1}
+                                </span>
+                                <img src={url} alt={`Ảnh ${idx + 1}`} className="w-full h-20 object-cover rounded" />
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline block truncate mt-1">
+                                  {imgNames[idx] || (lang === 'en' ? `Photo #${idx + 1}` : `Ảnh ${idx + 1}`)} ↗
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })() : (
+                      <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                        <span className="font-medium text-slate-700 dark:text-slate-300 truncate mr-2 flex items-center gap-1.5">
+                          <PaperclipIcon className="w-4 h-4 shrink-0 text-slate-500 dark:text-slate-400" />
+                          <span className="truncate">{selectedCell.submission.fileName || (lang === 'en' ? 'Attached file' : 'Tệp đính kèm')}</span>
+                        </span>
+                        <a
+                          href={selectedCell.submission.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold transition"
+                        >
+                          {lang === 'en' ? 'Open file' : 'Mở tệp'}
+                        </a>
+                      </div>
+                    )
                   )}
 
                   {selectedCell.submission.feedback && (

@@ -38,7 +38,10 @@ public class Submission {
     @Column(columnDefinition = "TEXT")
     private String textContent;
 
+    @Column(columnDefinition = "TEXT")
     private String fileUrl;
+
+    @Column(columnDefinition = "TEXT")
     private String fileName;
 
     private String score; // Điểm số (ví dụ: "8.5", "Band 7.0", "A")

@@ -79,8 +79,15 @@ public class SubmissionService {
                     throw new IllegalArgumentException("Tệp nộp bài không hợp lệ. Giáo viên chỉ chấp nhận tệp âm thanh ghi âm (.mp3, .wav, .m4a, .webm).");
                 }
             } else if ("IMAGE".equals(cleanType)) {
-                if (!lowerFileName.endsWith(".jpg") && !lowerFileName.endsWith(".jpeg") && !lowerFileName.endsWith(".png") && !lowerFileName.endsWith(".webp") && !lowerFileName.endsWith(".gif") && !lowerFileName.endsWith(".heic")) {
-                    throw new IllegalArgumentException("Tệp ảnh không hợp lệ. Chỉ chấp nhận định dạng ảnh (.jpg, .jpeg, .png, .webp, .gif).");
+                String[] urls = fileUrl.split(",");
+                if (urls.length > 10) {
+                    throw new IllegalArgumentException("Chỉ được đính kèm hoặc chụp tối đa 10 ảnh bài làm.");
+                }
+                for (String singleUrl : urls) {
+                    String lower = singleUrl.trim().toLowerCase();
+                    if (!lower.endsWith(".jpg") && !lower.endsWith(".jpeg") && !lower.endsWith(".png") && !lower.endsWith(".webp") && !lower.endsWith(".gif") && !lower.endsWith(".heic")) {
+                        throw new IllegalArgumentException("Tệp ảnh không hợp lệ. Chỉ chấp nhận định dạng ảnh (.jpg, .jpeg, .png, .webp, .gif, .heic).");
+                    }
                 }
             }
         }
@@ -153,18 +160,23 @@ public class SubmissionService {
             }
         }
 
-        // Dọn dẹp tệp đính kèm trên đĩa và DB nếu có
+        // Dọn dẹp tệp đính kèm trên đĩa và DB nếu có (hỗ trợ nhiều ảnh/tệp)
         String fileUrl = submission.getFileUrl();
         if (fileUrl != null && !fileUrl.trim().isEmpty()) {
-            try {
-                String storedName = fileUrl.contains("/") ? fileUrl.substring(fileUrl.lastIndexOf("/") + 1) : fileUrl;
-                if (storedName.contains("?")) {
-                    storedName = storedName.substring(0, storedName.indexOf("?"));
-                }
-                storedFileRepository.findByStoredName(storedName).ifPresent(storedFileRepository::delete);
-                java.nio.file.Path localPath = java.nio.file.Paths.get("uploads", storedName);
-                java.nio.file.Files.deleteIfExists(localPath);
-            } catch (Exception ignored) {}
+            String[] urls = fileUrl.split(",");
+            for (String singleUrl : urls) {
+                try {
+                    singleUrl = singleUrl.trim();
+                    if (singleUrl.isEmpty()) continue;
+                    String storedName = singleUrl.contains("/") ? singleUrl.substring(singleUrl.lastIndexOf("/") + 1) : singleUrl;
+                    if (storedName.contains("?")) {
+                        storedName = storedName.substring(0, storedName.indexOf("?"));
+                    }
+                    storedFileRepository.findByStoredName(storedName).ifPresent(storedFileRepository::delete);
+                    java.nio.file.Path localPath = java.nio.file.Paths.get("uploads", storedName);
+                    java.nio.file.Files.deleteIfExists(localPath);
+                } catch (Exception ignored) {}
+            }
         }
 
         submissionRepo.delete(submission);
