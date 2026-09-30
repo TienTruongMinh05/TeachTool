@@ -76,3 +76,4 @@ deploy/THONG_TIN_TRIEN_KHAI.md
 !backend/src/main/resources/templates/*.docx
 
 .vercel
+.neon

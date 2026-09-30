@@ -59,15 +59,25 @@ export default function StudentInquiryWidget({ user, classes = [] }) {
     fetchThread();
   }, [isOpen, selectedClassId, lang]);
 
-  // Polling tin nhắn mỗi 1s khi mở bubble hội thoại để cập nhật tin nhắn siêu mượt mà
+  // Polling tin nhắn khi mở bubble hội thoại và tab đang active
   useEffect(() => {
     if (!isOpen || !activeThread?.id) return;
 
     const interval = setInterval(() => {
-      fetchMessages(activeThread.id, true);
-    }, 1000);
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchMessages(activeThread.id, true);
+      }
+    }, 2500);
 
-    return () => clearInterval(interval);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchMessages(activeThread.id, true);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [isOpen, activeThread?.id]);
 
   // Lấy lịch sử tin nhắn

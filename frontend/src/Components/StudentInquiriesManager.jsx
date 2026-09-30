@@ -84,24 +84,44 @@ export default function StudentInquiriesManager({ onNavigateToClass }) {
     fetchThreads();
   }, [classFilter]);
 
-  // Polling tin nhắn của thread đang mở mỗi 1s để tin nhắn hiển thị siêu mượt mà
+  // Polling tin nhắn của thread đang mở (khi tab đang active)
   useEffect(() => {
     if (!selectedThread?.id) return;
 
     const interval = setInterval(() => {
-      fetchMessages(selectedThread.id, true);
-    }, 1000);
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchMessages(selectedThread.id, true);
+      }
+    }, 2500);
 
-    return () => clearInterval(interval);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchMessages(selectedThread.id, true);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [selectedThread?.id]);
 
-  // Polling danh sách threads mỗi 3s để cập nhật trạng thái viền/tin nhắn mới ở sidebar
+  // Polling danh sách threads (khi tab đang active)
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchThreads(true);
-    }, 3000);
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchThreads(true);
+      }
+    }, 6000);
 
-    return () => clearInterval(interval);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchThreads(true);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [fetchThreads]);
 
   // Tải tin nhắn của thread được chọn

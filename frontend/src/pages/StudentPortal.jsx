@@ -189,19 +189,25 @@ export default function StudentPortal() {
   useEffect(() => {
     loadData();
 
-    // Tự động kiểm tra và đồng bộ bài tập mới mở / lịch học mỗi 30 giây
+    // Tự động kiểm tra và đồng bộ bài tập mới mở / lịch học mỗi 60 giây khi tab active
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         loadData();
       }
-    }, 30000);
+    }, 60000);
 
-    const handleFocus = () => loadData();
+    const handleFocus = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadData();
+      }
+    };
     window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
     };
   }, [user?.id]);
 

@@ -256,8 +256,21 @@ export default function ClassDashboard({ initialView }) {
 
   useEffect(() => {
     fetchUnansweredInquiriesCount();
-    const interval = setInterval(fetchUnansweredInquiriesCount, 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchUnansweredInquiriesCount();
+      }
+    }, 45000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchUnansweredInquiriesCount();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [fetchUnansweredInquiriesCount]);
 
   // Đếm số lượng học viên xin học Online trong lớp đang chọn
@@ -302,8 +315,21 @@ export default function ClassDashboard({ initialView }) {
   useEffect(() => {
     if (selectedClassId) {
       fetchOnlineRequestsCount(selectedClassId);
-      const interval = setInterval(() => fetchOnlineRequestsCount(selectedClassId), 30000);
-      return () => clearInterval(interval);
+      const interval = setInterval(() => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+          fetchOnlineRequestsCount(selectedClassId);
+        }
+      }, 45000);
+
+      const handleVisibility = () => {
+        if (document.visibilityState === 'visible') fetchOnlineRequestsCount(selectedClassId);
+      };
+      document.addEventListener('visibilitychange', handleVisibility);
+
+      return () => {
+        clearInterval(interval);
+        document.removeEventListener('visibilitychange', handleVisibility);
+      };
     } else {
       setOnlineRequestsCount(0);
     }
