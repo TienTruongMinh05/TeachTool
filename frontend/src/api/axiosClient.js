@@ -6,6 +6,7 @@ const axiosClient = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    timeout: 30000,
 });
 
 // Interceptor: Tự động đính kèm JWT Bearer Token vào mỗi request nếu có
@@ -23,10 +24,25 @@ axiosClient.interceptors.request.use((config) => {
     return Promise.reject(error);
 });
 
-// Interceptor: Xử lý response & bắt lỗi 401 (Hết hạn phiên làm việc)
+// Interceptor: Xử lý response & tự động retry khi server đang khởi động (502, 503, 504, Network Error)
 axiosClient.interceptors.response.use(
     (response) => response.data,
-    (error) => {
+    async (error) => {
+        const config = error.config;
+
+        // Tự động retry tối đa 3 lần khi Render đang đánh thức máy chủ (Cold start 502/503/504)
+        if (config && (!config._retryCount || config._retryCount < 3)) {
+            const isColdStartStatus = error.response && [502, 503, 504].includes(error.response.status);
+            const isNetworkError = !error.response && error.code !== 'ECONNABORTED';
+
+            if (isColdStartStatus || isNetworkError) {
+                config._retryCount = (config._retryCount || 0) + 1;
+                const delayMs = config._retryCount * 1500;
+                await new Promise((resolve) => setTimeout(resolve, delayMs));
+                return axiosClient(config);
+            }
+        }
+
         if (error.response && error.response.status === 401) {
             // Nếu không phải là request đăng nhập/đăng ký đang kiểm tra mật khẩu
             const requestUrl = error.config?.url || '';
