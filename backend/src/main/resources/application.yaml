@@ -37,8 +37,6 @@ spring:
       file-size-threshold: 2MB
   jackson:
     time-zone: Asia/Ho_Chi_Minh
-    deserialization:
-      adjust-dates-to-context-time-zone: true
 
 app:
   jwt:
