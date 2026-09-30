@@ -7,16 +7,17 @@ server:
 
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/edu_manager}
-    username: ${SPRING_DATASOURCE_USERNAME:postgres}
-    password: ${SPRING_DATASOURCE_PASSWORD:mikealpha11256}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://ep-noisy-bar-b3e3g4u2-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require}
+    username: ${SPRING_DATASOURCE_USERNAME:neondb_owner}
+    password: ${SPRING_DATASOURCE_PASSWORD:npg_6ECboSUKN8zG}
     driver-class-name: org.postgresql.Driver
     hikari:
       minimum-idle: 0
       maximum-pool-size: 5
       idle-timeout: 60000
       max-lifetime: 300000
-      connection-timeout: 20000
+      connection-timeout: 5000
+      initialization-fail-timeout: -1
   jpa:
     hibernate:
       ddl-auto: update

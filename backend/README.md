@@ -91,3 +91,41 @@ Nhằm tối ưu hóa triệt để tài nguyên tính toán (Compute Units - CU
 * **Tự động hóa dọn dẹp (`DataRetentionService`)**:
   - Tự động dọn dẹp các tệp bài nộp cũ sau 2 tuần.
   - Hỗ trợ xuất báo cáo tổng kết và cô lập dữ liệu lớp học cũ, ngăn chặn tình trạng phình to dữ liệu theo năm tháng.
+
+---
+
+## 🛡️ Kiến Trúc Khả Dụng Cao & Tự Động Dự Phòng (Dual-Database Failover & 12H Sync)
+
+Để đảm bảo hệ thống TeachTool không bao giờ bị gián đoạn hoạt động kể cả khi Database chính (Primary Neon) gặp sự cố mạng hoặc vượt hạn mức CPU (Quota Exceeded):
+
+```
+                     ┌─────────────────────────────────────────┐
+                     │          TeachTool Backend API          │
+                     │      (ResilientFailoverDataSource)      │
+                     └────────────────────┬────────────────────┘
+                                          │
+                   ┌──────────────────────┴──────────────────────┐
+                   │ (Tự động chuyển mạch khi Primary lỗi/quota) │
+                   ▼                                             ▼
+        ┌──────────────────────┐                     ┌──────────────────────┐
+        │     Primary Neon     │──(Đồng bộ 12h/lần)─▶│     Backup Neon      │
+        │   (Cơ sở dữ liệu     │                     │  (Cơ sở dữ liệu phụ  │
+        │    chính 403.4 MB)   │◀─(Chuyển đổi 2 chiều)│  hoạt động liên tục) │
+        └──────────────────────┘                     └──────────────────────┘
+```
+
+1. **Cơ chế Tự Động Chuyển Mạch (Dynamic Failover)**:
+   - **Primary Node**: Database Neon chính (`ep-noisy-bar-b3e3g4u2...`).
+   - **Backup Node**: Database Neon dự phòng (`ep-late-cell-az0mlnlc...`).
+   - Lớp `ResilientFailoverDataSource` giám sát kết nối theo thời gian thực: Nếu Primary không phản hồi hoặc chạm trần quota, kết nối được **tự động định tuyến sang Backup Database** mà không làm gián đoạn người dùng hay crash server.
+   - Khi Primary phục hồi (ví dụ sau 07:00 sáng khi Neon reset quota), hệ thống **tự động khôi phục Primary làm nguồn chính**.
+
+2. **Cơ chế Sao Lưu & Đồng Bộ Tự Động Mỗi 12 Tiếng (`DatabaseBackupSyncService`)**:
+   - **Lịch chạy định kỳ**: Tự động kích hoạt vào **00:00 và 12:00 hằng ngày** (`@Scheduled(cron = "0 0 0,12 * * *")`).
+   - **Quét phục hồi nhanh**: Định kỳ kiểm tra kết nối Primary mỗi 30 phút. Ngay khi Primary vừa thông mạng trở lại, hệ thống lập tức sao lưu toàn bộ bảng dữ liệu sang Backup Node.
+   - **Phạm vi sao lưu**: 18 bảng dữ liệu quan hệ (`users`, `classes`, `sessions`, `assignments`, `attendances`, `submissions`, `teaching_plans`, `inquiry_threads`, v.v.), tự động cập nhật sequences tự tăng.
+
+3. **API Giám Sát & Điều Khiển Trực Tiếp**:
+   - `GET /api/system/database/status`: Kiểm tra trạng thái nút đang hoạt động (Active Node), thời gian failover, thời gian đồng bộ gần nhất và số bản ghi đã sao lưu.
+   - `POST /api/system/database/sync`: Kích hoạt đồng bộ thủ công ngay lập tức theo yêu cầu.
+

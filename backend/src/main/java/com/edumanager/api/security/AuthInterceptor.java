@@ -100,6 +100,7 @@ public class AuthInterceptor implements HandlerInterceptor {
                path.startsWith("/api/files/view/") ||
                path.equals("/api/health") ||
                path.equals("/health") ||
+               path.startsWith("/api/system/database") ||
                path.startsWith("/swagger-ui") ||
                path.startsWith("/v3/api-docs") ||
                path.equals("/actuator/health") ||
