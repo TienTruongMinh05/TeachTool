@@ -7,9 +7,10 @@ server:
 
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://ep-noisy-bar-b3e3g4u2-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require}
-    username: ${SPRING_DATASOURCE_USERNAME:neondb_owner}
-    password: ${SPRING_DATASOURCE_PASSWORD:npg_6ECboSUKN8zG}
+    # [SECURITY C1] Credentials PHẢI được set qua biến môi trường trên Render. Không hardcode ở đây.
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       minimum-idle: 0
@@ -21,7 +22,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: ${SHOW_SQL:false}
+    show-sql: false
     properties:
       hibernate:
         default_schema: public
@@ -39,9 +40,30 @@ spring:
   jackson:
     time-zone: Asia/Ho_Chi_Minh
 
+# [SECURITY M2] Chỉ expose health endpoint (không lộ version, config, environment)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+# [SECURITY C3] Tắt Swagger UI/API Docs trên production
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
+
 app:
   jwt:
-    secret: ${APP_JWT_SECRET:teachtool_super_secure_jwt_secret_key_2026_classroom_manager_advanced_security_token}
+    # [SECURITY C1] JWT Secret PHẢI được set qua env var APP_JWT_SECRET (tối thiểu 64 ký tự ngẫu nhiên)
+    secret: ${APP_JWT_SECRET}
+  encryption:
+    # [SECURITY M5] AES-256 key riêng biệt với JWT secret (set APP_ENCRYPTION_SECRET trên Render)
+    secret: ${APP_ENCRYPTION_SECRET:${APP_JWT_SECRET}}
   google:
     client-id: ${APP_GOOGLE_CLIENT_ID:}
   cors:

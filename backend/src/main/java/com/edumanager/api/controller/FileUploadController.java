@@ -48,6 +48,44 @@ public class FileUploadController {
             ".jpg", ".jpeg", ".png", ".gif", ".webp"
     );
 
+    // [SECURITY H3] Magic Bytes (file signature) validation - không tin tưởng extension
+    private static final Map<String, byte[]> MAGIC_BYTES = Map.ofEntries(
+            Map.entry(".pdf",  new byte[]{0x25, 0x50, 0x44, 0x46}),  // %PDF
+            Map.entry(".png",  new byte[]{(byte)0x89, 0x50, 0x4E, 0x47}),  // PNG
+            Map.entry(".jpg",  new byte[]{(byte)0xFF, (byte)0xD8, (byte)0xFF}),  // JPEG
+            Map.entry(".jpeg", new byte[]{(byte)0xFF, (byte)0xD8, (byte)0xFF}),  // JPEG
+            Map.entry(".gif",  new byte[]{0x47, 0x49, 0x46, 0x38}),  // GIF8
+            Map.entry(".mp3",  new byte[]{(byte)0xFF, (byte)0xFB}),   // MP3
+            Map.entry(".ogg",  new byte[]{0x4F, 0x67, 0x67, 0x53}),  // OggS
+            Map.entry(".wav",  new byte[]{0x52, 0x49, 0x46, 0x46}),  // RIFF
+            Map.entry(".docx", new byte[]{0x50, 0x4B, 0x03, 0x04}),  // ZIP (OOXML)
+            Map.entry(".xlsx", new byte[]{0x50, 0x4B, 0x03, 0x04}),  // ZIP (OOXML)
+            Map.entry(".pptx", new byte[]{0x50, 0x4B, 0x03, 0x04}),  // ZIP (OOXML)
+            Map.entry(".doc",  new byte[]{(byte)0xD0, (byte)0xCF, 0x11, (byte)0xE0}),  // OLE2
+            Map.entry(".xls",  new byte[]{(byte)0xD0, (byte)0xCF, 0x11, (byte)0xE0}),  // OLE2
+            Map.entry(".ppt",  new byte[]{(byte)0xD0, (byte)0xCF, 0x11, (byte)0xE0})   // OLE2
+    );
+
+    /**
+     * [SECURITY H3] Kiểm tra magic bytes của file có khớp với extension không.
+     * Chỉ kiểm tra các định dạng có magic bytes đã biết; bỏ qua .txt, .rtf, .webm, .m4a, .aac, .webp (không có magic bytes cố định).
+     */
+    private boolean isMagicBytesValid(byte[] headerBytes, String extension) {
+        byte[] expected = MAGIC_BYTES.get(extension);
+        if (expected == null) {
+            return true; // Không có rule → cho phép
+        }
+        if (headerBytes.length < expected.length) {
+            return false;
+        }
+        for (int i = 0; i < expected.length; i++) {
+            if (headerBytes[i] != expected[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public FileUploadController(RateLimiterService rateLimiterService, 
                                 StoredFileRepository storedFileRepository,
                                 JdbcTemplate jdbcTemplate) {
@@ -80,11 +118,27 @@ public class FileUploadController {
             extension = originalName.substring(originalName.lastIndexOf(".")).toLowerCase().trim();
         }
 
-        // 1. Kiểm tra an toàn định dạng tệp tin
+        // 1. Kiểm tra an toàn định dạng tệp tin (Extension Whitelist)
         if (extension.isEmpty() || !ALLOWED_EXTENSIONS.contains(extension)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
                     "message", "Định dạng tệp (" + extension + ") không được phép tải lên vì lý do an toàn. Chỉ chấp nhận tài liệu (.pdf, .docx, .xlsx, .pptx, .txt), âm thanh (.mp3, .wav, .webm, .m4a) hoặc hình ảnh (.jpg, .png, .webp)."
             ));
+        }
+
+        // [SECURITY H3] Kiểm tra Magic Bytes (file signature) - không tin tưởng extension do client đặt
+        try {
+            byte[] headerBytes = new byte[8];
+            int bytesRead;
+            try (InputStream headerIs = file.getInputStream()) {
+                bytesRead = headerIs.read(headerBytes);
+            }
+            if (bytesRead > 0 && !isMagicBytesValid(java.util.Arrays.copyOf(headerBytes, bytesRead), extension)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                        "message", "Nội dung tệp không khớp với định dạng khai báo. Tệp có thể bị giả mạo hoặc bị hỏng."
+                ));
+            }
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", "Không thể đọc nội dung tệp."));
         }
 
         // 2. Tạo tên tệp ngẫu nhiên bằng UUID để chống ghi đè và ẩn danh
@@ -171,9 +225,19 @@ public class FileUploadController {
     @GetMapping(value = {"/download/{fileName:.+}", "/view/{fileName:.+}"})
     public ResponseEntity<?> serveFile(
             @PathVariable String fileName,
-            @RequestParam(value = "download", defaultValue = "false") boolean forceDownload) {
+            @RequestParam(value = "download", defaultValue = "false") boolean forceDownload,
+            HttpServletRequest request) {
+
+        // [SECURITY H4] Yêu cầu người dùng phải đăng nhập để truy cập file
+        Long userId = (Long) request.getAttribute("userId");
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Vui lòng đăng nhập để truy cập tệp tin."));
+        }
+
         try {
             Path filePath = this.uploadDir.resolve(fileName).normalize();
+
 
             // Kiểm tra chống tấn công vượt quyền thư mục (Path Traversal Protection)
             if (!filePath.startsWith(this.uploadDir)) {

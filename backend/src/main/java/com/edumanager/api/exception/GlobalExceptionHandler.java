@@ -35,13 +35,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<ErrorResponse> handleRuntimeException(RuntimeException ex) {
-        log.warn("Runtime exception: {}", ex.getMessage());
+        // [SECURITY H5] Log server-side nhưng KHÔNG trả raw message ra client (có thể chứa SQL/stack trace)
+        log.warn("Runtime exception (internal): {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
-                HttpStatus.BAD_REQUEST.value(),
-                ex.getMessage(),
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                "Đã xảy ra lỗi trong quá trình xử lý. Vui lòng thử lại sau.",
                 System.currentTimeMillis()
         );
-        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)

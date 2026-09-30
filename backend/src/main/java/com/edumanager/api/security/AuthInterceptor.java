@@ -19,12 +19,25 @@ public class AuthInterceptor implements HandlerInterceptor {
     private final JwtService jwtService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // SSE endpoint cho phép ?token= trong URL (EventSource browser không hỗ trợ Authorization header)
+    private static final String SSE_PATH_PATTERN = "/api/inquiries/threads/";
+    private static final String SSE_SUFFIX = "/stream";
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        // [SECURITY M3] Content Security Policy - chống XSS hiện đại
+        response.setHeader("Content-Security-Policy",
+                "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; " +
+                "style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; " +
+                "connect-src 'self' https://api.cloudinary.com https://accounts.google.com; " +
+                "media-src 'self' blob: https:; frame-ancestors 'none'");
+        // [SECURITY M4] HTTP Strict Transport Security - chống downgrade attack
+        response.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
         response.setHeader("X-Content-Type-Options", "nosniff");
         response.setHeader("X-Frame-Options", "DENY");
         response.setHeader("X-XSS-Protection", "1; mode=block");
         response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+        response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
         // 1. Cho phép OPTIONS preflight request qua mà không chặn
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
@@ -39,12 +52,14 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 3. Yêu cầu bắt buộc phải có JWT Token (qua Header Authorization: Bearer hoặc Query Param ?token= cho EventSource/SSE)
+        // 3. Trích xuất JWT Token
+        // [SECURITY H2] ?token= chỉ được phép cho SSE endpoint, không phải toàn bộ API
         String token = null;
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7).trim();
-        } else if (request.getParameter("token") != null && !request.getParameter("token").isBlank()) {
+        } else if (isSseEndpoint(path) && request.getParameter("token") != null && !request.getParameter("token").isBlank()) {
+            // Chỉ chấp nhận ?token= param cho SSE stream endpoint (EventSource không hỗ trợ header)
             token = request.getParameter("token").trim();
         }
 
@@ -85,6 +100,13 @@ public class AuthInterceptor implements HandlerInterceptor {
         return true;
     }
 
+    /**
+     * Kiểm tra đây có phải SSE stream endpoint không (được phép dùng ?token= query param)
+     */
+    private boolean isSseEndpoint(String path) {
+        return path != null && path.startsWith(SSE_PATH_PATTERN) && path.endsWith(SSE_SUFFIX);
+    }
+
     private boolean isPublicEndpoint(String path, String method) {
         // Cho phép HEAD hoặc GET trên kho hoạt động mẫu /api/activities (UptimeRobot ping giữ ấm server)
         if ("HEAD".equalsIgnoreCase(method) || "GET".equalsIgnoreCase(method)) {
@@ -93,19 +115,14 @@ public class AuthInterceptor implements HandlerInterceptor {
             }
         }
 
+        // [SECURITY C2] /api/system/database đã được bảo vệ - KHÔNG còn public
+        // [SECURITY C3] Swagger endpoints không còn public - disabled on production
         return path.startsWith("/api/auth/login") ||
                path.startsWith("/api/auth/register") ||
                path.startsWith("/api/auth/google-login") ||
-               path.startsWith("/api/files/download/") ||
-               path.startsWith("/api/files/view/") ||
                path.equals("/api/health") ||
                path.equals("/health") ||
-               path.startsWith("/api/system/database") ||
-               path.contains("/system/database") ||
-               path.startsWith("/swagger-ui") ||
-               path.startsWith("/v3/api-docs") ||
                path.equals("/actuator/health") ||
-               path.equals("/actuator/info") ||
                path.equals("/error");
     }
 
@@ -119,20 +136,20 @@ public class AuthInterceptor implements HandlerInterceptor {
                 return false; // Học sinh được phép tham gia lớp bằng mã
             }
             if (path.matches("^/api/classes/\\d+/students/\\d+$") && "DELETE".equals(method)) {
-                return false; // Cho phép học sinh tự rời lớp (EnrollmentController sẽ xác thực callerId == studentId)
+                return false; // Cho phép học sinh tự rời lớp
             }
             if (path.equals("/api/classes/all-students") && "GET".equals(method)) {
                 return true; // Chỉ giáo viên được xem danh sách toàn bộ học sinh
             }
             if ("POST".equals(method) || "PUT".equals(method) || "DELETE".equals(method)) {
-                return true; // Tạo lớp, sửa lớp, xóa lớp, xóa học sinh khỏi lớp
+                return true; // Tạo lớp, sửa lớp, xóa lớp
             }
         }
 
         // Quản lý buổi học (Session)
         if (path.contains("/sessions")) {
             if ("POST".equals(method) || "PUT".equals(method) || "DELETE".equals(method)) {
-                return true; // Tạo buổi học, sửa, xóa
+                return true;
             }
         }
 
@@ -171,6 +188,11 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         // Quản lý câu hỏi thắc mắc của học viên phía giáo viên
         if (path.startsWith("/api/inquiries/teacher")) {
+            return true;
+        }
+
+        // [SECURITY C2] Endpoint quản lý Database Cluster chỉ dành cho TEACHER (admin)
+        if (path.startsWith("/api/system/database")) {
             return true;
         }
 

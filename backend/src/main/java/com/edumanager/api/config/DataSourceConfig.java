@@ -14,22 +14,22 @@ import javax.sql.DataSource;
 @Configuration
 public class DataSourceConfig {
 
-    @Value("${app.datasource.primary.url:${SPRING_DATASOURCE_URL:jdbc:postgresql://ep-noisy-bar-b3e3g4u2-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require}}")
+    @Value("${app.datasource.primary.url:${SPRING_DATASOURCE_URL}}")
     private String primaryUrl;
 
-    @Value("${app.datasource.primary.username:${SPRING_DATASOURCE_USERNAME:neondb_owner}}")
+    @Value("${app.datasource.primary.username:${SPRING_DATASOURCE_USERNAME}}")
     private String primaryUsername;
 
-    @Value("${app.datasource.primary.password:${SPRING_DATASOURCE_PASSWORD:npg_6ECboSUKN8zG}}")
+    @Value("${app.datasource.primary.password:${SPRING_DATASOURCE_PASSWORD}}")
     private String primaryPassword;
 
-    @Value("${app.datasource.backup.url:jdbc:postgresql://ep-late-cell-az0mlnlc-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require}")
+    @Value("${app.datasource.backup.url:${APP_DATASOURCE_BACKUP_URL:}}")
     private String backupUrl;
 
-    @Value("${app.datasource.backup.username:neondb_owner}")
+    @Value("${app.datasource.backup.username:${APP_DATASOURCE_BACKUP_USERNAME:neondb_owner}}")
     private String backupUsername;
 
-    @Value("${app.datasource.backup.password:npg_WnOZJET75upC}")
+    @Value("${app.datasource.backup.password:${APP_DATASOURCE_BACKUP_PASSWORD:}}")
     private String backupPassword;
 
     @Bean
@@ -37,9 +37,15 @@ public class DataSourceConfig {
     public DataSource dataSource() {
         log.info("🔌 Khởi tạo hệ thống Dynamic Failover DataSource:");
         log.info("   -> Primary Node: {}", maskUrl(primaryUrl));
-        log.info("   -> Backup Node:  {}", maskUrl(backupUrl));
 
         HikariDataSource primaryDs = createHikariDataSource("HikariPool-Primary", primaryUrl, primaryUsername, primaryPassword);
+
+        if (backupUrl == null || backupUrl.isBlank()) {
+            log.warn("⚠️ [DATASOURCE] Biến môi trường APP_DATASOURCE_BACKUP_URL chưa được cấu hình. Chạy chế độ Single Node (không có Failover).");
+            return primaryDs;
+        }
+
+        log.info("   -> Backup Node:  {}", maskUrl(backupUrl));
         HikariDataSource backupDs = createHikariDataSource("HikariPool-Backup", backupUrl, backupUsername, backupPassword);
 
         return new ResilientFailoverDataSource(primaryDs, backupDs);

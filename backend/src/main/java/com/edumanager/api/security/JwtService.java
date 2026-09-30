@@ -23,18 +23,19 @@ public class JwtService {
     private static final String HEADER_JSON = "{\"alg\":\"HS256\",\"typ\":\"JWT\"}";
     private static final String ENCODED_HEADER = Base64.getUrlEncoder().withoutPadding()
             .encodeToString(HEADER_JSON.getBytes(StandardCharsets.UTF_8));
-    private static final long EXPIRATION_SECONDS = 7L * 24 * 60 * 60; // 7 ngày
+    // [SECURITY M1] Giảm từ 7 ngày → 24 giờ để hạn chế rủi ro nếu token bị leak
+    private static final long EXPIRATION_SECONDS = 24L * 60 * 60; // 24 giờ
 
-    @Value("${app.jwt.secret:teachtool_super_secure_jwt_secret_key_2026_classroom_manager_advanced_security_token}")
+    // [SECURITY C1] JWT Secret PHẢI được set qua APP_JWT_SECRET env var - không có default value an toàn
+    @Value("${app.jwt.secret}")
     private String jwtSecret;
 
     @PostConstruct
     public void validateSecret() {
-        if ("teachtool_super_secure_jwt_secret_key_2026_classroom_manager_advanced_security_token".equals(jwtSecret)) {
-            log.warn("[SECURITY AUDIT] Ứng dụng đang sử dụng JWT Secret mặc định! Vui lòng cấu hình biến môi trường APP_JWT_SECRET trên môi trường Production (Render/Docker) để ngăn chặn giả mạo token.");
-        } else {
-            log.info("[SECURITY AUDIT] Khóa ký JWT được cấu hình từ biến môi trường hợp lệ.");
+        if (jwtSecret == null || jwtSecret.length() < 32) {
+            throw new IllegalStateException("[SECURITY] APP_JWT_SECRET chưa được cấu hình hoặc quá ngắn (tối thiểu 32 ký tự). Ứng dụng không thể khởi động.");
         }
+        log.info("[SECURITY AUDIT] Khóa ký JWT được cấu hình từ biến môi trường hợp lệ (độ dài: {} ký tự).", jwtSecret.length());
     }
 
     private final ObjectMapper objectMapper = new ObjectMapper();

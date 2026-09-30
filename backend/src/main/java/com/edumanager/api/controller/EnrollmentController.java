@@ -2,6 +2,7 @@
 package com.edumanager.api.controller;
 
 import com.edumanager.api.dto.EnrollmentResponseDTO;
+import com.edumanager.api.security.RateLimiterService;
 import com.edumanager.api.service.EnrollmentService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ public class EnrollmentController {
     private final EnrollmentService service;
     private final com.edumanager.api.repository.ClassRoomRepository classRoomRepo;
     private final com.edumanager.api.service.ClassRoomService classRoomService;
+    private final RateLimiterService rateLimiterService;
 
     @PostMapping("/{classId}/enroll/{studentId}")
     public ResponseEntity<?> enrollStudent(
@@ -50,7 +52,14 @@ public class EnrollmentController {
     public ResponseEntity<?> joinByCode(
             @RequestBody java.util.Map<String, Object> body,
             HttpServletRequest servletRequest) {
-        
+
+        // [SECURITY M6] Chống brute-force mã lớp học (class code thường 4-6 ký tự)
+        String clientIp = RateLimiterService.getClientIp(servletRequest);
+        if (!rateLimiterService.tryAcquire("join:" + clientIp, 10, 60_000)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Bạn đã thử nhập mã lớp quá nhiều lần. Vui lòng chờ 1 phút."));
+        }
+
         String classCode = (String) body.get("classCode");
         if (classCode == null || classCode.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Vui lòng nhập mã lớp học."));

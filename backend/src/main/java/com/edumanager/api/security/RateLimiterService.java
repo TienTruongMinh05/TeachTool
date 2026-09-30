@@ -49,11 +49,15 @@ public class RateLimiterService {
 
     /**
      * Lấy IP thực tế của client kể cả khi đi qua reverse proxy (Cloudflare / Render)
+     * [SECURITY H1] Lấy IP CUỐI CÙNG trong chuỗi X-Forwarded-For (do reverse proxy Render thêm vào),
+     * không phải IP đầu tiên (client có thể tự khai báo → bypass rate limit).
      */
     public static String getClientIp(jakarta.servlet.http.HttpServletRequest request) {
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
+            String[] ips = xForwardedFor.split(",");
+            // Lấy IP cuối cùng (được thêm bởi reverse proxy đáng tin cậy, không phải client tự khai)
+            return ips[ips.length - 1].trim();
         }
         String xRealIp = request.getHeader("X-Real-IP");
         if (xRealIp != null && !xRealIp.isEmpty()) {
