@@ -15,6 +15,9 @@ VOLUME /tmp
 WORKDIR /app
 COPY --from=build /workspace/app/target/*.jar app.jar
 
+ENV PORT=8080
+EXPOSE 8080
+
 # Cấu hình tường minh bộ nhớ JVM cho Render 512MB RAM:
 # -Xms128m khởi đầu 128MB, -Xmx384m tối đa 384MB (75% RAM), chừa 128MB cho metaspace & OS
 ENV JAVA_OPTS="-Xms128m -Xmx384m -XX:+ExitOnOutOfMemoryError"
