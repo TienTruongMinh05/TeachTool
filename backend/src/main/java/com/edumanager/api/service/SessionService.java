@@ -6,6 +6,8 @@ import com.edumanager.api.entity.Session;
 import com.edumanager.api.repository.ClassRoomRepository;
 import com.edumanager.api.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
@@ -21,6 +23,7 @@ public class SessionService {
     private final com.edumanager.api.repository.TeachingPlanRepository teachingPlanRepo;
     private final ClassRoomService classRoomService;
 
+    @CacheEvict(value = {"class_sessions", "classes"}, allEntries = true)
     public Session createSession(Long classId, Session sessionInfo, Long callerId) {
         ClassRoom classRoom = classRepo.findById(classId)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy lớp học có ID: " + classId));
@@ -46,6 +49,7 @@ public class SessionService {
         return sessionRepo.save(sessionInfo);
     }
 
+    @Cacheable(value = "class_sessions", key = "#classId")
     public List<Session> getSessionsByClass(Long classId) {
         return sessionRepo.findByClassRoomId(classId);
     }
@@ -55,6 +59,7 @@ public class SessionService {
             .orElseThrow(() -> new RuntimeException("Không tìm thấy buổi học có ID: " + sessionId));
     }
 
+    @CacheEvict(value = {"class_sessions", "classes"}, allEntries = true)
     public Session updateSession(Long sessionId, Session sessionInfo, Long callerId) {
         Session session = getSessionById(sessionId);
         if (callerId != null && session.getClassRoom() != null && !classRoomService.isTeacherOfClass(session.getClassRoom(), callerId)) {
@@ -74,14 +79,15 @@ public class SessionService {
         }
 
         if (sessionInfo.getDurationMinutes() != null && sessionInfo.getDurationMinutes() > 0 && sessionInfo.getStartTime() != null) {
-            session.setEndTime(sessionInfo.getStartTime().plusMinutes(sessionInfo.getDurationMinutes()));
+            sessionInfo.setEndTime(sessionInfo.getStartTime().plusMinutes(sessionInfo.getDurationMinutes()));
         } else if (sessionInfo.getEndTime() != null) {
-            session.setEndTime(sessionInfo.getEndTime());
+            sessionInfo.setEndTime(sessionInfo.getEndTime());
         }
 
         return sessionRepo.save(session);
     }
 
+    @CacheEvict(value = {"class_sessions", "classes"}, allEntries = true)
     public Session updateAnnouncement(Long sessionId, String announcement, Long callerId) {
         Session session = getSessionById(sessionId);
         if (callerId != null && session.getClassRoom() != null && !classRoomService.isTeacherOfClass(session.getClassRoom(), callerId)) {
@@ -101,6 +107,7 @@ public class SessionService {
     }
 
     @Transactional
+    @CacheEvict(value = {"class_sessions", "classes"}, allEntries = true)
     public void deleteSession(Long sessionId, Long callerId) {
         Session session = getSessionById(sessionId);
         if (callerId != null && session.getClassRoom() != null && !classRoomService.isTeacherOfClass(session.getClassRoom(), callerId)) {

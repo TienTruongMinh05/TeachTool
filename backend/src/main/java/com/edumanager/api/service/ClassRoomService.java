@@ -9,6 +9,8 @@ import com.edumanager.api.entity.TeachingPlan;
 import com.edumanager.api.entity.TeachingPlanSection;
 import com.edumanager.api.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -73,6 +75,7 @@ public class ClassRoomService {
 
     // Lưu lớp học mới vào DB
     @Transactional
+    @CacheEvict(value = {"classes", "class_sessions"}, allEntries = true)
     public ClassRoom createClass(ClassRoom classRoom, Long teacherId) {
         if (classRoom.getClassCode() == null || classRoom.getClassCode().trim().isEmpty()) {
             classRoom.setClassCode(generateUniqueClassCode());
@@ -102,6 +105,7 @@ public class ClassRoomService {
      * và bài tập (reset hạn nộp). Loại trừ danh sách học sinh và bài nộp.
      */
     @Transactional
+    @CacheEvict(value = {"classes", "class_sessions"}, allEntries = true)
     public ClassRoom cloneClass(Long sourceClassId, ClassRoom copyRequest, Long teacherId) {
         ClassRoom sourceClass = getClassById(sourceClassId);
         if (teacherId != null && !isTeacherOfClass(sourceClass, teacherId)) {
@@ -224,6 +228,7 @@ public class ClassRoomService {
     }
 
     @Transactional
+    @Cacheable(value = "classes", key = "#teacherId != null ? #teacherId : 'ALL'")
     public List<ClassRoom> getClassesByTeacher(Long teacherId) {
         List<ClassRoom> list = (teacherId != null)
                 ? repository.findAllForTeacher(teacherId)
@@ -262,6 +267,7 @@ public class ClassRoomService {
     }
 
     // Cập nhật thông tin lớp học
+    @CacheEvict(value = {"classes", "class_sessions"}, allEntries = true)
     public ClassRoom updateClass(Long id, ClassRoom updated, Long teacherId) {
         ClassRoom classRoom = getClassById(id);
         if (teacherId != null && !isTeacherOfClass(classRoom, teacherId)) {
@@ -276,8 +282,33 @@ public class ClassRoomService {
         return repository.save(classRoom);
     }
 
+    // Đóng gói / Lưu trữ lớp học theo kỳ (Archive)
+    @Transactional
+    @CacheEvict(value = {"classes", "class_sessions"}, allEntries = true)
+    public ClassRoom archiveClass(Long id, Long teacherId) {
+        ClassRoom classRoom = getClassById(id);
+        if (teacherId != null && !isTeacherOfClass(classRoom, teacherId)) {
+            throw new SecurityException("Bạn không có quyền đóng gói lưu trữ lớp học này.");
+        }
+        classRoom.setIsArchived(true);
+        return repository.save(classRoom);
+    }
+
+    // Mở lại lớp học từ kho lưu trữ (Unarchive)
+    @Transactional
+    @CacheEvict(value = {"classes", "class_sessions"}, allEntries = true)
+    public ClassRoom unarchiveClass(Long id, Long teacherId) {
+        ClassRoom classRoom = getClassById(id);
+        if (teacherId != null && !isTeacherOfClass(classRoom, teacherId)) {
+            throw new SecurityException("Bạn không có quyền mở lại lớp học này.");
+        }
+        classRoom.setIsArchived(false);
+        return repository.save(classRoom);
+    }
+
     // Xóa lớp học và toàn bộ dữ liệu phụ thuộc (Chỉ giáo viên chủ nhiệm mới có quyền)
     @Transactional
+    @CacheEvict(value = {"classes", "class_sessions"}, allEntries = true)
     public void deleteClass(Long id, Long teacherId) {
         ClassRoom classRoom = getClassById(id);
         if (classRoom.getTeacherId() != null && teacherId != null && !classRoom.getTeacherId().equals(teacherId)) {

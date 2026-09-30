@@ -10,7 +10,8 @@ public record ClassResponseDTO(
     LocalDate startDate, 
     LocalDate endDate, 
     Long teacherId,
-    boolean isCoTeacher
+    boolean isCoTeacher,
+    Boolean isArchived
 ) {
     public static ClassResponseDTO fromEntity(ClassRoom c) {
         return fromEntity(c, null);
@@ -21,6 +22,6 @@ public record ClassResponseDTO(
         if (c.getTeacherId() != null && currentUserId != null && !c.getTeacherId().equals(currentUserId)) {
             isCo = true;
         }
-        return new ClassResponseDTO(c.getId(), c.getName(), c.getClassCode(), c.getStartDate(), c.getEndDate(), c.getTeacherId(), isCo);
+        return new ClassResponseDTO(c.getId(), c.getName(), c.getClassCode(), c.getStartDate(), c.getEndDate(), c.getTeacherId(), isCo, Boolean.TRUE.equals(c.getIsArchived()));
     }
 }

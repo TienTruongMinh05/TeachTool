@@ -104,6 +104,18 @@ public class ClassRoomController {
         return service.getTimetable(classId, callerId, callerRole);
     }
 
+    @PostMapping("/{id}/archive")
+    public ClassResponseDTO archiveClass(@PathVariable Long id, HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        return ClassResponseDTO.fromEntity(service.archiveClass(id, callerId), callerId);
+    }
+
+    @PostMapping("/{id}/unarchive")
+    public ClassResponseDTO unarchiveClass(@PathVariable Long id, HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        return ClassResponseDTO.fromEntity(service.unarchiveClass(id, callerId), callerId);
+    }
+
     @DeleteMapping("/{id}")
     public void deleteClass(@PathVariable Long id, HttpServletRequest request) {
         Long callerId = (Long) request.getAttribute("userId");

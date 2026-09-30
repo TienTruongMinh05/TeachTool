@@ -15,11 +15,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Slf4j
 @Service
@@ -35,9 +39,60 @@ public class InquiryService {
     private final EncryptionService encryptionService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private final Map<Long, List<SseEmitter>> threadEmitters = new ConcurrentHashMap<>();
+
     private static final int MAX_FILES_PER_MESSAGE = 3;
     private static final int MAX_FILES_PER_THREAD = 15;
     public static final String AUTO_REPLY_TEXT = "Thời gian phản hồi thường là dưới 1h, nhưng có thể lâu hơn, các em vui lòng đợi.";
+
+    /**
+     * Đăng ký nhận luồng sự kiện Real-Time SSE cho một cuộc trò chuyện
+     */
+    public SseEmitter subscribeToThread(Long threadId, Long callerId, String callerRole) {
+        InquiryThread thread = threadRepo.findById(threadId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy cuộc hội thoại ID: " + threadId));
+
+        validateThreadAccess(thread, callerId, callerRole);
+
+        // 10 phút timeout cho mỗi kết nối SSE
+        SseEmitter emitter = new SseEmitter(10 * 60 * 1000L);
+        threadEmitters.computeIfAbsent(threadId, k -> new CopyOnWriteArrayList<>()).add(emitter);
+
+        emitter.onCompletion(() -> removeEmitter(threadId, emitter));
+        emitter.onTimeout(() -> removeEmitter(threadId, emitter));
+        emitter.onError(e -> removeEmitter(threadId, emitter));
+
+        try {
+            emitter.send(SseEmitter.event().name("INIT").data("Connected to thread " + threadId));
+        } catch (IOException e) {
+            removeEmitter(threadId, emitter);
+        }
+
+        return emitter;
+    }
+
+    private void removeEmitter(Long threadId, SseEmitter emitter) {
+        List<SseEmitter> list = threadEmitters.get(threadId);
+        if (list != null) {
+            list.remove(emitter);
+            if (list.isEmpty()) {
+                threadEmitters.remove(threadId);
+            }
+        }
+    }
+
+    private void broadcastMessage(Long threadId, InquiryMessageResponseDTO messageDto) {
+        List<SseEmitter> list = threadEmitters.get(threadId);
+        if (list != null && !list.isEmpty()) {
+            for (SseEmitter emitter : list) {
+                try {
+                    emitter.send(SseEmitter.event().name("NEW_MESSAGE").data(messageDto));
+                } catch (Exception e) {
+                    removeEmitter(threadId, emitter);
+                }
+            }
+        }
+    }
 
     /**
      * Lấy hoặc khởi tạo cuộc trò chuyện thắc mắc của học sinh trong một lớp học cụ thể
@@ -186,9 +241,10 @@ public class InquiryService {
                 .build());
 
         // 6. Tự động sinh tin nhắn phản hồi hệ thống nếu là tin đầu tiên của học sinh
+        InquiryMessage autoReplyMessage = null;
         if (isStudentFirstMessage) {
             String encryptedAutoReply = encryptionService.encrypt(AUTO_REPLY_TEXT);
-            messageRepo.save(InquiryMessage.builder()
+            autoReplyMessage = messageRepo.save(InquiryMessage.builder()
                     .thread(thread)
                     .sender(null)
                     .senderRole("SYSTEM")
@@ -217,7 +273,15 @@ public class InquiryService {
         thread.setTotalFilesCount(thread.getTotalFilesCount() + newFilesCount);
         threadRepo.save(thread);
 
-        return InquiryMessageResponseDTO.fromEntity(userMessage, rawContent);
+        InquiryMessageResponseDTO response = InquiryMessageResponseDTO.fromEntity(userMessage, rawContent);
+        broadcastMessage(threadId, response);
+
+        if (autoReplyMessage != null) {
+            InquiryMessageResponseDTO autoReplyResponse = InquiryMessageResponseDTO.fromEntity(autoReplyMessage, AUTO_REPLY_TEXT);
+            broadcastMessage(threadId, autoReplyResponse);
+        }
+
+        return response;
     }
 
     /**

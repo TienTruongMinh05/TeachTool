@@ -34,4 +34,8 @@ public class ClassRoom {
     @Builder.Default
     @Column(name = "auto_reminder_enabled")
     private Boolean autoReminderEnabled = true;
+
+    @Builder.Default
+    @Column(name = "is_archived")
+    private Boolean isArchived = false;
 }

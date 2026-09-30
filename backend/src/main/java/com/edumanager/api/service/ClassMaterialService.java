@@ -6,6 +6,8 @@ import com.edumanager.api.entity.ClassRoom;
 import com.edumanager.api.repository.ClassMaterialRepository;
 import com.edumanager.api.repository.ClassRoomRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ public class ClassMaterialService {
     private final ClassRoomService classRoomService;
 
     // Lấy danh sách sách / tài liệu của lớp (Dành cho cả Giáo viên và Học sinh trong lớp)
+    @Cacheable(value = "class_materials", key = "#classId")
     public List<ClassMaterialDTO> getMaterialsByClass(Long classId, Long callerId, String callerRole) {
         if (callerId != null && !classRoomService.canAccessClass(classId, callerId, callerRole)) {
             throw new SecurityException("Bạn không có quyền truy cập danh sách tài liệu của lớp học này.");
@@ -32,6 +35,7 @@ public class ClassMaterialService {
 
     // Thêm sách / tài liệu mới vào lớp (Chỉ giáo viên phụ trách)
     @Transactional
+    @CacheEvict(value = "class_materials", allEntries = true)
     public ClassMaterialDTO createMaterial(Long classId, ClassMaterialDTO dto, Long callerId) {
         ClassRoom classRoom = classRoomRepository.findById(classId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lớp học với ID: " + classId));
@@ -63,6 +67,7 @@ public class ClassMaterialService {
 
     // Xóa sách / tài liệu khỏi lớp (Chỉ giáo viên phụ trách)
     @Transactional
+    @CacheEvict(value = "class_materials", allEntries = true)
     public void deleteMaterial(Long classId, Long materialId, Long callerId) {
         ClassRoom classRoom = classRoomRepository.findById(classId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy lớp học với ID: " + classId));

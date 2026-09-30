@@ -39,15 +39,16 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        // 3. Yêu cầu bắt buộc phải có Authorization: Bearer <token>
+        // 3. Yêu cầu bắt buộc phải có JWT Token (qua Header Authorization: Bearer hoặc Query Param ?token= cho EventSource/SSE)
+        String token = null;
         String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Vui lòng đăng nhập để truy cập tài nguyên này.");
-            return false;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7).trim();
+        } else if (request.getParameter("token") != null && !request.getParameter("token").isBlank()) {
+            token = request.getParameter("token").trim();
         }
 
-        String token = authHeader.substring(7).trim();
-        if (!jwtService.validateToken(token)) {
+        if (token == null || !jwtService.validateToken(token)) {
             sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.");
             return false;
         }

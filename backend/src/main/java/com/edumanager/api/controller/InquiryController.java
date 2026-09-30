@@ -92,6 +92,19 @@ public class InquiryController {
     }
 
     /**
+     * Luồng sự kiện SSE Real-Time để nhận tin nhắn mới ngay lập tức (loại bỏ hoàn toàn polling)
+     */
+    @GetMapping(value = "/threads/{threadId}/stream", produces = org.springframework.http.MediaType.TEXT_EVENT_STREAM_VALUE)
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter streamThread(
+            @PathVariable Long threadId,
+            HttpServletRequest request) {
+        Long callerId = (Long) request.getAttribute("userId");
+        String callerRole = (String) request.getAttribute("userRole");
+
+        return inquiryService.subscribeToThread(threadId, callerId, callerRole);
+    }
+
+    /**
      * Gửi tin nhắn mới vào cuộc hội thoại
      */
     @PostMapping("/threads/{threadId}/messages")

@@ -449,16 +449,19 @@ public class ActivityTemplateService {
         }
     }
 
+    @org.springframework.cache.annotation.Cacheable(value = "activity_templates", key = "'all'")
     public List<ActivityTemplate> getAllActivities() {
         return repository.findAll();
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "activity_templates", allEntries = true)
     public ActivityTemplate createActivity(ActivityTemplate activity) {
         activity.setId(null);
         activity.setIsSystemDefault(false);
         return repository.save(activity);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "activity_templates", allEntries = true)
     public ActivityTemplate updateActivity(Long id, ActivityTemplate updated) {
         ActivityTemplate existing = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động có ID: " + id));
@@ -470,6 +473,7 @@ public class ActivityTemplateService {
         return repository.save(existing);
     }
 
+    @org.springframework.cache.annotation.CacheEvict(value = "activity_templates", allEntries = true)
     public void deleteActivity(Long id) {
         ActivityTemplate existing = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy hoạt động có ID: " + id));
