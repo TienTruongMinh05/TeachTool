@@ -11,6 +11,12 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:mikealpha11256}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      minimum-idle: 0
+      maximum-pool-size: 5
+      idle-timeout: 60000
+      max-lifetime: 300000
+      connection-timeout: 20000
   jpa:
     hibernate:
       ddl-auto: update
