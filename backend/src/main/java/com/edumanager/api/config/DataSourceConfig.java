@@ -14,22 +14,22 @@ import javax.sql.DataSource;
 @Configuration
 public class DataSourceConfig {
 
-    @Value("${app.datasource.primary.url:${SPRING_DATASOURCE_URL}}")
+    @Value("${app.datasource.primary.url:${SPRING_DATASOURCE_URL:jdbc:postgresql://ep-noisy-bar-b3e3g4u2-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require}}")
     private String primaryUrl;
 
-    @Value("${app.datasource.primary.username:${SPRING_DATASOURCE_USERNAME}}")
+    @Value("${app.datasource.primary.username:${SPRING_DATASOURCE_USERNAME:neondb_owner}}")
     private String primaryUsername;
 
-    @Value("${app.datasource.primary.password:${SPRING_DATASOURCE_PASSWORD}}")
+    @Value("${app.datasource.primary.password:${SPRING_DATASOURCE_PASSWORD:npg_6ECboSUKN8zG}}")
     private String primaryPassword;
 
-    @Value("${app.datasource.backup.url:${APP_DATASOURCE_BACKUP_URL:}}")
+    @Value("${app.datasource.backup.url:${APP_DATASOURCE_BACKUP_URL:jdbc:postgresql://ep-late-cell-az0mlnlc-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require}}")
     private String backupUrl;
 
     @Value("${app.datasource.backup.username:${APP_DATASOURCE_BACKUP_USERNAME:neondb_owner}}")
     private String backupUsername;
 
-    @Value("${app.datasource.backup.password:${APP_DATASOURCE_BACKUP_PASSWORD:}}")
+    @Value("${app.datasource.backup.password:${APP_DATASOURCE_BACKUP_PASSWORD:npg_WnOZJET75upC}}")
     private String backupPassword;
 
     @Bean
