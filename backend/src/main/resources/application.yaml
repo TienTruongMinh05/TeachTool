@@ -63,7 +63,7 @@ app:
     secret: ${APP_JWT_SECRET}
   encryption:
     # [SECURITY M5] AES-256 key riêng biệt với JWT secret (set APP_ENCRYPTION_SECRET trên Render)
-    secret: ${APP_ENCRYPTION_SECRET:${APP_JWT_SECRET}}
+    secret: ${APP_ENCRYPTION_SECRET:default_encryption_placeholder}
   google:
     client-id: ${APP_GOOGLE_CLIENT_ID:}
   cors:
