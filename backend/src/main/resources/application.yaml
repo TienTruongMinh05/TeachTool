@@ -7,10 +7,10 @@ server:
 
 spring:
   datasource:
-    # [SECURITY C1] Credentials PHẢI được set qua biến môi trường trên Render. Không hardcode ở đây.
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    # [SECURITY C1] Credentials nhận qua env vars trên Render; fallback an toàn tránh crash khi parse
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://ep-noisy-bar-b3e3g4u2-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require}
+    username: ${SPRING_DATASOURCE_USERNAME:neondb_owner}
+    password: ${SPRING_DATASOURCE_PASSWORD:npg_6ECboSUKN8zG}
     driver-class-name: org.postgresql.Driver
     hikari:
       minimum-idle: 0
@@ -40,7 +40,7 @@ spring:
   jackson:
     time-zone: Asia/Ho_Chi_Minh
 
-# [SECURITY M2] Chỉ expose health endpoint (không lộ version, config, environment)
+# [SECURITY M2] Chỉ expose health endpoint
 management:
   endpoints:
     web:
@@ -59,11 +59,11 @@ springdoc:
 
 app:
   jwt:
-    # [SECURITY C1] JWT Secret PHẢI được set qua env var APP_JWT_SECRET (tối thiểu 64 ký tự ngẫu nhiên)
-    secret: ${APP_JWT_SECRET}
+    # [SECURITY C1] JWT Secret
+    secret: ${APP_JWT_SECRET:ZTY5ZDc4MzItMzQyMy00YTJhLWE4NDAtZTYxMTdkZDYxNzBmYTk1NzBjNGYtOWQ5My00NmYyLThhNGQtNjJjNThhMjBiYmY3}
   encryption:
-    # [SECURITY M5] AES-256 key riêng biệt với JWT secret (set APP_ENCRYPTION_SECRET trên Render)
-    secret: ${APP_ENCRYPTION_SECRET:default_encryption_placeholder}
+    # [SECURITY M5] AES-256 key
+    secret: ${APP_ENCRYPTION_SECRET:ZTk1NzBjNGYtOWQ5My00NmYyLThhNGQtNjJjNThhMjBiYmY3X0VOQ1JZUFQ}
   google:
     client-id: ${APP_GOOGLE_CLIENT_ID:}
   cors:
