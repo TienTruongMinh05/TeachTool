@@ -434,17 +434,21 @@ public class ActivityTemplateService {
                 .build()
         );
 
-        // Cập nhật hoặc lưu mới nếu chưa tồn tại
+        // Cập nhật hoặc lưu mới nếu chưa tồn tại (Bọc try-catch an toàn để không bao giờ làm gián đoạn khởi động ứng dụng)
         for (ActivityTemplate act : defaults) {
-            java.util.Optional<ActivityTemplate> existingOpt = repository.findByName(act.getName());
-            if (existingOpt.isPresent()) {
-                ActivityTemplate existing = existingOpt.get();
-                existing.setDescription(act.getDescription());
-                existing.setIsSystemDefault(true);
-                repository.save(existing);
-            } else {
-                act.setIsSystemDefault(true);
-                repository.save(act);
+            try {
+                java.util.Optional<ActivityTemplate> existingOpt = repository.findByName(act.getName());
+                if (existingOpt.isPresent()) {
+                    ActivityTemplate existing = existingOpt.get();
+                    existing.setDescription(act.getDescription());
+                    existing.setIsSystemDefault(true);
+                    repository.save(existing);
+                } else {
+                    act.setIsSystemDefault(true);
+                    repository.save(act);
+                }
+            } catch (Exception e) {
+                // Bỏ qua lỗi trùng lặp hoặc xung đột khóa nếu template đã tồn tại
             }
         }
     }

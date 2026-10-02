@@ -64,7 +64,7 @@ public class DataSourceConfig {
         config.setMaximumPoolSize(5);
         config.setIdleTimeout(60000);
         config.setMaxLifetime(300000);
-        config.setConnectionTimeout(5000); // 5s timeout nhanh để kích hoạt failover mượt mà
+        config.setConnectionTimeout(20000); // 20s timeout đủ cho serverless compute đánh thức (wake up)
         config.setInitializationFailTimeout(-1); // Không crash Spring Boot khi khởi động nếu một trong 2 DB đang tạm ngắt
 
         return new HikariDataSource(config);

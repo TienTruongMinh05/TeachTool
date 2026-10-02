@@ -26,7 +26,6 @@ public class LegacyDataMigrationRunner implements CommandLineRunner {
     private final UserRepository userRepository;
 
     @Override
-    @Transactional
     public void run(String... args) {
         try {
             log.info("[DataMigration] Checking legacy classes without assigned teacher...");
