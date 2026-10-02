@@ -39,9 +39,7 @@ public class AuthService {
     public void initDatabaseSchema() {
         try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement()) {
-            // Tự động kiểm tra và thêm cột password nếu chưa có
-            stmt.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS password VARCHAR(255)");
-            log.info("Xác nhận cấu trúc bảng users: Cột password đã sẵn sàng.");
+            stmt.setQueryTimeout(5); // 5s timeout tránh treo DDL/DML khi khởi động
 
             // Tự động quét và dọn dẹp sạch các tài khoản kiểm thử/ảo nếu còn tồn tại trong CSDL
             stmt.execute("DELETE FROM attendances WHERE student_id IN (SELECT id FROM users WHERE email IN ('teacher.mai@gmail.com', 'student.nam@gmail.com'))");
