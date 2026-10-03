@@ -11,6 +11,7 @@ import javax.sql.DataSource;
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -26,6 +27,13 @@ public class DatabaseBackupSyncService {
     @Getter
     private volatile Map<String, Integer> lastSyncDetail = new LinkedHashMap<>();
 
+    private volatile long lastSyncAttemptTime = 0;
+
+    /**
+     * [EGRESS OPTIMIZATION]
+     * Chỉ đồng bộ các bảng dữ liệu nghiệp vụ có cấu trúc nhẹ (Text/Metadata).
+     * Tuyệt đối KHÔNG đồng bộ 'stored_file_chunks' (309 MB bytea) qua cron để bảo vệ 100% hạn ngạch mạng (Neon Network Transfer Quota).
+     */
     private static final List<String> TABLE_ORDER = List.of(
             "users",
             "classes",
@@ -43,39 +51,43 @@ public class DatabaseBackupSyncService {
             "inquiry_threads",
             "inquiry_messages",
             "stored_files",
-            "stored_file_chunks",
             "activity_templates"
     );
 
     /**
-     * Tự động sao lưu đồng bộ dữ liệu từ Primary sang Backup mỗi 12 tiếng (00:00 và 12:00)
+     * Tự động sao lưu đồng bộ dữ liệu nghiệp vụ từ Primary sang Backup mỗi 12 tiếng (00:00 và 12:00)
+     * Tổng dung lượng truyền tải mỗi lần chỉ khoảng ~500 KB (khoảng 30 MB / tháng, tức 0.6% của quota 5 GB).
      */
     @Scheduled(cron = "0 0 0,12 * * *")
     public void scheduled12HourBackup() {
-        log.info("⏰ [BACKUP SYNC] Bắt đầu tác vụ sao lưu định kỳ 12 giờ một lần từ Primary sang Backup...");
+        log.info("⏰ [BACKUP SYNC] Bắt đầu tác vụ sao lưu nghiệp vụ định kỳ 12 giờ một lần từ Primary sang Backup...");
         syncPrimaryToBackup(false);
     }
 
     /**
-     * Định kỳ kiểm tra (mỗi 30 phút, đặc biệt sáng 07:00 khi reset quota)
-     * Nếu Primary vừa hoạt động trở lại, lập tức đồng bộ dữ liệu sang Backup
+     * Kiểm tra một lần lúc 07:15 sáng (sau khung giờ reset hạn mức Neon 07:00).
+     * Chỉ chạy nếu đã qua hơn 6 tiếng kể từ lần chạy gần nhất.
      */
-    @Scheduled(cron = "0 5,35 * * * *")
+    @Scheduled(cron = "0 15 7 * * *")
     public void scheduledRecoverySyncCheck() {
-        if (dataSource instanceof ResilientFailoverDataSource failoverDs) {
-            // Nếu lần đồng bộ gần nhất chưa thành công hoặc đã qua hơn 12 tiếng
-            if (lastSyncTime == null || lastSyncTime.isBefore(LocalDateTime.now().minusHours(12))) {
-                log.info("🔍 [BACKUP SYNC CHECK] Đang kiểm tra khả năng kết nối Primary để đồng bộ dữ liệu...");
-                syncPrimaryToBackup(true);
-            }
+        long now = System.currentTimeMillis();
+        if (now - lastSyncAttemptTime < 6 * 3600_000L) {
+            log.debug("[BACKUP SYNC CHECK] Vừa đồng bộ trong vòng 6 giờ qua. Bỏ qua kiểm tra 07:15.");
+            return;
+        }
+
+        if (dataSource instanceof ResilientFailoverDataSource) {
+            log.info("🔍 [BACKUP SYNC CHECK] Kiểm tra đồng bộ sau giờ reset quota 07:00...");
+            syncPrimaryToBackup(true);
         }
     }
 
     /**
-     * Thực hiện đồng bộ toàn bộ bảng dữ liệu từ Primary sang Backup
+     * Thực hiện đồng bộ toàn bộ bảng dữ liệu nghiệp vụ từ Primary sang Backup
      */
     public synchronized Map<String, Object> syncPrimaryToBackup(boolean silentOnUnavailable) {
         Map<String, Object> result = new LinkedHashMap<>();
+        this.lastSyncAttemptTime = System.currentTimeMillis();
 
         if (!(dataSource instanceof ResilientFailoverDataSource failoverDs)) {
             result.put("success", false);
@@ -83,7 +95,7 @@ public class DatabaseBackupSyncService {
             return result;
         }
 
-        log.info("🔄 [BACKUP SYNC] Đang kết nối tới Primary và Backup để đồng bộ dữ liệu...");
+        log.info("🔄 [BACKUP SYNC] Đang kết nối tới Primary và Backup để đồng bộ dữ liệu nghiệp vụ (Zero-Blob Egress)...");
 
         try (Connection srcConn = failoverDs.getPrimaryDataSource().getConnection();
              Connection tgtConn = failoverDs.getBackupDataSource().getConnection()) {
@@ -126,8 +138,8 @@ public class DatabaseBackupSyncService {
 
         } catch (SQLException e) {
             String msg = e.getMessage() != null ? e.getMessage() : "";
-            if (silentOnUnavailable && (msg.contains("quota") || msg.contains("exceeded") || msg.contains("timeout"))) {
-                log.debug("[BACKUP SYNC] Primary hiện đang tạm ngắt ({}). Sẽ thử lại sau.", msg);
+            if (silentOnUnavailable && (msg.contains("quota") || msg.contains("exceeded") || msg.contains("timeout") || msg.contains("suspension"))) {
+                log.info("[BACKUP SYNC] Primary hiện đang tạm ngắt ({}), hệ thống sẽ chạy an toàn trên Backup và thử lại sau.", msg);
             } else {
                 log.warn("⚠️ [BACKUP SYNC] Quá trình đồng bộ thất bại: {}", msg);
             }
@@ -139,49 +151,58 @@ public class DatabaseBackupSyncService {
     }
 
     private int syncTable(Connection srcConn, Connection tgtConn, String tableName, Set<String> targetCols) throws SQLException {
-        int count = 0;
-        String selectSql = "SELECT * FROM \"" + tableName + "\"";
-
-        try (Statement srcStmt = srcConn.createStatement();
-             ResultSet rs = srcStmt.executeQuery(selectSql)) {
-
-            ResultSetMetaData meta = rs.getMetaData();
-            int colCount = meta.getColumnCount();
-            List<String> commonCols = new ArrayList<>();
-
-            for (int i = 1; i <= colCount; i++) {
-                String colName = meta.getColumnName(i);
+        // Lấy metadata các cột từ source
+        List<String> commonCols = new ArrayList<>();
+        DatabaseMetaData meta = srcConn.getMetaData();
+        try (ResultSet colsRs = meta.getColumns(null, "public", tableName, null)) {
+            while (colsRs.next()) {
+                String colName = colsRs.getString("COLUMN_NAME");
+                // [EGRESS OPTIMIZATION]: Tuyệt đối KHÔNG SELECT cột nhị phân 'data' của bảng 'stored_files'
+                if ("stored_files".equalsIgnoreCase(tableName) && "data".equalsIgnoreCase(colName)) {
+                    continue;
+                }
                 if (targetCols.contains(colName)) {
                     commonCols.add(colName);
                 }
             }
+        }
 
-            if (commonCols.isEmpty()) {
-                return 0;
+        if (commonCols.isEmpty()) {
+            return 0;
+        }
+
+        // [EGRESS OPTIMIZATION]: Chỉ SELECT danh sách cột cần thiết, KHÔNG dùng SELECT *
+        String selectColsSql = commonCols.stream().map(c -> "\"" + c + "\"").collect(Collectors.joining(", "));
+        String selectSql = "SELECT " + selectColsSql + " FROM \"" + tableName + "\"";
+
+        StringBuilder insertSql = new StringBuilder("INSERT INTO \"").append(tableName).append("\" (");
+        StringBuilder valuesSql = new StringBuilder(" VALUES (");
+        for (int i = 0; i < commonCols.size(); i++) {
+            if (i > 0) {
+                insertSql.append(", ");
+                valuesSql.append(", ");
             }
+            insertSql.append("\"").append(commonCols.get(i)).append("\"");
+            valuesSql.append("?");
+        }
+        insertSql.append(")").append(valuesSql).append(")");
+        insertSql.append(" ON CONFLICT DO NOTHING");
 
-            StringBuilder insertSql = new StringBuilder("INSERT INTO \"").append(tableName).append("\" (");
-            StringBuilder valuesSql = new StringBuilder(" VALUES (");
-            for (int i = 0; i < commonCols.size(); i++) {
-                if (i > 0) {
-                    insertSql.append(", ");
-                    valuesSql.append(", ");
-                }
-                insertSql.append("\"").append(commonCols.get(i)).append("\"");
-                valuesSql.append("?");
-            }
-            insertSql.append(")").append(valuesSql).append(")");
+        int count = 0;
+        try (Statement srcStmt = srcConn.createStatement()) {
+            srcStmt.setFetchSize(100);
+            try (ResultSet rs = srcStmt.executeQuery(selectSql);
+                 PreparedStatement pstmt = tgtConn.prepareStatement(insertSql.toString())) {
 
-            // Bổ sung xử lý xung đột khóa chính (ON CONFLICT DO NOTHING)
-            insertSql.append(" ON CONFLICT DO NOTHING");
-
-            try (PreparedStatement pstmt = tgtConn.prepareStatement(insertSql.toString())) {
                 while (rs.next()) {
                     for (int i = 0; i < commonCols.size(); i++) {
-                        pstmt.setObject(i + 1, rs.getObject(commonCols.get(i)));
+                        pstmt.setObject(i + 1, rs.getObject(i + 1));
                     }
                     pstmt.addBatch();
                     count++;
+                    if (count % 50 == 0) {
+                        pstmt.executeBatch();
+                    }
                 }
                 pstmt.executeBatch();
             }
