@@ -18,6 +18,7 @@ import LearningAnalyticsHeatmap from '../Components/LearningAnalyticsHeatmap';
 import StudentInquiriesManager from '../Components/StudentInquiriesManager';
 import ClassAnnouncementBoard from '../Components/ClassAnnouncementBoard';
 import WeeklyReportModal from '../Components/WeeklyReportModal';
+import MonthlyTimesheetModal from '../Components/MonthlyTimesheetModal';
 import { reportApi } from '../api/reportApi';
 import { ThemeLanguageToggle, useThemeLanguage } from '../context/ThemeLanguageContext';
 import { sessionApi } from '../api/sessionApi';
@@ -106,6 +107,7 @@ export default function ClassDashboard({ initialView }) {
   const { t, lang } = useThemeLanguage();
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isWeeklyReportModalOpen, setIsWeeklyReportModalOpen] = useState(false);
+  const [isTimesheetModalOpen, setIsTimesheetModalOpen] = useState(false);
 
   const handleExportWeeklyReport = () => {
     if (!selectedClassId) return;
@@ -1009,6 +1011,16 @@ export default function ClassDashboard({ initialView }) {
                     <span>{t('exportWeeklyReport') || 'Xuất Báo Cáo Tuần (Word)'}</span>
                     <span className="text-[10px] text-blue-400 font-mono font-bold">.DOCX</span>
                   </button>
+
+                  {/* Nút Xuất Chấm Công Tháng (Excel .XLSX Chuẩn) */}
+                  <button
+                    type="button"
+                    onClick={() => setIsTimesheetModalOpen(true)}
+                    title="Xuất Bảng Chấm Công Tháng theo định dạng Excel (.xlsx)"
+                    className="w-full mt-1.5 text-left px-2.5 py-1.5 rounded-sm text-xs font-semibold bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-200 border border-emerald-800 flex items-center justify-between cursor-pointer transition">
+                    <span>{lang === 'en' ? 'Monthly Timesheet (Excel)' : 'Chấm Công Tháng (Excel)'}</span>
+                    <span className="text-[10px] text-emerald-400 font-mono font-bold">.XLSX</span>
+                  </button>
                 </div>
 
                 {/* 3 CORE HUBS (Bảng tin & Lịch học | Bài tập & Đánh giá | Quản trị lớp học) */}
@@ -1118,6 +1130,14 @@ export default function ClassDashboard({ initialView }) {
 
             {currentView === 'class_detail' && (
               <div className="hidden sm:flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsTimesheetModalOpen(true)}
+                  title="Xuất Chấm Công Tháng (.xlsx)"
+                  className="px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-700 rounded-sm transition cursor-pointer shadow-2xs flex items-center gap-1">
+                  <span>{lang === 'en' ? 'Timesheet' : 'Chấm Công'}</span>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold">.XLSX</span>
+                </button>
                 <button
                   type="button"
                   onClick={handleExportWeeklyReport}
@@ -1279,6 +1299,13 @@ export default function ClassDashboard({ initialView }) {
         onClose={() => setIsWeeklyReportModalOpen(false)}
         classId={selectedClassId}
         classInfo={classInfo}
+      />
+
+      {/* MODAL XUẤT CHẤM CÔNG THÁNG (.XLSX) */}
+      <MonthlyTimesheetModal
+        isOpen={isTimesheetModalOpen}
+        onClose={() => setIsTimesheetModalOpen(false)}
+        initialClassId={selectedClassId}
       />
     </div>
   );

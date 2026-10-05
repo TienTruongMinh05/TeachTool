@@ -92,8 +92,9 @@ const dictionary = {
     tabMaterials: 'Tài liệu & Sách',
     tabTeachers: 'Đội ngũ giáo viên',
 
-    // Weekly Report
+    // Weekly Report & Timesheet
     exportWeeklyReport: 'Xuất Báo Cáo Tuần (Word)',
+    exportTimesheet: 'Xuất Chấm Công Tháng (Excel)',
     selectWeek: 'Chọn tuần',
 
     // Announcements
@@ -912,8 +913,9 @@ const dictionary = {
     tabMaterials: 'Materials & Books',
     tabTeachers: 'Teaching Staff',
 
-    // Weekly Report
+    // Weekly Report & Timesheet
     exportWeeklyReport: 'Export Weekly Report (.docx)',
+    exportTimesheet: 'Export Monthly Timesheet (Excel)',
     selectWeek: 'Select week',
 
     // Announcements

@@ -54,17 +54,21 @@ export default function TeachingPlanManager({ classId }) {
         activityApi.getAll()
       ]);
 
+      const rawSessions = (sessionsRes.status === 'fulfilled' && Array.isArray(sessionsRes.value)) ? sessionsRes.value : [];
+      const sortedSessions = [...rawSessions].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+      setSessions(sortedSessions);
+
       if (plansRes.status === 'fulfilled' && Array.isArray(plansRes.value)) {
-        setPlans(plansRes.value);
+        const sortedPlans = [...plansRes.value].sort((a, b) => {
+          const sessA = sortedSessions.find(s => s.id === a.sessionId);
+          const sessB = sortedSessions.find(s => s.id === b.sessionId);
+          const tA = sessA?.startTime ? new Date(sessA.startTime).getTime() : Infinity;
+          const tB = sessB?.startTime ? new Date(sessB.startTime).getTime() : Infinity;
+          return tA - tB;
+        });
+        setPlans(sortedPlans);
       } else {
         setPlans([]);
-      }
-
-      if (sessionsRes.status === 'fulfilled' && Array.isArray(sessionsRes.value)) {
-        const sortedSessions = [...sessionsRes.value].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-        setSessions(sortedSessions);
-      } else {
-        setSessions([]);
       }
 
       if (activitiesRes.status === 'fulfilled' && Array.isArray(activitiesRes.value)) {

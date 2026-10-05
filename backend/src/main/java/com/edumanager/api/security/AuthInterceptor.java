@@ -235,6 +235,11 @@ public class AuthInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // Quản lý xuất báo cáo và chấm công giảng dạy: Chỉ dành riêng cho Giáo viên
+        if (path.startsWith("/api/timesheet") || path.contains("/weekly-report")) {
+            return true;
+        }
+
         return false;
     }
 

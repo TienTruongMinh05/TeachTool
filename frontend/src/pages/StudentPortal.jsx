@@ -159,7 +159,11 @@ export default function StudentPortal() {
       ]);
 
       if (schedRes.status === 'fulfilled') {
-        const val = schedRes.value || [];
+        const val = [...(schedRes.value || [])].sort((a, b) => {
+          const tA = a.startTime ? new Date(a.startTime).getTime() : Infinity;
+          const tB = b.startTime ? new Date(b.startTime).getTime() : Infinity;
+          return tA - tB;
+        });
         setSchedule(val);
         try { localStorage.setItem(`cached_student_schedule_${user.id}`, JSON.stringify(val)); } catch {}
       }
@@ -170,6 +174,10 @@ export default function StudentPortal() {
           if (a.isPublished === false) return false;
           if (a.scheduledPublishAt && new Date(a.scheduledPublishAt) > now) return false;
           return true;
+        }).sort((a, b) => {
+          const tA = a.dueDate ? new Date(a.dueDate).getTime() : (a.scheduledPublishAt ? new Date(a.scheduledPublishAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : Infinity));
+          const tB = b.dueDate ? new Date(b.dueDate).getTime() : (b.scheduledPublishAt ? new Date(b.scheduledPublishAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : Infinity));
+          return tA - tB;
         });
         setAssignments(publishedOnly);
       }

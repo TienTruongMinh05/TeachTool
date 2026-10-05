@@ -218,6 +218,10 @@ export default function TimetableGrid({
       });
     });
 
+    Object.keys(map).forEach(key => {
+      map[key].sort((a, b) => (a.parsedStart?.getTime() || 0) - (b.parsedStart?.getTime() || 0));
+    });
+
     return map;
   }, [sessions, weekDays]);
 

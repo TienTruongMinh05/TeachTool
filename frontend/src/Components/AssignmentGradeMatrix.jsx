@@ -119,20 +119,26 @@ export default function AssignmentGradeMatrix({ classId, classInfo, onNavigateTo
     return map;
   }, [submissions]);
 
-  // Phân định bài tập theo phạm vi 2 tuần (14 ngày gần nhất)
+  // Phân định và sắp xếp bài tập theo thời gian tăng dần
   const activeAssignments = useMemo(() => {
-    if (scopeMode === 'ALL') {
-      return assignments;
+    let list = assignments;
+    if (scopeMode !== 'ALL') {
+      const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+      const recent = assignments.filter(asgn => {
+        const d = asgn.dueDate
+          ? new Date(asgn.dueDate)
+          : (asgn.scheduledPublishAt ? new Date(asgn.scheduledPublishAt) : (asgn.createdAt ? new Date(asgn.createdAt) : null));
+        if (!d) return true;
+        return d >= cutoff;
+      });
+      list = recent.length > 0 ? recent : assignments;
     }
-    const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-    const recent = assignments.filter(asgn => {
-      const d = asgn.dueDate
-        ? new Date(asgn.dueDate)
-        : (asgn.scheduledPublishAt ? new Date(asgn.scheduledPublishAt) : (asgn.createdAt ? new Date(asgn.createdAt) : null));
-      if (!d) return true;
-      return d >= cutoff;
+
+    return [...list].sort((a, b) => {
+      const timeA = a.dueDate ? new Date(a.dueDate).getTime() : (a.scheduledPublishAt ? new Date(a.scheduledPublishAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : Infinity));
+      const timeB = b.dueDate ? new Date(b.dueDate).getTime() : (b.scheduledPublishAt ? new Date(b.scheduledPublishAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : Infinity));
+      return timeA - timeB;
     });
-    return recent.length > 0 ? recent : assignments;
   }, [assignments, scopeMode]);
 
   // Tính toán số liệu thống kê cho từng học sinh dựa trên các bài tập trong phạm vi được chọn

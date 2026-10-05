@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { classApi } from '../api/classApi';
 import { useNavigate } from 'react-router-dom';
 import ActivityLibraryModal from '../Components/ActivityLibraryModal';
+import MonthlyTimesheetModal from '../Components/MonthlyTimesheetModal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useThemeLanguage } from '../context/ThemeLanguageContext';
@@ -65,6 +66,7 @@ function ClassList({ showTopBar = false, onSelectClass }) {
 
   // State modal thư viện hoạt động
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [isTimesheetModalOpen, setIsTimesheetModalOpen] = useState(false);
 
   const fetchClasses = async () => {
     try {
@@ -239,6 +241,12 @@ function ClassList({ showTopBar = false, onSelectClass }) {
             onClick={() => setIsActivityModalOpen(true)}
             className="flex-1 sm:flex-none bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 px-3.5 py-2 rounded-lg text-xs font-semibold transition cursor-pointer shadow-xs text-center">
             {t('activityLibrary')}
+          </button>
+          <button 
+            onClick={() => setIsTimesheetModalOpen(true)}
+            className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold transition duration-200 shadow-xs cursor-pointer text-center flex items-center justify-center gap-1.5">
+            <span>📊 {lang === 'en' ? 'Monthly Timesheet' : 'Chấm Công Tháng'}</span>
+            <span className="text-[10px] bg-emerald-700 px-1 py-0.5 rounded font-mono font-bold">.XLSX</span>
           </button>
           <button 
             onClick={openCreateModal}
@@ -608,6 +616,12 @@ function ClassList({ showTopBar = false, onSelectClass }) {
       <ActivityLibraryModal 
         isOpen={isActivityModalOpen}
         onClose={() => setIsActivityModalOpen(false)}
+      />
+
+      {/* Modal Xuất Chấm Công Giảng Dạy Tháng */}
+      <MonthlyTimesheetModal
+        isOpen={isTimesheetModalOpen}
+        onClose={() => setIsTimesheetModalOpen(false)}
       />
     </div>
   );

@@ -52,6 +52,23 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
   const [splicedAudioBlob, setSplicedAudioBlob] = useState(null);
   const [timelineFeedbackText, setTimelineFeedbackText] = useState('');
 
+  const sortAssignmentsByTimeAsc = (list) => {
+    return [...(list || [])].sort((a, b) => {
+      // Ưu tiên sắp xếp tăng dần theo hạn nộp bài (dueDate)
+      const timeA = a.dueDate ? new Date(a.dueDate).getTime() : (a.scheduledPublishAt ? new Date(a.scheduledPublishAt).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : Infinity));
+      const timeB = b.dueDate ? new Date(b.dueDate).getTime() : (b.scheduledPublishAt ? new Date(b.scheduledPublishAt).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : Infinity));
+      return timeA - timeB;
+    });
+  };
+
+  const sortSessionsByTimeAsc = (list) => {
+    return [...(list || [])].sort((a, b) => {
+      const timeA = a.startTime ? new Date(a.startTime).getTime() : Infinity;
+      const timeB = b.startTime ? new Date(b.startTime).getTime() : Infinity;
+      return timeA - timeB;
+    });
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -60,8 +77,8 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
         sessionApi.getByClass(classId),
         studentApi.getByClass(classId)
       ]);
-      setAssignments(assRes || []);
-      setSessions(sessRes || []);
+      setAssignments(sortAssignmentsByTimeAsc(assRes || []));
+      setSessions(sortSessionsByTimeAsc(sessRes || []));
       setStudents(studRes || []);
     } catch (err) {
       console.error('Lỗi tải dữ liệu:', err);
@@ -459,10 +476,10 @@ export default function AssignmentManager({ classId, initialAssignmentId = null 
     }
   };
 
-  const filteredAssignments = assignments.filter(a => {
+  const filteredAssignments = sortAssignmentsByTimeAsc(assignments.filter(a => {
     if (selectedSessionFilter === 'ALL') return true;
     return a.sessionId === Number(selectedSessionFilter);
-  });
+  }));
 
   const formatDateTime = (iso) => {
     if (!iso) return t('unlimitedDue');
