@@ -4,7 +4,7 @@ import { timesheetApi } from '../api/timesheetApi';
 import { classApi } from '../api/classApi';
 import { useToast } from '../context/ToastContext';
 import { useThemeLanguage } from '../context/ThemeLanguageContext';
-import { XIcon, DownloadIcon } from './Icons';
+import { XIcon, DownloadIcon, CalendarIcon, TableIcon } from './Icons';
 
 export default function MonthlyTimesheetModal({ isOpen, onClose, initialClassId = null }) {
   const { toast } = useToast();
@@ -102,8 +102,8 @@ export default function MonthlyTimesheetModal({ isOpen, onClose, initialClassId 
         {/* Header Modal */}
         <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-sm shadow-2xs">
-              📊
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-2xs">
+              <TableIcon className="w-5 h-5" />
             </div>
             <div>
               <h3 className="font-bold text-base sm:text-lg text-slate-800 dark:text-slate-100 flex items-center gap-2">
@@ -175,7 +175,7 @@ export default function MonthlyTimesheetModal({ isOpen, onClose, initialClassId 
                 className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 text-xs sm:text-sm font-semibold rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden max-w-[240px]"
               >
                 <option value="ALL">
-                  {lang === 'en' ? '✨ All My Classes (Summary)' : '✨ Tất cả các lớp của tôi (Tổng hợp)'}
+                  {lang === 'en' ? 'All My Classes (Summary)' : 'Tất cả các lớp của tôi (Tổng hợp)'}
                 </option>
                 {classList.map(c => (
                   <option key={c.id} value={c.id}>
@@ -218,7 +218,9 @@ export default function MonthlyTimesheetModal({ isOpen, onClose, initialClassId 
             </div>
           ) : !previewData || previewData.items.length === 0 ? (
             <div className="text-center py-16 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800">
-              <div className="text-3xl mb-2">📅</div>
+              <div className="w-10 h-10 mx-auto mb-2 text-slate-400 flex items-center justify-center">
+                <CalendarIcon className="w-8 h-8" />
+              </div>
               <h4 className="text-sm sm:text-base font-semibold text-slate-700 dark:text-slate-300">
                 {lang === 'en' ? 'No sessions found in this month' : `Không có buổi học nào trong Tháng ${month}/${year}`}
               </h4>

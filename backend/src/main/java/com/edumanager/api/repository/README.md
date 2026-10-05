@@ -13,10 +13,10 @@ Thư mục này chứa các Interface Spring Data JPA Repository, cung cấp cá
 | `ClassTeacherRepository.java` | `ClassTeacher` | Tìm danh sách giáo viên phụ trách lớp, tìm các lớp mà 1 giáo viên được phân công. |
 | `EnrollmentRepository.java` | `Enrollment` | Lấy danh sách học sinh theo lớp, kiểm tra học sinh đã ghi danh vào lớp chưa. |
 | `SessionRepository.java` | `Session` | Lấy các buổi học của lớp sắp xếp theo thời gian tăng dần (`findByClassRoomIdOrderByStartTimeAsc`). |
-| `TeachingPlanRepository.java` | `TeachingPlan` | Tìm giáo án theo buổi học (`findBySessionId`). |
+| `TeachingPlanRepository.java` | `TeachingPlan` | Tìm giáo án theo buổi học (`findBySessionId`), lấy danh sách kế hoạch bài dạy của lớp sắp xếp theo thời gian buổi học tăng dần (`findByClassRoomIdOrderBySessionStartTimeAsc`). |
 | `ActivityTemplateRepository.java` | `ActivityTemplate` | Lấy danh mục 28 hoạt động dạy học mẫu. |
 | `ClassMaterialRepository.java` | `ClassMaterial` | Lấy danh sách tài liệu/sách PDF theo lớp (`findByClassRoomId`). |
-| `AssignmentRepository.java` | `Assignment` | Lấy bài tập theo lớp hoặc buổi học, tìm bài tập đến hạn dọn dẹp. |
+| `AssignmentRepository.java` | `Assignment` | Lấy bài tập theo lớp sắp xếp theo hạn nộp tăng dần (`findByClassRoomIdOrderByDueDateAscNullsLast`), tìm bài tập theo buổi học và tìm bài tập đến hạn dọn dẹp. |
 | `SubmissionRepository.java` | `Submission` | Lấy bài nộp theo bài tập, theo học sinh, theo lớp học (`findByClassRoomId`), tìm bài nộp trước thời hạn cutoff để xóa. |
 | `AttendanceRepository.java` | `Attendance` | Lấy bản ghi điểm danh theo buổi học, theo học sinh, theo toàn bộ lớp học, và đếm số buổi vắng trong tháng (`countAbsencesInMonth`) để kiểm soát hạn mức 2 buổi/tháng. |
 | `StoredFileRepository.java` | `StoredFile` | Tìm tệp tin theo tên lưu trữ UUID (`findByStoredName`), tìm tệp mồ côi (orphaned files). |

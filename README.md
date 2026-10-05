@@ -54,6 +54,11 @@
   2. *Bộ nhớ đệm sách giáo khoa (Digital Book Caching):* Ứng dụng CacheStorage API và HTTP ETag giúp mở sách giáo khoa PDF dung lượng lớn tức thì 0ms, không tốn băng thông máy chủ.
   3. *Phân tách mã nguồn (Code Splitting):* Cấu hình dynamic import `React.lazy` và `manualChunks` tách nhỏ thư viện, giảm file JavaScript chính từ 1,090 kB xuống chỉ còn 12.28 kB (giảm 98.8%).
   4. *Đánh chỉ mục cơ sở dữ liệu (Database Indexing):* Đánh chỉ mục JPA `@Index` và SQL tự động tối ưu hóa mọi truy vấn lọc lớp học, bài tập, điểm danh và bài nộp đạt tốc độ $O(\log N)$.
+* **Xuất Chấm Công Giảng Dạy Hàng Tháng (.xlsx Chuẩn Excel):** 
+  - Tự động quét và tổng hợp toàn bộ các buổi dạy thực tế của giáo viên trong từng tháng dương lịch, hỗ trợ xuất cho từng lớp hoặc gộp tất cả các lớp phụ trách.
+  - Bảng xem trước (Preview) tương tác trực quan ngay trên modal hiển thị: Số thứ tự, Tên lớp, Thời gian, Thời lượng (giờ), Nội dung bài dạy, Ghi chú và Tổng số giờ công.
+  - File Excel `.xlsx` xuất ra đúng chuẩn văn phòng kế toán, gồm 6 cột: `No.`, `Class`, `Time`, `Duration`, `Content`, `Note` cùng hàng chân bảng `Total Hours` tự động gán công thức `=SUM(...)`.
+* **Sắp Xếp Thời Gian Tăng Dần Toàn Hệ Thống (Chronological Ascending Order):** Tất cả các danh sách hiển thị buổi học, bài tập, kế hoạch bài giảng trên toàn bộ các tab giáo viên và học sinh (`SessionRepository`, `AssignmentRepository`, `TeachingPlanRepository`, Ma trận điểm, Lịch học) được chuẩn hóa theo trật tự thời gian tăng dần (`startTime ASC`, `dueDate ASC NULLS LAST`), chấm dứt hoàn toàn tình trạng hiển thị lộn xộn.
 * **Xuất Báo Cáo Tuần Chuẩn Word (.docx):** Tạo tệp Word định dạng `.docx` theo chuẩn sư phạm chỉ với 1 click, tự động tổng hợp sĩ số, chuyên cần, tỷ lệ nộp bài tập và danh sách học sinh cần theo dõi.
 * **Bảng Tin Lớp Học (Class Announcements):** Đăng thông báo, dặn dò học tập, lịch kiểm tra kèm tệp đính kèm; hỗ trợ ghim bài viết quan trọng lên đầu bảng tin.
 * **Thanh Bên Thu Gọn Linh Hoạt (Collapsible Desktop Sidebar - Ctrl + B):** Giáo viên có thể thu gọn thanh điều hướng bên trái bằng nút thu gọn hoặc phím tắt `Ctrl + B` trên PC để mở rộng tối đa không gian làm việc.

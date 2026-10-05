@@ -266,7 +266,7 @@ public class InquiryService {
 
         String preview = !rawContent.isEmpty()
                 ? (rawContent.length() > 80 ? rawContent.substring(0, 80) + "..." : rawContent)
-                : (attachments.size() == 1 ? "📎 Đã gửi 1 tệp đính kèm" : "📎 Đã gửi " + attachments.size() + " tệp đính kèm");
+                : (attachments.size() == 1 ? "[Tệp đính kèm] Đã gửi 1 tệp" : "[Tệp đính kèm] Đã gửi " + attachments.size() + " tệp");
 
         thread.setLastMessagePreview(preview);
         thread.setLastMessageAt(LocalDateTime.now());

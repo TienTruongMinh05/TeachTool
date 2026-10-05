@@ -19,4 +19,6 @@ Thư mục này chứa các lớp DTO (Data Transfer Objects), làm nhiệm vụ
 | `TeachingPlanResponseDTO.java` / `TeachingPlanSectionDTO.java` | Cấu trúc giáo án chi tiết từng mục và tài liệu phát tay. |
 | `ClassMaterialDTO.java` | Thông tin tài liệu sách giáo khoa PDF và số trang đã nhận diện. |
 | `EnrollmentResponseDTO.java` | Danh sách học sinh ghi danh trong lớp: ID ghi danh, ID học sinh (`studentId`), Họ và tên (`studentName`/`fullName`) và Email (`studentEmail`/`email`). |
+| `TimesheetItemDTO.java` | Dữ liệu từng dòng buổi dạy trong bảng chấm công tháng: STT (`no`), tên lớp (`className`), thời gian (`time`), thời lượng (`duration`), nội dung (`content`), ghi chú (`note`). |
+| `TimesheetPreviewDTO.java` | Đối tượng xem trước chấm công tháng: danh sách `items`, tổng số buổi dạy (`totalSessions`) và tổng số giờ công (`totalHours`). |
 

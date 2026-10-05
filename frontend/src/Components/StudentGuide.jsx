@@ -215,6 +215,13 @@ export default function StudentGuide() {
               </div>
 
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
+                <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Sắp xếp bài tập theo hạn nộp tăng dần</h5>
+                <p className="text-slate-600 dark:text-slate-400">
+                  Tất cả bài tập trên Cổng học sinh được tự động sắp xếp theo thứ tự hạn nộp tăng dần (bài tập có hạn nộp gần nhất luôn được ưu tiên xếp lên trên), giúp bạn dễ dàng theo dõi và hoàn thành các nhiệm vụ cấp thiết nhất trước.
+                </p>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
                 <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Nhận bài tập tự động theo lịch hẹn giờ (Auto-Push)</h5>
                 <p className="text-slate-600 dark:text-slate-400">
                   Một số bài tập hoặc đề kiểm tra được thầy/cô lên lịch hẹn giờ phát hành:

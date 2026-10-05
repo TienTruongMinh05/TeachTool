@@ -18,5 +18,6 @@ Thư mục này chứa tầng nghiệp vụ cốt lõi (Business Logic Layer) c�
 | `SubmissionService.java` | Tiếp nhận bài nộp đa thức của học sinh, kiểm tra bài đã đến giờ mở nộp chưa, lưu trữ điểm số, nhận xét âm thanh ghép nối và xử lý xóa bài nộp an toàn. |
 | `AttendanceService.java` | Ghi nhận và thống kê chuyên cần, đồng bộ tự động trạng thái khi học sinh báo vắng trước buổi học. |
 | `ClassMaterialService.java` | Quản lý tài liệu sách giáo khoa, ghi nhận tổng số trang PDF phục vụ công cụ chọn trang học tập. |
+| `TimesheetService.java` | Xử lý logic tổng hợp dữ liệu chấm công theo tháng của giáo viên: Lọc buổi dạy theo tháng/năm, tính thời lượng giờ dạy từng buổi và tạo file bảng tính Excel (`XSSFWorkbook`) chuẩn kế toán với các cột `No.`, `Class`, `Time`, `Duration`, `Content`, `Note` và công thức `=SUM(...)` tính `Total Hours`. |
 | `UserService.java` | Cập nhật hồ sơ cá nhân, đổi mật khẩu và xử lý các ràng buộc khi xóa tài khoản người dùng. |
 | `DataRetentionService.java` | Tác vụ định kỳ (Scheduled Task): Tự động dọn dẹp bài nộp học sinh sau 2 tuần và lớp học hết hạn sau 6 tháng để tối ưu dung lượng đám mây. |

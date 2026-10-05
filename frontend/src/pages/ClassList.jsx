@@ -6,7 +6,7 @@ import MonthlyTimesheetModal from '../Components/MonthlyTimesheetModal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useThemeLanguage } from '../context/ThemeLanguageContext';
-import { InfoIcon } from '../Components/Icons';
+import { InfoIcon, TableIcon } from '../Components/Icons';
 
 const getTodayStr = () => {
   const d = new Date();
@@ -245,7 +245,8 @@ function ClassList({ showTopBar = false, onSelectClass }) {
           <button 
             onClick={() => setIsTimesheetModalOpen(true)}
             className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold transition duration-200 shadow-xs cursor-pointer text-center flex items-center justify-center gap-1.5">
-            <span>📊 {lang === 'en' ? 'Monthly Timesheet' : 'Chấm Công Tháng'}</span>
+            <TableIcon className="w-4 h-4 text-emerald-100" />
+            <span>{lang === 'en' ? 'Monthly Timesheet' : 'Chấm Công Tháng'}</span>
             <span className="text-[10px] bg-emerald-700 px-1 py-0.5 rounded font-mono font-bold">.XLSX</span>
           </button>
           <button 

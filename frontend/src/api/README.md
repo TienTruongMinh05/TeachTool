@@ -22,4 +22,5 @@ Thư mục này chứa toàn bộ các hàm gọi API giao tiếp với máy ch�
 | `materialApi.js` | `/api/classes/{id}/materials`: Quản lý tài liệu và sách giáo khoa PDF của lớp. |
 | `fileApi.js` | `/api/files/*`: Upload và download file lên máy chủ kèm xử lý tiến trình. |
 | `enrollmentApi.js` | `/api/enrollments/*`: Ghi danh học sinh vào lớp học bằng mã lớp. |
+| `timesheetApi.js` | `/api/timesheet/*`: Xem trước (`getPreview`) và tải về file Excel bảng chấm công giảng dạy theo tháng (`exportExcel`). |
 | `userApi.js` | `/api/users/*`: Cập nhật thông tin cá nhân và tài khoản người dùng. |

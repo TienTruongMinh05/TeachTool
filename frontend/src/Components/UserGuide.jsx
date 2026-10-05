@@ -17,7 +17,7 @@ export default function UserGuide() {
     { id: 'attendance', title: '9. Attendance & Attendance Log' },
     { id: 'account', title: '10. Account, Optimization & Security' },
     { id: 'inquiries', title: '11. Inquiries & Two-Way Chat (AES-256)' },
-    { id: 'reports_and_ui', title: '12. Weekly Report (.docx), Announcements & Collapsible Sidebar (Ctrl+B)' },
+    { id: 'reports_and_ui', title: '12. Weekly Report (.docx), Monthly Timesheet (.xlsx), Announcements & UI' },
   ] : [
     { id: 'overview', title: '1. Tổng quan & Khởi đầu nhanh' },
     { id: 'classes', title: '2. Quản lý Lớp & Giáo viên đồng phụ trách' },
@@ -30,7 +30,7 @@ export default function UserGuide() {
     { id: 'attendance', title: '9. Điểm danh & Bảng chuyên cần' },
     { id: 'account', title: '10. Tài khoản, Tối ưu & Bảo mật' },
     { id: 'inquiries', title: '11. Thắc Mắc & Trò Chuyện 2 Chiều (AES-256)' },
-    { id: 'reports_and_ui', title: '12. Báo Cáo Tuần (.docx), Bảng Tin & Sidebar Thu Gọn (Ctrl+B)' },
+    { id: 'reports_and_ui', title: '12. Báo Cáo Tuần (.docx), Chấm Công Tháng (.xlsx), Bảng Tin & Giao Diện' },
   ];
 
   return (
@@ -228,6 +228,13 @@ export default function UserGuide() {
                   <li>Hệ thống tự động quét toàn bộ lịch học của tuần hiện tại và nhân bản sang đúng các ngày và khung giờ tương ứng của tuần tiếp theo, bảo toàn toàn bộ nội dung giáo án đã soạn.</li>
                 </ul>
               </div>
+
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
+                <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Chuẩn hóa sắp xếp theo thời gian tăng dần (Chronological Order)</h5>
+                <p className="text-slate-600 dark:text-slate-400">
+                  Toàn bộ danh sách buổi học tại Lớp học, Thời khóa biểu, Kế hoạch bài dạy và Cổng học sinh luôn được tự động sắp xếp theo trình tự thời gian tăng dần (từ quá khứ đến tương lai, từ buổi đầu đến buổi cuối). Cơ chế này giúp giáo viên và học sinh theo dõi liền mạch tiến độ học tập mà không bị đảo lộn thứ tự.
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -320,6 +327,13 @@ export default function UserGuide() {
                   <li>Hiển thị rõ ràng định dạng bài làm của từng em (Văn bản, File Word, File Audio, Thu âm trực tiếp, hoặc Hình ảnh).</li>
                   <li>Nút đóng tinh gọn ở góc tiêu đề giúp thu gọn bảng danh sách nhanh chóng khi hoàn tất chấm bài.</li>
                 </ul>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
+                <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">Sắp xếp bài tập theo thời gian hạn nộp tăng dần (Due Date Ascending)</h5>
+                <p className="text-slate-600 dark:text-slate-400">
+                  Tại giao diện Quản lý bài tập của giáo viên, Ma trận điểm số cũng như Cổng học sinh, các bài tập được tự động sắp xếp theo thứ tự hạn nộp tăng dần (các bài có hạn gần nhất hiển thị trước theo đúng dòng thời gian, các bài không đặt hạn nộp xếp ở cuối). Điều này giúp cả thầy và trò luôn nắm bắt chính xác tiến độ và không bỏ sót các bài tập cận hạn.
+                </p>
               </div>
 
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
@@ -634,7 +648,35 @@ export default function UserGuide() {
 
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
                 <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
-                  {lang === 'en' ? '2. Class Announcements Board' : '2. Bảng Tin Lớp Học & Ghim Bài'}
+                  {lang === 'en' ? '2. Export Monthly Teaching Timesheet (.xlsx Excel)' : '2. Xuất Bảng Chấm Công Giảng Dạy Hàng Tháng (.xlsx chuẩn Excel)'}
+                </h5>
+                <ul className="list-disc pl-5 space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                  <li>
+                    {lang === 'en'
+                      ? 'Access via the "Monthly Timesheet" button on the Class List or inside any Class Workspace header.'
+                      : 'Truy cập qua nút "Chấm Công Tháng" tại trang Danh sách lớp học hoặc ngay trên thanh tác vụ của lớp học.'}
+                  </li>
+                  <li>
+                    {lang === 'en'
+                      ? 'Flexibility to choose Month, Year, and Scope (All classes aggregated or a specific class).'
+                      : 'Linh hoạt lựa chọn Tháng, Năm và Phạm vi tổng hợp (Toàn bộ các lớp của giáo viên hoặc 1 lớp cụ thể).'}
+                  </li>
+                  <li>
+                    {lang === 'en'
+                      ? 'Interactive in-modal preview table showing: No., Class, Time, Duration (hours), Content, Note, and Total Hours.'
+                      : 'Bảng xem trước trực quan ngay trong modal: Số thứ tự (No.), Tên lớp (Class), Thời gian buổi dạy (Time), Thời lượng (Duration - giờ), Nội dung buổi dạy (Content), Ghi chú (Note) và Hàng tổng cộng (Total Hours).'}
+                  </li>
+                  <li>
+                    {lang === 'en'
+                      ? 'Standard Apache POI Excel export with embedded =SUM(...) formula on the Duration column for total teaching hours.'
+                      : 'File Excel (.xlsx) xuất ra đúng chuẩn văn phòng với công thức tự động =SUM(...) tính tổng số giờ công ở chân bảng.'}
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
+                <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
+                  {lang === 'en' ? '3. Class Announcements Board' : '3. Bảng Tin Lớp Học & Ghim Bài'}
                 </h5>
                 <ul className="list-disc pl-5 space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
                   <li>
@@ -652,7 +694,7 @@ export default function UserGuide() {
 
               <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-gray-200 dark:border-slate-800 space-y-2">
                 <h5 className="font-bold text-slate-800 dark:text-slate-100 text-sm">
-                  {lang === 'en' ? '3. Collapsible Desktop Sidebar (Ctrl + B)' : '3. Thanh Bên Thu Gọn Linh Hoạt (Ctrl + B)'}
+                  {lang === 'en' ? '4. Collapsible Desktop Sidebar (Ctrl + B)' : '4. Thanh Bên Thu Gọn Linh Hoạt (Ctrl + B)'}
                 </h5>
                 <ul className="list-disc pl-5 space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
                   <li>
