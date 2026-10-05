@@ -49,6 +49,7 @@ public class AuthInterceptor implements HandlerInterceptor {
 
         // 2. Danh sách trắng (Public Endpoints - Không yêu cầu đăng nhập)
         if (isPublicEndpoint(path, method)) {
+            tryExtractOptionalToken(request);
             return true;
         }
 
@@ -107,7 +108,45 @@ public class AuthInterceptor implements HandlerInterceptor {
         return path != null && path.startsWith(SSE_PATH_PATTERN) && path.endsWith(SSE_SUFFIX);
     }
 
+    /**
+     * Trích xuất thông tin người dùng từ JWT một cách tùy chọn (dành cho public endpoints).
+     * Nếu client có gửi token hợp lệ, nạp userId, userRole vào request attribute; nếu không có hoặc lỗi thì bỏ qua.
+     */
+    private void tryExtractOptionalToken(HttpServletRequest request) {
+        try {
+            String token = null;
+            String authHeader = request.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7).trim();
+            } else if (request.getParameter("token") != null && !request.getParameter("token").isBlank()) {
+                token = request.getParameter("token").trim();
+            }
+
+            if (token != null && jwtService.validateToken(token)) {
+                Map<String, Object> claims = jwtService.extractClaims(token);
+                Long userId = jwtService.extractUserId(token);
+                String role = jwtService.extractRole(token);
+                String email = claims.get("email") != null ? claims.get("email").toString() : null;
+
+                request.setAttribute("jwtClaims", claims);
+                request.setAttribute("userId", userId);
+                request.setAttribute("userRole", role);
+                request.setAttribute("userEmail", email);
+            }
+        } catch (Exception ignored) {
+            // Bỏ qua lỗi token cho public endpoint
+        }
+    }
+
     private boolean isPublicEndpoint(String path, String method) {
+        // Cho phép HEAD hoặc GET trên tệp tin tải xuống / phát trực tuyến (audio HTML5, image, video, tài liệu)
+        // Lưu ý: Tệp tin được bảo vệ bởi UUID v4 128-bit không thể đoán trước, whitelist đuôi tệp, kiểm tra path traversal, và rate limiter
+        if ("HEAD".equalsIgnoreCase(method) || "GET".equalsIgnoreCase(method)) {
+            if (path.startsWith("/api/files/download/") || path.startsWith("/api/files/view/")) {
+                return true;
+            }
+        }
+
         // Cho phép HEAD hoặc GET trên kho hoạt động mẫu /api/activities (UptimeRobot ping giữ ấm server)
         if ("HEAD".equalsIgnoreCase(method) || "GET".equalsIgnoreCase(method)) {
             if (path.equals("/api/activities") || path.startsWith("/api/activities/")) {

@@ -228,16 +228,30 @@ public class FileUploadController {
             @RequestParam(value = "download", defaultValue = "false") boolean forceDownload,
             HttpServletRequest request) {
 
-        // [SECURITY H4] Yêu cầu người dùng phải đăng nhập để truy cập file
-        Long userId = (Long) request.getAttribute("userId");
-        if (userId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "Vui lòng đăng nhập để truy cập tệp tin."));
+        // 1. Chống DoS / Scraper: Giới hạn 120 yêu cầu / phút / IP
+        String clientIp = RateLimiterService.getClientIp(request);
+        if (rateLimiterService != null && !rateLimiterService.tryAcquire("download:" + clientIp, 120, 60_000)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Bạn đã gửi quá nhiều yêu cầu tải tệp tin liên tiếp. Vui lòng thử lại sau ít phút."));
+        }
+
+        // 2. Kiểm tra định dạng tên tệp: Chống Path Traversal và ký tự độc hại
+        if (fileName == null || !fileName.matches("^[a-zA-Z0-9_.-]+$") || fileName.contains("..")) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Tên tệp tin không hợp lệ."));
+        }
+
+        // 3. Kiểm tra whitelist định dạng tệp tin cho phép
+        String ext = "";
+        if (fileName.contains(".")) {
+            ext = fileName.substring(fileName.lastIndexOf(".")).toLowerCase().trim();
+        }
+        if (ext.isEmpty() || !ALLOWED_EXTENSIONS.contains(ext)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("message", "Loại tệp tin không được phép truy cập."));
         }
 
         try {
             Path filePath = this.uploadDir.resolve(fileName).normalize();
-
 
             // Kiểm tra chống tấn công vượt quyền thư mục (Path Traversal Protection)
             if (!filePath.startsWith(this.uploadDir)) {
