@@ -122,7 +122,7 @@ export default function ClassMaterialsManager({ classId, classInfo }) {
       let detectedPages = 1;
       try {
         const arrayBuffer = await file.arrayBuffer();
-        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer, isEvalSupported: false });
         const pdfDoc = await loadingTask.promise;
         detectedPages = pdfDoc.numPages || 1;
       } catch (pdfErr) {

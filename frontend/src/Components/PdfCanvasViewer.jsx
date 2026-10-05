@@ -172,7 +172,8 @@ export default function PdfCanvasViewer({
         loadingTask = pdfjsLib.getDocument({
           data: bookData.data,
           cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
-          cMapPacked: true
+          cMapPacked: true,
+          isEvalSupported: false
         });
 
         const doc = await loadingTask.promise;
