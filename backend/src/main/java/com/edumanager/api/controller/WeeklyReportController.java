@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 public class WeeklyReportController {
 
     private final WeeklyReportService weeklyReportService;
+    private final com.edumanager.api.security.RateLimiterService rateLimiterService;
 
     @GetMapping("/api/classes/{classId}/weekly-report-preview")
     public WeeklyReportPreviewDTO getWeeklyReportPreview(
@@ -26,11 +27,18 @@ public class WeeklyReportController {
     }
 
     @PostMapping("/api/classes/{classId}/weekly-report")
-    public ResponseEntity<byte[]> downloadWeeklyReportPost(
+    public ResponseEntity<?> downloadWeeklyReportPost(
             @PathVariable Long classId,
             @RequestBody(required = false) WeeklyReportRequestDTO requestDTO,
             HttpServletRequest request) {
         Long callerId = (Long) request.getAttribute("userId");
+
+        String clientIp = com.edumanager.api.security.RateLimiterService.getClientIp(request);
+        if (!rateLimiterService.tryAcquire("weekly_report:" + clientIp, 20, 60_000)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS)
+                    .body(java.util.Map.of("message", "Bạn đang thao tác xuất báo cáo quá nhanh. Vui lòng đợi 1 phút trước khi thử lại."));
+        }
+
         if (requestDTO == null) {
             requestDTO = new WeeklyReportRequestDTO();
         }
@@ -45,7 +53,7 @@ public class WeeklyReportController {
     }
 
     @GetMapping("/api/classes/{classId}/weekly-report")
-    public ResponseEntity<byte[]> downloadWeeklyReportGet(
+    public ResponseEntity<?> downloadWeeklyReportGet(
             @PathVariable Long classId,
             @RequestParam(required = false, defaultValue = "1") Integer week,
             HttpServletRequest request) {

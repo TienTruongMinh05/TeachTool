@@ -23,6 +23,7 @@ import java.util.Map;
 public class TimesheetController {
 
     private final TimesheetService timesheetService;
+    private final com.edumanager.api.security.RateLimiterService rateLimiterService;
 
     @GetMapping("/preview")
     public ResponseEntity<?> getTimesheetPreview(
@@ -56,6 +57,12 @@ public class TimesheetController {
         if ("STUDENT".equalsIgnoreCase(role)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(Map.of("message", "Chức năng xuất chấm công chỉ dành riêng cho Giáo viên."));
+        }
+
+        String clientIp = com.edumanager.api.security.RateLimiterService.getClientIp(request);
+        if (!rateLimiterService.tryAcquire("timesheet_export:" + clientIp, 20, 60_000)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Bạn đang thao tác xuất tệp quá nhanh. Vui lòng đợi 1 phút trước khi thử lại."));
         }
 
         try {
